@@ -264,6 +264,26 @@ func TestTVRefreshRefusedShowsWelcomeWithToast(t *testing.T) {
 	assert.Equal(t, locales.MustTexts()["session.expired"], r.sh.ToastHost().Message())
 }
 
+// TestTVLateRefusalOnWelcomeShowsNoToast: a refusal that reaches the UI
+// when TV01 is already on show (the user's own sign-out, or a request that
+// left before it) is not an expiry: no toast, still TV01.
+func TestTVLateRefusalOnWelcomeShowsNoToast(t *testing.T) {
+	t.Parallel()
+	r := signedInTV(t)
+	r.sh.Go(nav.Route{Screen: tvenv.RouteWelcome}, true)
+	r.drive("TV01", func() bool { return r.route() == tvenv.RouteWelcome })
+	require.NoError(t, setScenario(r.w.mock, "me.get", "token_expired"))
+	require.NoError(t, setScenario(r.w.mock, "auth.refresh", "refresh_invalid"))
+	_, err := r.w.Me(t.Context())
+	require.ErrorIs(t, err, api.ErrSignedOut)
+	for range 5 {
+		r.q.drain()
+		r.tt.Elapse(tvtest.Frame)
+	}
+	assert.Equal(t, tvenv.RouteWelcome, r.route())
+	assert.False(t, r.sh.ToastHost().Visible())
+}
+
 // TestTVOfflineAtLaunch: a TV signed in that starts with no network shows
 // TV04 from the vault, offline, and a read fails as offline.
 func TestTVOfflineAtLaunch(t *testing.T) {

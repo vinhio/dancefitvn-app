@@ -80,6 +80,7 @@ type Manager struct {
 	sess     model.Session
 	has      bool
 	gen      uint64 // bumped by every sign-in and sign-out
+	ending   bool   // a Logout the user asked for is in progress
 	inflight *flight
 }
 
@@ -256,6 +257,10 @@ func (m *Manager) Refresh(ctx context.Context, failed string) (string, error) {
 func (m *Manager) Logout(ctx context.Context) error {
 	m.mu.Lock()
 	has, r := m.has, m.remote
+	// From here the sign-out is the user's: a 401 that late requests (or the
+	// logout call itself) meet is not the server ending the session, and
+	// end drops its OnSignedOut until this Logout is done.
+	m.ending = has
 	m.mu.Unlock()
 	if has && r != nil {
 		if m.opts.TV {
@@ -368,7 +373,7 @@ func (m *Manager) install(s model.Session, op string) error {
 func (m *Manager) end(reason error, gen uint64, check bool) error {
 	m.vaultMu.Lock()
 	m.mu.Lock()
-	if (check && m.gen != gen) || (!m.has && reason != nil) {
+	if (check && m.gen != gen) || (!m.has && reason != nil) || (m.ending && reason != nil) {
 		m.mu.Unlock()
 		m.vaultMu.Unlock()
 
@@ -376,6 +381,7 @@ func (m *Manager) end(reason error, gen uint64, check bool) error {
 	}
 	was := m.has
 	m.sess, m.has = model.Session{}, false
+	m.ending = false
 	m.gen++
 	m.mu.Unlock()
 

@@ -416,3 +416,70 @@ func TestSignOutNilReason(t *testing.T) {
 	r.mgr.SignOut(nil)
 	assert.Len(t, r.outs(), 1)
 }
+
+// TestLogoutIsNotAnExpiry runs the user's Logout while the server answers
+// 401 token_expired to the logout call itself and refuses the refresh: the
+// session ends silently (no OnSignedOut), for a phone and for a TV.
+func TestLogoutIsNotAnExpiry(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		tv    bool
+		route string
+	}{{"phone", false, "auth.logout"}, {"tv", true, "tv.logout"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := newRig(t, tc.tv)
+			_, err := r.mgr.Login(t.Context(), "a@b.c", "x")
+			require.NoError(t, err)
+			r.spy.hook = func(req *api.Request) (*api.Response, error, bool) {
+				switch req.RouteID {
+				case tc.route:
+					return jsonResp(401, `{"error":{"code":"token_expired","message":"x"}}`), nil, true
+				case "auth.refresh":
+					return jsonResp(401, `{"error":{"code":"refresh_invalid","message":"x"}}`), nil, true
+				}
+
+				return nil, nil, false
+			}
+
+			require.NoError(t, r.mgr.Logout(t.Context()))
+			_, ok := r.mgr.Session()
+			assert.False(t, ok)
+			assert.Empty(t, r.outs(), "a user's logout never tells OnSignedOut")
+
+			// a late 401 of an old request finds nobody signed in
+			assert.True(t, r.mgr.Handle(auth.ErrSignedOut))
+			assert.Empty(t, r.outs())
+		})
+	}
+}
+
+// TestLogoutDropsLateExpiry holds a request's refresh refusal until the
+// Logout is under way: the refusal is dropped, the logout completes.
+func TestLogoutDropsLateExpiry(t *testing.T) {
+	t.Parallel()
+
+	r, _ := signedIn(t)
+	inLogout, release := make(chan struct{}), make(chan struct{})
+	r.spy.hook = func(req *api.Request) (*api.Response, error, bool) {
+		if req.RouteID == "auth.logout" {
+			close(inLogout)
+			<-release
+		}
+
+		return nil, nil, false
+	}
+	done := make(chan error, 1)
+	go func() { done <- r.mgr.Logout(context.Background()) }()
+	<-inLogout
+	// an in-flight request is refused its refresh while the logout call is out
+	r.mgr.SignOut(auth.ErrSignedOut)
+	close(release)
+	require.NoError(t, <-done)
+	assert.Empty(t, r.outs())
+	_, ok := r.mgr.Session()
+	assert.False(t, ok)
+}

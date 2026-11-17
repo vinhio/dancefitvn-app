@@ -156,6 +156,11 @@ func (b *tvBoot) start(c *ui.Context) {
 // as the root, and the toast of the expired session.
 func (b *tvBoot) signedOut(error) {
 	b.signed = false
+	// Signed out already (the user's own sign-out, or a late refusal of a
+	// request that left before it): no expiry to tell of.
+	if scr := b.sh.Stack().Screen(); scr == tvenv.RouteWelcome || scr == tvenv.RouteCode {
+		return
+	}
 	b.sh.Go(nav.Route{Screen: tvenv.RouteWelcome}, true)
 	b.sh.Toast(b.texts["session.expired"])
 }

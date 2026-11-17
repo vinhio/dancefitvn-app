@@ -129,6 +129,8 @@ func NewVideo(e *env.Env) nav.Screen {
 	more := kit.NewRoundButton(icon.More, true, e.T("a11y.more")) // `<button class="rb dk" data-act="sheet" data-v="options">`
 	more.Name = nameSheetOpen
 	more.OnPress = v.act(v.openOptions)
+	// K35: a light ring keeps both circles visible over a letterboxed video
+	back.Ring, more.Ring = true, true
 	v.top = newVTop(back, more)
 	// `back` is a data-act of 06, so it resets the count too; the screen is
 	// about to go

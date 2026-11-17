@@ -19,7 +19,12 @@ const (
 	// roundSize is `.rb{width:40px;height:40px}` (:84); the close button of a
 	// sheet is 32 (:506).
 	roundSize float32 = 40
+	// ringWidth is the width of the Ring option's light ring (K35).
+	ringWidth float32 = 1
 )
+
+// ringInk is the Ring option's colour: white at .3 (K35).
+var ringInk = color.RGBA(255, 255, 255, .3)
 
 // The names layout.json gives a round button without a data attribute.
 const (
@@ -48,6 +53,10 @@ type RoundButton struct {
 	IconStroke float32
 	// Dark is `.dk`: black at .4 with a white icon.
 	Dark bool
+	// Ring adds a thin light ring (white at .3, 1 DIP, inside the disc) so a
+	// dark button stays visible over black, as over a letterboxed video.
+	// Not in the prototype: the owner's choice (K35).
+	Ring bool
 	// Bg replaces the background when not zero (--sf2 of the sheet's close).
 	Bg color.Color
 	// Label names the button for assistive technologies (the aria-label).
@@ -110,6 +119,9 @@ func (b *RoundButton) Paint(c *ui.Context, p *ui.Painter) {
 	}
 	r := b.Bounds()
 	p.Fill(r, scene.Solid(orColor(b.Bg, bg)), r.W/2)
+	if b.Ring {
+		p.Border(r, geom.Uniform(ringWidth), ringInk, r.W/2)
+	}
 	if b.FocusVisible() {
 		focusRing(p, r, r.W/2, look.T.Primary)
 	}

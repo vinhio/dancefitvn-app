@@ -165,6 +165,25 @@ func TestSignOutShowsTheLoginWithTheExpiredBanner(t *testing.T) {
 	})
 }
 
+// TestSignOutOnTheLoginShowsNoBanner checks that a refusal arriving when the
+// login is already showing (the user's own logout, a late 401) adds no
+// "session expired" banner.
+func TestSignOutOnTheLoginShowsNoBanner(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		f, err := shelltest.New(shelltest.MockFS(t))
+		require.NoError(t, err)
+		r := shelltest.MountRig(t, ph, false, f, shell.Options{})
+		r.Boot()
+		require.Equal(t, "login", r.Route())
+		f.SignOut(api.ErrSignedOut)
+		r.Settle()
+		assert.Equal(t, "login", r.Route())
+		assert.False(t, r.Tester.Shows("Phiên đăng nhập đã hết hạn"))
+	})
+}
+
 // TestTabsGoToTheirRoots checks that the four tabs of the tab bar open their
 // routes as roots, the stack empty (`data-root`), stubs for now.
 func TestTabsGoToTheirRoots(t *testing.T) {

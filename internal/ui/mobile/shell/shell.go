@@ -226,6 +226,11 @@ func (s *Shell) configDone(cfg model.AppConfig, err error) {
 // signedOut is the session ended by the server: the login, with the banner that
 // says so (03 section 9), the stack empty.
 func (s *Shell) signedOut(error) {
+	// Already at the login (the user's own sign-out, or a late refusal of a
+	// request that left before it): no expiry to tell of.
+	if s.nav.Current().Screen == env.RouteLogin {
+		return
+	}
 	s.e.ResetAccount()
 	s.nav.Go(nav.Route{Screen: env.RouteLogin, Params: env.LoginParams{Banner: env.LoginBannerExpired}}, true)
 }

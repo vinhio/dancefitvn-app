@@ -49,3 +49,31 @@ func TestVideoSideColumnClearsALongTitle(t *testing.T) {
 		assert.LessOrEqual(t, sideBottom, panelTop+.5, "the side column ends over the title")
 	})
 }
+
+// TestVideoTopButtonsHaveALightRing checks K35: the back and "…" circles of the
+// player are drawn with a light ring, so their edge is brighter than their inside
+// and they stay visible over the black band of a letterboxed video, on both phones.
+func TestVideoTopButtonsHaveALightRing(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		r, _, _ := atVideo(t, ph, false)
+		r.Tester.Elapse(kittest.Frame)
+		r.Settle()
+
+		shot := r.Tester.Snapshot()
+		found := 0
+		for _, e := range r.Dump("ring").Elements {
+			if e.Key != "back" && e.Key != "sheet:options" {
+				continue
+			}
+			found++
+			y := int(e.Y + e.H/2)
+			edge := shot.RGBAAt(int(e.X+.5), y)
+			inside := shot.RGBAAt(int(e.X+6), y)
+			assert.Greater(t, int(edge.R)+int(edge.G)+int(edge.B), int(inside.R)+int(inside.G)+int(inside.B),
+				"%s: the ring is lighter than the disc", e.Key)
+		}
+		require.Equal(t, 2, found, "both top buttons are in the dump")
+	})
+}
