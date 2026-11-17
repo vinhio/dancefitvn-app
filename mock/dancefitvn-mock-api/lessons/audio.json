@@ -1,0 +1,11 @@
+{
+  "lesson_id": "{{path.id}}",
+  "url": "mock-media://audio/{{path.id}}.mp3?exp=1794786400&sig=mock",
+  "expires_at": "2026-11-15T09:41:00+07:00",
+  "format": "mp3",
+  "bitrate_kbps": 320,
+  "duration_sec": 220,
+  "size_bytes": 8800000,
+  "sha256": "3f1c9a7e0b5d4c2e8a6f1b9d7c5e3a1f0e2d4c6b8a9f7e5d3c1b2a4f6e8d0c9b",
+  "filename": "set-35-03-stink-and-dutty.mp3"
+}

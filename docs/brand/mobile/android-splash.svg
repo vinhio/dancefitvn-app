@@ -1,0 +1,10 @@
+<svg width="1152" height="1152" viewBox="0 0 288 288" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <defs><clipPath id="red"><circle r="72.7"/></clipPath></defs>
+  <!-- Android 12 splash icon: 288 dp, transparent; the mark, 90 dp from the centre at most (as jPlayer's record), inside the 96 dp circle the system shows; the window is the Night Stage ground #141518 (gdesk.json android.splash.background) -->
+  <g transform="translate(144 144) scale(0.60934)"><g transform="rotate(-47.45)">
+    <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFDE59"/>
+    <circle r="72.7" fill="#FF3232"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74E5E9"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74C7CB" clip-path="url(#red)"/>
+  </g></g>
+</svg>

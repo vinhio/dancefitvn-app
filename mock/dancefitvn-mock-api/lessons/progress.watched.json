@@ -1,0 +1,16 @@
+{
+  "lesson_id": "{{path.id}}",
+  "position_sec": 220,
+  "duration_sec": 220,
+  "watched": true,
+  "course_id": "set-35",
+  "watched_count_in_course": 3,
+  "next_lesson": {
+    "id": "l_3504",
+    "no": 4,
+    "title": "Em Yêu Người Ta",
+    "tag": "Bachata",
+    "duration_sec": 250
+  },
+  "updated_at": "2026-11-14T09:41:00+07:00"
+}

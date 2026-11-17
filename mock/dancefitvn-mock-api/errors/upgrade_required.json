@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "upgrade_required",
+    "message": "Vui lòng cập nhật ứng dụng lên phiên bản mới",
+    "store_url": {
+      "ios": "https://apps.apple.com/",
+      "android": "https://play.google.com/store"
+    }
+  }
+}

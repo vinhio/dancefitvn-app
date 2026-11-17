@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "pair_code_expired",
+    "message": "Mã đã hết hạn. TV sẽ tạo mã mới."
+  }
+}

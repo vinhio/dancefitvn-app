@@ -1,0 +1,173 @@
+{
+  "id": "set-35",
+  "name": "DanceFIT Set 35",
+  "tagline": "Cùng nhảy cùng hát",
+  "category": "regular",
+  "category_label": "Thường",
+  "lesson_count": 10,
+  "total_duration_sec": 2340,
+  "cover_url": "mock-media://covers/set-35.jpg",
+  "is_new": true,
+  "enrolled": true,
+  "progress": {
+    "watched_count": 2
+  },
+  "updated_at": "2026-11-10T08:00:00+07:00",
+  "description": "Mỗi bài gồm video hướng dẫn (dọc 9:16) và file âm thanh để huấn luyện viên dạy lại tại lớp.",
+  "lessons": [
+    {
+      "id": "l_3501",
+      "no": 1,
+      "title": "DanceFIT Warm Up 13",
+      "tag": "Warm Up",
+      "duration_sec": 320,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 12800000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 320,
+        "watched": true
+      }
+    },
+    {
+      "id": "l_3502",
+      "no": 2,
+      "title": "Made You Look",
+      "tag": "Tay Vai",
+      "duration_sec": 185,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 7400000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 185,
+        "watched": true
+      }
+    },
+    {
+      "id": "l_3503",
+      "no": 3,
+      "title": "Stink and Dutty",
+      "tag": "Bụng",
+      "duration_sec": 220,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 8800000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 72,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3504",
+      "no": 4,
+      "title": "Em Yêu Người Ta",
+      "tag": "Bachata",
+      "duration_sec": 250,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 10000000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3505",
+      "no": 5,
+      "title": "Hãy Hát Lên",
+      "tag": "Trending",
+      "duration_sec": 210,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 8400000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3506",
+      "no": 6,
+      "title": "Nadi Nadi",
+      "tag": "Bellydance",
+      "duration_sec": 235,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 9400000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3507",
+      "no": 7,
+      "title": "Viva La Vida",
+      "tag": "Czech Pop",
+      "duration_sec": 245,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 9800000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3508",
+      "no": 8,
+      "title": "We So Fly",
+      "tag": "Tay Vai",
+      "duration_sec": 200,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 8000000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3509",
+      "no": 9,
+      "title": "WET",
+      "tag": "Đùi Mông",
+      "duration_sec": 195,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 7800000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_3510",
+      "no": 10,
+      "title": "One Love",
+      "tag": "Precooldown",
+      "duration_sec": 280,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 11200000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    }
+  ],
+  "resume": {
+    "lesson_id": "l_3503",
+    "position_sec": 72
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "invalid_social",
+    "message": "Chỉ hỗ trợ Facebook, Instagram, YouTube, TikTok, Zalo và Threads",
+    "fields": {
+      "socials[1].url": "Liên kết không được hỗ trợ"
+    }
+  }
+}

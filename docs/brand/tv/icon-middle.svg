@@ -1,0 +1,5 @@
+<svg width="400" height="240" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <defs><radialGradient id="glow" cx="200" cy="120" r="190" gradientUnits="userSpaceOnUse"><stop stop-color="#E5383B" stop-opacity=".45"/><stop offset="1" stop-color="#E5383B" stop-opacity="0"/></radialGradient></defs>
+  <!-- tvOS App Icon, middle layer: transparent; the red glow of the prototype's splash (MS.splash, rgba(229,56,59,.45)), centred behind the mark, so the light moves between the ground and the mark under parallax -->
+  <rect width="400" height="240" fill="url(#glow)"/>
+</svg>

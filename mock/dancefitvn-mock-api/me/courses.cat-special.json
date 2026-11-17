@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "id": "hot-extra",
+      "name": "DanceFIT Hot Extra",
+      "tagline": "Hot Extra",
+      "category": "special",
+      "category_label": "Đặc biệt",
+      "lesson_count": 10,
+      "total_duration_sec": 2385,
+      "cover_url": "mock-media://covers/hot-extra.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    },
+    {
+      "id": "hot-extra-2",
+      "name": "DanceFIT Hot Extra 2",
+      "tagline": null,
+      "category": "special",
+      "category_label": "Đặc biệt",
+      "lesson_count": 10,
+      "total_duration_sec": 2405,
+      "cover_url": "mock-media://covers/hot-extra-2.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    }
+  ],
+  "counts": {
+    "all": 15,
+    "regular": 12,
+    "special": 2,
+    "intro": 1
+  },
+  "page": {
+    "next_cursor": null,
+    "limit": 20,
+    "total": 2
+  }
+}

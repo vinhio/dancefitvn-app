@@ -1,0 +1,22 @@
+<svg width="1024" height="500" viewBox="0 0 1024 500" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="DanceFITVN">
+  <defs>
+    <style>
+      @font-face { font-family: "Inter"; font-weight: 500; src: url("../../../assets/fonts/Inter-Medium.ttf"); }
+      @font-face { font-family: "Inter"; font-weight: 700; src: url("../../../assets/fonts/Inter-Bold.ttf"); }
+    </style>
+    <clipPath id="red"><circle r="72.7"/></clipPath>
+    <radialGradient id="glow" cx="240" cy="250" r="330" gradientUnits="userSpaceOnUse"><stop stop-color="#E5383B" stop-opacity=".45"/><stop offset="1" stop-color="#E5383B" stop-opacity="0"/></radialGradient>
+  </defs>
+  <!-- Play Store feature graphic, 1024x500, opaque: the ground of the prototype's splash (#141518 and the red glow of MS.splash, reference/prototype/index.html:328), the mark, the traced wordmark (../wordmark.svg, white as the site's white logo), the motto and the tagline of the splash (locales/vi.json splash.motto, splash.tagline) in Inter; no other platform named -->
+  <rect width="1024" height="500" fill="#141518"/>
+  <rect width="1024" height="500" fill="url(#glow)"/>
+  <g transform="translate(240 250) scale(1.151)"><g transform="rotate(-47.45)">
+  <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFDE59"/>
+  <circle r="72.7" fill="#FF3232"/>
+  <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74E5E9"/>
+  <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74C7CB" clip-path="url(#red)"/>
+</g></g>
+  <image x="440" y="148" width="520" height="105.12" href="../wordmark.svg" xlink:href="../wordmark.svg"/>
+  <text x="442" y="312" fill="#FFD028" font-family="Inter, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="3.3">DỄ · VUI · KHOẺ</text>
+  <text x="442" y="352" fill="#F4F4F2" font-family="Inter, Helvetica, Arial, sans-serif" font-size="23" font-weight="500">Ứng dụng học tập dành cho huấn luyện viên</text>
+</svg>

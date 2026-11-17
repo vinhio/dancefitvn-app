@@ -1,0 +1,28 @@
+{
+  "greeting_name": "Thảo Vy",
+  "continue": null,
+  "stats": {
+    "courses_total": 1,
+    "lessons_in_current_course": 0,
+    "watched_in_current_course": 0
+  },
+  "my_courses": [
+    {
+      "id": "intro",
+      "name": "Giới thiệu DanceFIT",
+      "tagline": "Làm quen với DanceFIT",
+      "category": "intro",
+      "category_label": "Giới thiệu",
+      "lesson_count": 3,
+      "total_duration_sec": 651,
+      "cover_url": "mock-media://covers/intro.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    }
+  ],
+  "updates": []
+}

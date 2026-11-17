@@ -1,0 +1,19 @@
+{
+  "name": "DanceFITVN", "id": "com.jivecode.dancefitvn", "version": "1.0.0", "build": 1, "icon": "icon.png",
+  "company": "JiveCode", "main": ".", "out": "dist", "guid": "b0d24ae7-0dde-4168-947c-f59df0bb199c",
+  "android": {"mediaPlayback": true, "notificationIcon": "assets/brand/notification.png",
+              "orientation": "portrait", "cleartextHosts": ["127.0.0.1"], "targetSdk": 36,
+              "permissions": ["USE_BIOMETRIC", "ACCESS_NETWORK_STATE"],
+              "icon": {"foreground": "docs/brand/mobile/out/android/ic_foreground.png",
+                       "background": "docs/brand/mobile/out/android/ic_background.png",
+                       "monochrome": "docs/brand/mobile/out/android/ic_monochrome.png"},
+              "splash": {"background": "#141518", "icon": "docs/brand/mobile/out/android/splash.png"}},
+  "ios":  {"localNetworking": true, "backgroundModes": ["audio"], "launchBackground": "#141518",
+           "iconDark": "docs/brand/mobile/out/ios-icon-dark.png", "iconTinted": "docs/brand/mobile/out/ios-icon-tinted.png",
+           "usesNonExemptEncryption": false, "localizations": ["vi"],
+           "privacyManifest": "assets/ios/PrivacyInfo.xcprivacy"},
+  "tvos": {"localNetworking": true, "backgroundModes": ["audio"], "launchBackground": "#141518",
+           "usesNonExemptEncryption": false, "localizations": ["vi"],
+           "brandAssets": "assets/tvos/DanceFITVN.brandassets",
+           "privacyManifest": "assets/tvos/PrivacyInfo.xcprivacy"}
+}

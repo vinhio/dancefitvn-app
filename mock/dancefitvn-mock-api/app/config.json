@@ -1,0 +1,40 @@
+{
+  "min_version": {
+    "ios": "1.0.0",
+    "android": "1.0.0",
+    "tvos": "1.0.0"
+  },
+  "latest_version": {
+    "ios": "1.0.0",
+    "android": "1.0.0",
+    "tvos": "1.0.0"
+  },
+  "force_update": false,
+  "features": {
+    "beat_counter": true,
+    "download_all": true,
+    "tv_pairing": true,
+    "face_id_login": true
+  },
+  "download": {
+    "wifi_only_default": true,
+    "max_concurrent": 2
+  },
+  "progress": {
+    "save_interval_sec": 10,
+    "watched_threshold": 0.9
+  },
+  "support": {
+    "hotline_name": "Cô Leyna",
+    "hotline": "036 800 8268",
+    "email": "dancefitvn@gmail.com",
+    "website": "https://dancefitvn.com"
+  },
+  "links": {
+    "register": "https://dancefitvn.com/dang-ky",
+    "forgot_password": "https://dancefitvn.com/quen-mat-khau",
+    "privacy": "https://dancefitvn.com/chinh-sach-bao-mat",
+    "delete_account": "https://dancefitvn.com/xoa-tai-khoan"
+  },
+  "server_time": "2026-11-14T09:41:00+07:00"
+}

@@ -1,0 +1,24 @@
+{
+  "lesson_id": "{{path.id}}",
+  "hls_url": "mock-media://hls/{{path.id}}/master.m3u8?exp=1794700000&sig=mock",
+  "expires_at": "2026-11-14T15:41:00+07:00",
+  "aspect": "9:16",
+  "variants": [
+    {
+      "width": 1080,
+      "height": 1920,
+      "bandwidth": 4500000
+    },
+    {
+      "width": 720,
+      "height": 1280,
+      "bandwidth": 2500000
+    },
+    {
+      "width": 480,
+      "height": 854,
+      "bandwidth": 1000000
+    }
+  ],
+  "resume_position_sec": 72
+}

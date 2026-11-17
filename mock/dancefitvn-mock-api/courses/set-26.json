@@ -1,0 +1,170 @@
+{
+  "id": "set-26",
+  "name": "DanceFIT Set 26",
+  "tagline": null,
+  "category": "regular",
+  "category_label": "Thường",
+  "lesson_count": 10,
+  "total_duration_sec": 2405,
+  "cover_url": "mock-media://covers/set-26.jpg",
+  "is_new": false,
+  "enrolled": true,
+  "progress": {
+    "watched_count": 0
+  },
+  "updated_at": "2026-11-10T08:00:00+07:00",
+  "description": "Mỗi bài gồm video hướng dẫn (dọc 9:16) và file âm thanh để huấn luyện viên dạy lại tại lớp.",
+  "lessons": [
+    {
+      "id": "l_2601",
+      "no": 1,
+      "title": "DanceFIT Warm Up",
+      "tag": "Warm Up",
+      "duration_sec": 278,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 11120000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2602",
+      "no": 2,
+      "title": "Bài nhảy 02 (mẫu)",
+      "tag": "Latin",
+      "duration_sec": 195,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 7800000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2603",
+      "no": 3,
+      "title": "Bài nhảy 03 (mẫu)",
+      "tag": "Tay Vai",
+      "duration_sec": 232,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 9280000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2604",
+      "no": 4,
+      "title": "Bài nhảy 04 (mẫu)",
+      "tag": "Bụng",
+      "duration_sec": 269,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 10760000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2605",
+      "no": 5,
+      "title": "Bài nhảy 05 (mẫu)",
+      "tag": "Bachata",
+      "duration_sec": 186,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 7440000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2606",
+      "no": 6,
+      "title": "Bài nhảy 06 (mẫu)",
+      "tag": "Trending",
+      "duration_sec": 223,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 8920000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2607",
+      "no": 7,
+      "title": "Bài nhảy 07 (mẫu)",
+      "tag": "Bellydance",
+      "duration_sec": 260,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 10400000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2608",
+      "no": 8,
+      "title": "Bài nhảy 08 (mẫu)",
+      "tag": "Đùi Mông",
+      "duration_sec": 297,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 11880000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2609",
+      "no": 9,
+      "title": "Bài nhảy 09 (mẫu)",
+      "tag": "Latin",
+      "duration_sec": 214,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 8560000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    },
+    {
+      "id": "l_2610",
+      "no": 10,
+      "title": "Bài nhảy 10 (mẫu)",
+      "tag": "Precooldown",
+      "duration_sec": 251,
+      "has_video": true,
+      "has_audio": true,
+      "audio_size_bytes": 10040000,
+      "video_aspect": "9:16",
+      "progress": {
+        "position_sec": 0,
+        "watched": false
+      }
+    }
+  ],
+  "resume": null
+}

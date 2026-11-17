@@ -1,0 +1,93 @@
+# 06 — Mở rộng gDesk (G) và dự phòng (F)
+
+Mọi thay đổi gDesk làm trong `../gdesk-dancefitvn-app` trên nhánh `dancefitvn-app-support`, theo `../gdesk-dancefitvn-app/CLAUDE.md` và `.claude/ai/`. **Trước khi sửa gDesk phải đề xuất** (lý do, vị trí: tệp + hàm, ảnh hưởng: API, hành vi, hiệu năng/bộ nhớ, app nào bị ảnh hưởng) và chờ chủ sở hữu đồng ý (D10). Ở chế độ tự động, đề xuất được ghi vào `docs/BLOCKERS.md` mục "Đề xuất gDesk" và app chạy bằng dự phòng F tương ứng; không chờ.
+
+Đọc gDesk tại commit `27d5b5f` (main, 2026-11-14).
+
+## 1. Hiện trạng các khả năng app cần
+
+| Khả năng | Trạng thái | Nguồn |
+|---|---|---|
+| Build iOS, Android, tvOS; `gdesk.json` `ios` / `android` / `tvos` | Có | `kits/cli/README.md` (bảng build, dòng tvOS: `GOOS=ios -tags tvos`, `dist/tvos-simulator-arm64/`) |
+| Siri Remote → phím, focus theo hướng | Có | `kits/mobile/README.md` (đoạn tvOS), `framework/ui/focusdir.go` (`WithDirectionalFocus`) |
+| Khung TV 1920×1080, safe area 60/80; mặt phẳng video native (`platform.UnderlayCanvas`); vẽ GPU (`ui.WithGPU`), `FadedBackdrop` | Có — các mục GT1–GT11, GT21 của jPlayer TV đã vào main; jPlayer TV chạy ổn trên Apple TV thật (người dùng xác nhận 2026-11-14) | `framework/ui/README.md` dòng ~384 |
+| Bàn phím màn hình, safe area, `SystemGestures` | Có | `kits/mobile/README.md` |
+| Now Playing, nền (iOS `backgroundModes`, Android `mediaPlayback`) | Có | `kits/mobile/README.md`, `bridge/system/nowplaying` |
+| Giữ màn hình sáng (TV) | Có | `bridge/system/power` `KeepAwake` |
+| Giữ màn hình sáng (Android, phát video) | **Thiếu** — `platform.PowerDriver` chỉ có ở uikit (`bridge/backend/uikit/power.go:54`); `bridge/backend/android` không có | `grep KeepAwake\|PowerDriver bridge/backend/android` → không có; dự phòng F8 |
+| JNI, proxy listener | Có | `bridge/backend/android/jni` |
+| objc | Có | `foundation/ffi/objc` |
+| Ảnh từ mạng có cache | Có | `framework/components/imagecache.go` |
+| Lưu bí mật (Keychain/Keystore) | **Thiếu trên iOS, tvOS, Android** — `platform.SecretDriver` chỉ do `bridge/backend/{darwin,win32,gtk}/services.go` cung cấp | `bridge/system/secret/secret.go` |
+| Chọn ảnh / chụp ảnh | **Thiếu** (không có PHPicker, UIImagePicker, ACTION_PICK_IMAGES) | tìm trong repo |
+| Sinh trắc học (Face ID, vân tay) | **Thiếu** (không có LocalAuthentication, BiometricPrompt) | tìm trong repo |
+| Trạng thái mạng | **Thiếu** (không có NWPathMonitor, ConnectivityManager callback) | tìm trong repo |
+| Tải nền iOS (URLSession background) | **Thiếu** | tìm trong repo |
+| Mã QR | **Thiếu** — app tự làm `internal/qr` (không phải việc của gDesk) | — |
+| Trình đọc màn hình Android (TalkBack) | **Thiếu** — canvas Android không cài `platform.SemanticCanvas`/`AnnouncerCanvas`; "TalkBack does not read Android apps yet: there, `Announce` does nothing" (VoiceOver iOS/tvOS có) → G10 | `kits/mobile/README.md:37`, `framework/ui/screenreader.go:56-62`, `docs/roadmap.md:60` |
+| Bộ chọn tài liệu (Files) | **Không dùng được** (P0.8, Q-P0-9): `bridge/system/files` chỉ có thao tác trình quản lý tệp máy để bàn (`Reveal`, `Open`, `CanOpen`, `MoveToTrash`); `DialogDriver.OpenFiles` là modal, không hợp mobile | `bridge/system/files`, `bridge/system/dialog`, `local/p0-results.md` (P0.8) |
+
+## 1b. Thiếu hụt gDesk mà jPlayer TV đã có cách trong app (dùng lại, không cần G)
+
+Theo `$JPLAYER_TV/docs/plan/06-gdesk-tv-extensions.md` (GT14–GT18, GT13) và kiểm lại trên gDesk `27d5b5f`: không có giãn chữ, chiều cao dòng cho `ui.Text`, bóng chữ, gradient tròn trong `scene`. Prototype DanceFITVN dùng cả bốn (`.d` giãn .6, `.eb` 1.4; `.h1` line-height 1; `.poster .ttl` text-shadow; nền TV `radial-gradient`, `.vstage:before`, `.crop .mask`, `.vinyl`).
+
+| Thiếu | Cách trong app (chép từ jPlayer TV) |
+|---|---|
+| Giãn chữ (letter-spacing) | `kit.Label.Spacing` + cache layout (`kit/label.go`, `kit/trk.go`) |
+| Chiều cao dòng | `kit.Label.LineHeight` / `kit/paragraph.go` |
+| Bóng chữ | `kit.DrawTextShadow` (`kit/textshadow.go`) |
+| Gradient tròn, quầng sáng | `kit.RenderGlows` vẽ CPU một lần thành ảnh (`kit/glow.go`) |
+| Bộ theo dõi tốc độ ngón tay (kéo sheet xuống, vuốt mép) | `kit/gesture.Track` (chép từ jPlayer Mobile `internal/ui/gesture/track.go`); thay `velocityTracker` không xuất của gDesk (`framework/ui/velocity.go:27`) |
+| Chọn đúng weight / mặt chữ | `theme.Face` theo PostScript name (`theme/faces.go`; D5) |
+| Múi giờ (`time.Local` = UTC trên iOS/tvOS) | `tz_tvos.go` / `tz_ios.go` |
+| Ký cài lên Apple TV thật (`gdesk build -device` chỉ ký ad hoc — GT24 của jPlayer TV) | `scripts/tvos-device.sh` của jPlayer TV (Xcode/profile); P8 |
+| Lớp mờ hộp thoại tốn bộ nhớ trên máy thật (GT29 của jPlayer TV) | tránh nền mờ toàn màn trên TV; đo ở P7 (R1) |
+
+## 2. Hạng mục
+
+| ID | Việc | Ước lượng | Dự phòng (trong repo app) | Phase cần |
+|---|---|---|---|---|
+| G1 | `SecretDriver` cho `uikit` (Keychain `SecItemAdd/CopyMatching/Update/Delete`, `kSecClassGenericPassword`, accessible after first unlock, không đồng bộ iCloud) và `android` (Keystore AES-GCM khoá app + SharedPreferences) — **Trạng thái:** đã đề xuất (2026-11-14), xem docs/BLOCKERS.md. | 2 ngày | **F1**: `secret.FileStore` (`OpenFileStore`) với khoá ngẫu nhiên 32 byte lưu trong thư mục dữ liệu riêng của app; ghi rủi ro R4 | P1 |
+| G2 | Chọn ảnh từ thư viện và chụp ảnh: `bridge/system/photos` `Pick(ctx, PickOptions{Camera bool}) ([]byte, error)` — iOS `PHPickerViewController` / `UIImagePickerController` camera; Android `ACTION_PICK_IMAGES` / `MediaStore.ACTION_IMAGE_CAPTURE` — **Trạng thái:** đã đề xuất (2026-11-15), xem docs/BLOCKERS.md: tách **G2a** thư viện (capability `platform.PhotoPickerDriver{PickPhoto(opts, done func(Photo, error)) error}` + gói `bridge/system/photos` `Pick(d, Options{MaxSide, MaxBytes}, done)`, bất đồng bộ vì `DialogDriver.OpenFiles` modal và không có trên uikit/android; = GM12 + phần `PickImage` của GM6 jPlayer Mobile) và **G2b** camera (tuỳ chọn, theo K7; cần `ios.privacy.camera` và Uri ghi được trên Android). F2 đã chạy thật trên iPhone sim ở P6.3 (4 ảnh, huỷ, tvOS `ErrUnsupported`); Android chờ emulator (P3.7) | G2a 2–2,5 ngày; G2b +1–1,5 ngày | **F2**: objc/JNI picker chép từ jPlayer Mobile tại `49de3c2`: `internal/sys/pickimage{,_ios,_android,_other}.go` + `present_ios.go` + `java_android.go` → `internal/sys/photos_{ios,android}.go` (chỉ thư viện, không camera; K7) | P6 |
+| G3 | Sinh trắc học `bridge/system/biometric` `Available()`, `Authenticate(ctx, reason)` — LocalAuthentication / BiometricPrompt — **Trạng thái:** đã đề xuất (2026-11-14), xem docs/BLOCKERS.md. | 2 ngày | **F6**: tự viết tối thiểu trong `internal/sys/biometric_{ios,android}.go` (`LAContext evaluatePolicy` qua objc; `android.hardware.biometrics.BiometricPrompt` API 28+ qua JNI), `_other.go` trả `ErrUnsupported`; tvOS không có. Phát hiện P1.10: (a) iOS cần `NSFaceIDUsageDescription`, `kits/cli` chưa ghi → G3a; (b) `BiometricPrompt.AuthenticationCallback` là lớp trừu tượng, `jni.NewProxy` chỉ cài interface → cần lớp Java của app chuyển tiếp sang interface. **G3a là cần thiết cho bản phát hành iOS** (P8, release-critical): không có khoá, bản ký bằng `gdesk package` mở Face ID là crash; `scripts/release.sh` vá tạm trước khi ký (Q-P8-9) | P3 (Q2 = có) |
+| G4 | Trạng thái mạng `bridge/system/network` `Online() bool`, `Changes() *event.Topic` — NWPathMonitor / ConnectivityManager.NetworkCallback; thêm `Metered`/`Wi-Fi` cho "Chỉ tải qua Wi-Fi" — **Trạng thái:** đã đề xuất (2026-11-14), xem docs/BLOCKERS.md. F4 chép ở P5.1 (jplayer-mobile 49de3c2): iPhone + Apple TV sim PASS; Android chờ emulator; không phát hiện thiếu gì mới (2026-11-15). | 2 ngày | **F4**: chép `jplayer-mobile/internal/sys/network_{ios,android}.go` ở P5.1; cách cũ: suy từ lỗi mạng + thử lại `app/config` (03 §2), chỉ khi bản chép hỏng; "chỉ Wi-Fi" không biết loại mạng → tải mọi mạng khi tắt Wi-Fi-only, khi bật thì hỏi lại bằng toast "Chưa xác định được Wi-Fi" (Q13) | P5 |
+| G5 | Tải nền, tách hai — **G5a** xin thêm thời gian chạy nền: capability `platform.BackgroundDriver` + gói `bridge/system/background` `Extend(d, name, expired) (end, err)` — uikit `beginBackgroundTaskWithName:expirationHandler:`/`endBackgroundTask:`, khác → `ErrUnsupported`. **G5b** tải nền hệ thống: capability `platform.TransferDriver` + gói `bridge/system/transfer` (`Download`, `Cancel`, `Pending`, `Handle`) — iOS `NSURLSession` background + `application:handleEventsForBackgroundURLSession:completionHandler:` trên `GDeskAppDelegate`; Android `DownloadManager` + `ACTION_DOWNLOAD_COMPLETE` (không WorkManager: AndroidX, gDesk không build AAR). jPlayer Mobile/TV không có đề xuất cùng loại — **Trạng thái:** G5a, G5b đã đề xuất (2026-11-15), xem docs/BLOCKERS.md. | G5a 0,5 ngày; G5b 3–4 ngày | **F5a** (cho G5a): `sys.BeginBackgroundTask` objc trong `internal/sys` (`ios && !tvos`, P5.1c), hết giờ → `PauseAll`. **F5** (cho G5b): tải bằng `net/http` khi tiến trình chạy, lưu job chờ, `Range` nối tiếp ở `LifecycleActive`/lần mở sau (P5.1b/c) | P5 |
+| G6 | Hook chấm điểm focus (`ui.WithFocusScorer`) — **chỉ khi** K9 cho thấy một màn đi sai thứ tự mà prototype đi đúng | 1 ngày | Đặt `ui.FocusGroup`/thứ tự Tab, hoặc chặn mũi tên ở widget màn đó để tự chọn đích (dùng hàm điểm của prototype, vector `focus.json`) | P7 |
+| G7 | Sửa lỗi gDesk phát hiện khi làm (ghi GF1, GF2… cùng mẫu đề xuất) | — | tuỳ lỗi | mọi phase |
+| G8 | Mở URL ngoài (trình duyệt, store) trên iOS/Android: capability `platform.LinkDriver` + gói `bridge/system/link` `Open(d, rawURL, done)` — `UIApplication openURL:options:completionHandler:` / `Intent.ACTION_VIEW` qua `jni.PostMain`; gDesk mobile chỉ *nhận* URL, `files.Open` chỉ cho máy để bàn (phần "mở URL" của GM6 jPlayer Mobile) — **Trạng thái:** đã đề xuất (2026-11-15), xem docs/BLOCKERS.md. | 1 ngày | **F7**: chép `jplayer-mobile/internal/sys/openurl{,_ios,_android,_other}.go` @ `49de3c2` (+ `checkURL`, helper objc/intent) vào `internal/sys`; iOS `ios && !tvos`, tvOS → `ErrUnsupported` | P3 (K15, đăng ký, 426) |
+| G9 | Android `platform.PowerDriver` (`bridge/backend/android/power.go` + `power_android.go`): `KeepAwake` đếm số lần giữ, `Window.addFlags/clearFlags(FLAG_KEEP_SCREEN_ON = 0x80)` trên main thread qua `jni.PostMain`, áp lại khi activity tạo lại; `Watch` → `ErrUnsupported`, như uikit `power.go:54`. — **Trạng thái:** đã đề xuất (2026-11-15), xem docs/BLOCKERS.md; app dùng F8. | 1 ngày | **F8**: chép `jplayer-mobile/internal/sys/keepawake_android.go` @ `49de3c2` vào `internal/sys/keepawake_android.go` (`FLAG_KEEP_SCREEN_ON` qua `jni.PostMain`, Q-P4-6); iOS dùng `power.KeepAwake` có sẵn | P4 |
+| G10 | Cầu trợ năng Android (TalkBack): canvas Android cài `platform.SemanticCanvas` + `AnnouncerCanvas` có sẵn; Java mới `GDeskAccessView` + `GDeskAccess extends AccessibilityNodeProvider` (snapshot cây ngữ nghĩa theo id ảo, bounds px màn hình, hành động click/cuộn/tăng/giảm/focus, `TYPE_ANNOUNCEMENT`, sự kiện theo `SemanticChange`), Go `bridge/backend/android/access{,_android}.go` (diff chỉ khi `SemanticsChanged`, 0 cấp phát khi TalkBack tắt), native `GDeskNative.access`; chạm-khám-phá qua hover (spike) — = GM10 jPlayer Mobile, cũng là mục "Remaining: Android" Phase 15 của lộ trình gDesk — **Trạng thái:** đã đề xuất (2026-11-15), xem docs/BLOCKERS.md; bản nháp `local/gdesk-proposals/G10-android-talkback.md`. | 4–5 ngày | Không có dự phòng sạch trong app: 1.0 Android phát hành không TalkBack (Q-P8-15), ghi giới hạn; nhãn nút thông báo media tiếng Việt đã có (`npLabels`) | P8 (P8.3c) |
+| G11 | Căn trang 16 KB cho `libmain.so`: `kits/cli/android.go` `(*builder).android` thêm `-Wl,-z,max-page-size=16384` vào `CGO_LDFLAGS` (hằng `androidLDFlags`), test cờ + kiểm `PT_LOAD` `Align >= 0x4000` trong `release_mobile_test.go`; `zipalign -P 16` hiện có chỉ căn trong zip, NDK ≤ r27 (máy này `ANDROID_NDK_HOME` = r26d) link 4 KB → Play từ chối app target Android 15+ — **Trạng thái:** đã đề xuất (2026-11-15), xem docs/BLOCKERS.md. | 0,5 ngày | **F9**: `scripts/release.sh` đặt `CCC_OVERRIDE_OPTIONS='#+-Qunused-arguments +-Wl,-z,max-page-size=16384'` cho bản phát hành; `scripts/release/check-android.sh` kiểm LOAD ≥ 16 KB | P8 (P8.2) |
+| G12 | uikit trợ năng (`bridge/backend/uikit/semantics.go` `traitsOf` :471, `access.go` `valueOf` :13): (a) `RoleProgress` không trait, không giá trị từ `Min/Max/Now` → `staticText` + `UIAccessibilityTraitUpdatesFrequently` và phần trăm suy từ `Now` khi app không đặt `Value` (như `UIProgressView`; macOS đã có `AXProgressIndicator`); (b) nút đang focus luôn cộng trait `selected` (:478, :516, phần GT9a) nên trên tvOS trùng `FlagSelected` → selected chỉ theo `FlagSelected`, VoiceOver vẫn theo focus nhờ thông báo layout của GT9a. Không API mới — **Trạng thái:** đã đề xuất (2026-11-16), xem docs/BLOCKERS.md; bản nháp `local/gdesk-proposals/G12-uikit-progress-selected.md`. | 0,5–1 ngày | Không chặn: `kit.DescribeBar` mô tả thanh là `RoleText` + `Value`; TV08 ghi tốc độ hiện tại ở giá trị "Đang dùng" (`a11y.current`) thay `FlagSelected`. Khi có G12: trả `DescribeBar` về `RoleProgress`, TV08 dùng `FlagSelected` | P8 (P8.3) |
+| G13 | Android gợi ý nhịp khung (ADPF): session `APerformanceHint` (NDK API 33, nạp bằng `dlsym` vì minSdk 26) cho UI thread, mục tiêu = chu kỳ làm tươi đo từ Choreographer, `reportActualWorkDuration` mỗi khung vẽ, `notifyWorkloadIncrease` (API 36) trước khung đầu sau ≥ 100 ms nghỉ; móc ở `(*Driver).postFrame` (`driver_android.go:716`, `gdesk_post_frame` `activity_android.go:153-155`) và `(*Driver).frame` (`:797`, sau `gdeskFrame` `cgo_android.go:304-313`); chính sách Go thuần `hint.go` 0 cấp phát. Lý do: Galaxy A17 khung đầu fling sau ~300 ms nghỉ ~30 ms (CPU ở xung sàn), mọi nhân bận thì 7 ms. Không API mới — **Trạng thái:** đã đề xuất (2026-11-16), xem docs/BLOCKERS.md; bản nháp `local/gdesk-proposals/G13-android-adpf-frame-hint.md`. | 1–2 ngày (gồm đo) | Không cần cho 1.0: chạm thật có input boost của hệ thống (0 khung > 32 ms); cổng 07 §5 xét khung ổn định, script đo bỏ khung đầu sau nghỉ hoặc dùng chạm thật (`local/p8/perf/report.md` ghi chú 12) | P8 (P8.4) |
+| G14 | `gotext` (engine chữ của Android): (a) ghép NFC trước khi tra glyph và đặt dấu theo GPOS `mark`/`mkmk` khi font có (= GM24 jPlayer Mobile); (b) danh sách fallback Android thêm `Roboto`, `Noto Sans` (dấu kết hợp, ký hiệu) và họ emoji của `/system/etc/font_fallback.xml`/`fonts.xml` (`lang="und-Zsye"`); (c) vẽ glyph màu CBDT/COLR (cài `text.ColorEngine`, dùng lại `typeset/color.go`) — hoặc `text/auto` trên Android chọn sẵn một engine lai gotext + typeset như `internal/app/textengine.go`. Lý do: Galaxy A17 bản live hiện ô vuông ở "Nắng", "Thương" (chữ NFD: U+0306, U+031B không có trong font nào của chuỗi fallback) và 🤠 (không font emoji, gotext không vẽ glyph màu); "Bụng" NFD vẽ dấu chấm lệch (Inter `dotbelowcomb` advance 495). Không API mới — **Trạng thái:** chưa đề xuất (2026-11-17, báo orchestrator). | 1–2 ngày | Trong app: `format.NFC` ở `api.Decode` (mọi chuỗi API, cả `download` index cũ); font nhúng thêm U+0306, U+031B; `internal/app/textengine.go` (Android): gotext, đoạn có ký tự thiếu glyph thì `typeset` (gDesk) với font app + font emoji hệ thống, vẽ màu | Sửa lỗi máy thật 2026-11-17 (B-text) |
+
+Dự phòng không gắn với gDesk: **F3** — Android không phát ổn HLS (R3): phát MP4 progressive (cần backend cung cấp, Q8); trong lúc chờ, test bằng MP4 tạo từ media mẫu (`ffmpeg -i master.m3u8 -c copy l_3503.mp4`) và ghi BLOCKERS.
+
+Thứ tự đề xuất: G1 → G4 → G2 → G5 → G3 → G6. Không phase nào chờ G: dự phòng F luôn có.
+
+## 3. Hợp đồng API đề xuất (để chủ gDesk xem)
+
+```go
+// bridge/system/photos
+type PickOptions struct {
+    Camera   bool   // take a new photo instead of choosing one
+    MaxBytes int64  // 0: no limit; larger images come back re-encoded as JPEG
+}
+func Pick(d platform.Driver, opts PickOptions, done func([]byte, error)) // runs the system UI; done on the UI thread; context.Canceled when dismissed
+
+// bridge/system/network
+type Status struct{ Online, WiFi, Metered bool }
+func Current(d platform.Driver) (Status, error)
+func Watch(d platform.Driver, fn func(Status)) (stop func(), err error) // fn on the UI thread
+
+// bridge/system/biometric
+func Available(d platform.Driver) (kind Kind, err error) // KindUnknown, KindFace, KindFingerprint
+func Authenticate(d platform.Driver, reason string, done func(error))
+```
+
+## 4. Câu hỏi cho P0
+
+- `bridge/system/files` có mở được ảnh trên iOS/Android không (F2)? **Không** (Q-P0-9): không có bộ chọn; F2 là objc/JNI picker chép từ jPlayer Mobile `49de3c2` (`pickimage*`, `present_ios.go`, `java_android.go`).
+- `secret` trả `core.ErrUnsupported` trên `uikit`/`android` như dự kiến (F1)? **Có** cho Android (4 thao tác đều `ErrUnsupported`, P0.8); iOS chờ chạy sim (ghi trong `local/p0-results.md`). Chọn F1 `secret.FileStore`: round-trip và đọc lại sau restart OK, mã hoá AES-GCM, quyền 0600 trong thư mục riêng của app.
+- Engine AVPlayer của jPlayer Mobile chạy nguyên trên tvOS simulator (R1, R2)?

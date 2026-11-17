@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "not_enrolled",
+    "message": "Bạn chưa tham gia khoá học này",
+    "enroll_url": "https://dancefitvn.com/khoa-hoc/set-36"
+  }
+}

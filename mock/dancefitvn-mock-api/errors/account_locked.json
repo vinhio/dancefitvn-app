@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "account_locked",
+    "message": "Tài khoản tạm khoá 15 phút do nhập sai nhiều lần",
+    "retry_after": 900
+  }
+}

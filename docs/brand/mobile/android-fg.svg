@@ -1,0 +1,10 @@
+<svg width="432" height="432" viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <defs><clipPath id="red"><circle r="72.7"/></clipPath></defs>
+  <!-- Android adaptive icon, foreground layer: 108 dp, transparent; the mark as ios-icon.svg places it in the 72 dp the launcher shows (scale 1.2967 x 72/512): 47.8 dp wide, 26.9 dp from the centre at most, inside the 66 dp safe circle -->
+  <g transform="translate(54 54) scale(0.18235)"><g transform="rotate(-47.45)">
+    <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFDE59"/>
+    <circle r="72.7" fill="#FF3232"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74E5E9"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74C7CB" clip-path="url(#red)"/>
+  </g></g>
+</svg>

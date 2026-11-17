@@ -1,0 +1,111 @@
+{
+  "items": [
+    {
+      "id": "set-35",
+      "name": "DanceFIT Set 35",
+      "tagline": "Cùng nhảy cùng hát",
+      "category": "regular",
+      "category_label": "Thường",
+      "lesson_count": 10,
+      "total_duration_sec": 2340,
+      "cover_url": "mock-media://covers/set-35.jpg",
+      "is_new": true,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 2
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    },
+    {
+      "id": "set-34",
+      "name": "DanceFIT Set 34",
+      "tagline": "Kiêu Hãnh… lên!",
+      "category": "regular",
+      "category_label": "Thường",
+      "lesson_count": 10,
+      "total_duration_sec": 2485,
+      "cover_url": "mock-media://covers/set-34.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    },
+    {
+      "id": "hot-extra",
+      "name": "DanceFIT Hot Extra",
+      "tagline": "Hot Extra",
+      "category": "special",
+      "category_label": "Đặc biệt",
+      "lesson_count": 10,
+      "total_duration_sec": 2385,
+      "cover_url": "mock-media://covers/hot-extra.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    },
+    {
+      "id": "set-33",
+      "name": "DanceFIT Set 33",
+      "tagline": "Hooray Hooray",
+      "category": "regular",
+      "category_label": "Thường",
+      "lesson_count": 10,
+      "total_duration_sec": 2355,
+      "cover_url": "mock-media://covers/set-33.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    },
+    {
+      "id": "set-32",
+      "name": "DanceFIT Set 32",
+      "tagline": "Be You",
+      "category": "regular",
+      "category_label": "Thường",
+      "lesson_count": 10,
+      "total_duration_sec": 2345,
+      "cover_url": "mock-media://covers/set-32.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    },
+    {
+      "id": "set-31",
+      "name": "DanceFIT Set 31",
+      "tagline": "Dancing on the beach",
+      "category": "regular",
+      "category_label": "Thường",
+      "lesson_count": 10,
+      "total_duration_sec": 2455,
+      "cover_url": "mock-media://covers/set-31.jpg",
+      "is_new": false,
+      "enrolled": true,
+      "progress": {
+        "watched_count": 0
+      },
+      "updated_at": "2026-11-10T08:00:00+07:00"
+    }
+  ],
+  "counts": {
+    "all": 15,
+    "regular": 12,
+    "special": 2,
+    "intro": 1
+  },
+  "page": {
+    "next_cursor": "c_6",
+    "limit": 6,
+    "total": 15
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiJ9.mock-access-tv.u_412",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_mock_tv_77aa",
+  "refresh_expires_in": 5184000,
+  "status": "confirmed",
+  "user": {
+    "id": "u_412",
+    "first_name": "Thảo Vy",
+    "last_name": "Nguyễn",
+    "full_name": "Nguyễn Thảo Vy",
+    "email": "thaovy.hlv@gmail.com",
+    "avatar_url": "mock-media://avatars/u_412.jpg"
+  },
+  "device": {
+    "id": "d_201",
+    "platform": "tvos",
+    "name": "Apple TV phòng khách"
+  }
+}

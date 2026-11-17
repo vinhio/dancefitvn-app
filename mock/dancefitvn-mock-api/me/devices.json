@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "id": "d_101",
+      "platform": "ios",
+      "name": "iPhone 15",
+      "app_version": "1.0.0",
+      "last_seen_at": "2026-11-14T09:41:00+07:00",
+      "current": true
+    },
+    {
+      "id": "d_102",
+      "platform": "android",
+      "name": "Samsung Galaxy A17",
+      "app_version": "1.0.0",
+      "last_seen_at": "2026-11-12T20:15:00+07:00",
+      "current": false
+    },
+    {
+      "id": "d_201",
+      "platform": "tvos",
+      "name": "Apple TV phòng khách",
+      "app_version": "1.0.0",
+      "last_seen_at": "2026-11-13T19:30:00+07:00",
+      "current": false
+    }
+  ],
+  "limit": {
+    "phone": 2,
+    "tv": 1
+  }
+}

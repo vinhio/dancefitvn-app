@@ -1,0 +1,108 @@
+{
+  "id": "set-36",
+  "name": "DanceFIT Set 36",
+  "tagline": "Khoá mới",
+  "category": "regular",
+  "category_label": "Thường",
+  "lesson_count": 10,
+  "total_duration_sec": null,
+  "cover_url": "mock-media://covers/set-36.jpg",
+  "is_new": true,
+  "enrolled": false,
+  "description": "10 bài nhảy theo nhạc, mỗi bài có video hướng dẫn và file âm thanh để huấn luyện viên dạy lại cho học viên tại lớp.",
+  "enroll_url": "https://dancefitvn.com/khoa-hoc/set-36",
+  "lessons": [
+    {
+      "id": "l_3601",
+      "no": 1,
+      "title": "DanceFIT Warm Up 14",
+      "tag": "Warm Up",
+      "duration_sec": 300,
+      "preview": true,
+      "locked": false
+    },
+    {
+      "id": null,
+      "no": 2,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 3,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 4,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 5,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 6,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 7,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 8,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 9,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    },
+    {
+      "id": null,
+      "no": 10,
+      "title": null,
+      "tag": null,
+      "duration_sec": null,
+      "preview": false,
+      "locked": true
+    }
+  ],
+  "resume": null,
+  "updated_at": "2026-11-12T08:00:00+07:00"
+}

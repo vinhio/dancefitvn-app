@@ -1,0 +1,20 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiJ9.mock-access.u_412",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_mock_8f3a2c",
+  "refresh_expires_in": 5184000,
+  "user": {
+    "id": "u_412",
+    "first_name": "Thảo Vy",
+    "last_name": "Nguyễn",
+    "full_name": "Nguyễn Thảo Vy",
+    "email": "thaovy.hlv@gmail.com",
+    "avatar_url": "mock-media://avatars/u_412.jpg"
+  },
+  "device": {
+    "id": "d_101",
+    "platform": "ios",
+    "name": "iPhone 15"
+  }
+}

@@ -1,0 +1,15 @@
+<svg width="524.4" height="410.08" viewBox="-131.1 -102.52 262.2 205.04" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <defs><clipPath id="red"><circle r="72.7"/></clipPath></defs>
+  <!-- The DanceFITVN mark: a vector redraw of the pill mark of the site logo (docs/brand/source/dancefitvn.png), fitted
+       to its pixels (docs/brand/BRAND.md section 2). Units are the source's pixels, the origin the red circle's centre,
+       about which the mark is point-symmetric. Two equal pills (radius 47.2, axes 47.45 degrees above the horizontal and
+       24.4 either side of the centre) and a circle (radius 72.7): yellow at the back, red, then cyan in front; each
+       pill's hidden end sits inside the circle (0.3 short of its edge), and where cyan covers red it is #74C7CB, as on
+       the site. Every brand picture draws this group, scaled. -->
+  <g transform="rotate(-47.45)">
+    <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFDE59"/>
+    <circle r="72.7" fill="#FF3232"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74E5E9"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74C7CB" clip-path="url(#red)"/>
+  </g>
+</svg>

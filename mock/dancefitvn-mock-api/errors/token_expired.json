@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "token_expired",
+    "message": "Phiên đăng nhập đã hết hạn"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút",
+    "retry_after": 60
+  }
+}

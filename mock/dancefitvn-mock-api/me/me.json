@@ -1,0 +1,42 @@
+{
+  "user": {
+    "id": "u_412",
+    "first_name": "Thảo Vy",
+    "last_name": "Nguyễn",
+    "full_name": "Nguyễn Thảo Vy",
+    "email": "thaovy.hlv@gmail.com",
+    "phone": "0905123456",
+    "avatar_url": "mock-media://avatars/u_412.jpg",
+    "member_since": "2024-03-12",
+    "role": "coach"
+  },
+  "badges": [
+    {
+      "code": "hdv_dancefit",
+      "name": "HDV DanceFIT",
+      "image_url": "mock-media://badges/hdv_dancefit.png"
+    },
+    {
+      "code": "hdv_stepx",
+      "name": "HDV StepX",
+      "image_url": "mock-media://badges/hdv_stepx.png"
+    },
+    {
+      "code": "hdv_bodyx",
+      "name": "HDV BodyX",
+      "image_url": "mock-media://badges/hdv_bodyx.png"
+    }
+  ],
+  "subjects": [
+    "DanceFIT",
+    "StepX",
+    "BodyX"
+  ],
+  "devices": {
+    "active": 2,
+    "limit": {
+      "phone": 2,
+      "tv": 1
+    }
+  }
+}

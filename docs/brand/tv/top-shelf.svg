@@ -1,0 +1,18 @@
+<svg width="1920" height="720" viewBox="0 0 1920 720" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="DanceFITVN">
+  <defs>
+    <style>@font-face { font-family: "Inter"; font-weight: 700; src: url("../../../assets/fonts/Inter-Bold.ttf"); }</style>
+    <clipPath id="red"><circle r="72.7"/></clipPath>
+    <radialGradient id="glow" cx="550" cy="330" r="560" gradientUnits="userSpaceOnUse"><stop stop-color="#E5383B" stop-opacity=".45"/><stop offset="1" stop-color="#E5383B" stop-opacity="0"/></radialGradient>
+  </defs>
+  <!-- tvOS Top Shelf image (1920 x 720 pt, rendered at 1x and 2x), static, opaque: the feature graphic's lockup (the mark, the traced wordmark, the motto of locales/vi.json splash.motto) centred on the splash ground; nothing in the bottom 160 pt, where the Home screen's row of apps may lie -->
+  <rect width="1920" height="720" fill="#141518"/>
+  <rect width="1920" height="720" fill="url(#glow)"/>
+  <g transform="translate(550 330) scale(1.4144)"><g transform="rotate(-47.45)">
+  <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFDE59"/>
+  <circle r="72.7" fill="#FF3232"/>
+  <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74E5E9"/>
+  <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74C7CB" clip-path="url(#red)"/>
+</g></g>
+  <image x="780" y="216" width="770" height="155.66" href="../wordmark.svg" xlink:href="../wordmark.svg"/>
+  <text x="783" y="454" fill="#FFD028" font-family="Inter, Helvetica, Arial, sans-serif" font-size="36" font-weight="700" letter-spacing="5.4">DỄ · VUI · KHOẺ</text>
+</svg>

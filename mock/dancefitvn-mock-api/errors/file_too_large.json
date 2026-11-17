@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "file_too_large",
+    "message": "Ảnh tối đa 2 MB",
+    "max_bytes": 2097152
+  }
+}

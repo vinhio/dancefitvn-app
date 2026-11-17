@@ -1,0 +1,7 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiJ9.mock-access-2.u_412",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_mock_9b1d7e",
+  "refresh_expires_in": 5184000
+}

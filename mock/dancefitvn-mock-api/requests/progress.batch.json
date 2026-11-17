@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "lesson_id": "l_3504",
+      "position_sec": 250,
+      "duration_sec": 250,
+      "client_time": "2026-11-13T21:00:00+07:00"
+    },
+    {
+      "lesson_id": "l_3506",
+      "position_sec": 90,
+      "duration_sec": 235,
+      "client_time": "2026-11-13T21:10:00+07:00"
+    },
+    {
+      "lesson_id": "l_3503",
+      "position_sec": 72,
+      "duration_sec": 220,
+      "client_time": "2026-11-13T21:15:00+07:00"
+    }
+  ]
+}

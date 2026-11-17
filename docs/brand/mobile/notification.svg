@@ -1,0 +1,12 @@
+<svg width="96" height="96" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <!-- Android media notification small icon: 24 dp, white on transparency; the mark as one shape, cut as android-mono.svg (gap 0.89 dp, 12 mark units), 19.5 dp wide inside the 20 dp live area -->
+  <g transform="translate(12 12) scale(0.07437)">
+    <defs><mask id="cut" maskUnits="userSpaceOnUse" x="-170" y="-170" width="340" height="340"><g transform="rotate(-47.45)">
+      <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFFFFF"/>
+      <circle r="84.7" fill="#000000"/><circle r="72.7" fill="#FFFFFF"/>
+      <rect x="-65.5" y="-34.8" width="222.19" height="118.4" rx="59.2" fill="#000000"/>
+      <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#FFFFFF"/>
+    </g></mask></defs>
+    <rect x="-170" y="-170" width="340" height="340" fill="#FFFFFF" mask="url(#cut)"/>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+{
+  "bio": "Huấn luyện viên DanceFIT & StepX tại Đà Nẵng.",
+  "subjects": [
+    "DanceFIT",
+    "StepX",
+    "BodyX"
+  ],
+  "subjects_editable": false,
+  "socials": [
+    {
+      "platform": "facebook",
+      "url": "https://www.facebook.com/thaovy.dancefit"
+    },
+    {
+      "platform": "tiktok",
+      "url": "https://www.tiktok.com/@thaovy.hlv"
+    },
+    {
+      "platform": "youtube",
+      "url": "https://www.youtube.com/@ThaoVyDance"
+    }
+  ],
+  "allowed_platforms": [
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+    "zalo",
+    "threads"
+  ],
+  "max_socials": 6,
+  "places": [
+    "Nhà văn hoá P. Hoà Thuận, Đà Nẵng"
+  ],
+  "max_places": 5,
+  "public_url": "https://dancefitvn.com/huan-luyen-vien/u_412",
+  "updated_at": "2026-11-14T09:41:00+07:00"
+}

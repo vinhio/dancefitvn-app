@@ -1,0 +1,429 @@
+{
+  "version": "1.0.0",
+  "base_path": "/api/v1",
+  "default_delay_ms": 250,
+  "template_tokens": [
+    "{{path.id}}"
+  ],
+  "media_scheme": {
+    "mock-media://": "Thư mục media/ đi kèm app hoặc máy chủ test nội bộ"
+  },
+  "routes": [
+    {
+      "id": "auth.login",
+      "method": "POST",
+      "path": "/auth/login",
+      "auth": false,
+      "request": "requests/auth.login.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "auth/login.json"
+        },
+        "invalid_credentials": {
+          "status": 401,
+          "file": "errors/invalid_credentials.json"
+        },
+        "account_locked": {
+          "status": 423,
+          "file": "errors/account_locked.json"
+        },
+        "device_limit": {
+          "status": 409,
+          "file": "errors/device_limit.json"
+        }
+      }
+    },
+    {
+      "id": "auth.refresh",
+      "method": "POST",
+      "path": "/auth/refresh",
+      "auth": false,
+      "request": "requests/auth.refresh.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "auth/refresh.json"
+        },
+        "refresh_invalid": {
+          "status": 401,
+          "file": "errors/refresh_invalid.json"
+        }
+      }
+    },
+    {
+      "id": "auth.logout",
+      "method": "POST",
+      "path": "/auth/logout",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 204,
+          "file": null
+        }
+      }
+    },
+    {
+      "id": "auth.forgot",
+      "method": "POST",
+      "path": "/auth/forgot",
+      "auth": false,
+      "request": "requests/auth.forgot.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "auth/forgot.json"
+        },
+        "rate_limited": {
+          "status": 429,
+          "file": "errors/rate_limited.json"
+        }
+      }
+    },
+    {
+      "id": "me.get",
+      "method": "GET",
+      "path": "/me",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/me.json"
+        },
+        "token_expired": {
+          "status": 401,
+          "file": "errors/token_expired.json"
+        }
+      }
+    },
+    {
+      "id": "me.update",
+      "method": "PATCH",
+      "path": "/me",
+      "auth": true,
+      "request": "requests/me.update.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/me.patch.json"
+        },
+        "validation_failed": {
+          "status": 400,
+          "file": "errors/validation_failed.json"
+        }
+      }
+    },
+    {
+      "id": "me.password",
+      "method": "PUT",
+      "path": "/me/password",
+      "auth": true,
+      "request": "requests/me.password.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/password.json"
+        },
+        "wrong_password": {
+          "status": 400,
+          "file": "errors/wrong_password.json"
+        }
+      }
+    },
+    {
+      "id": "me.avatar",
+      "method": "PUT",
+      "path": "/me/avatar",
+      "auth": true,
+      "request": "multipart/form-data: file=<ảnh JPEG/PNG/HEIC đã cắt vuông, ≤ 2 MB>",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/avatar.json"
+        },
+        "file_too_large": {
+          "status": 413,
+          "file": "errors/file_too_large.json"
+        }
+      }
+    },
+    {
+      "id": "me.coach.get",
+      "method": "GET",
+      "path": "/me/coach-profile",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/coach-profile.json"
+        }
+      }
+    },
+    {
+      "id": "me.coach.update",
+      "method": "PUT",
+      "path": "/me/coach-profile",
+      "auth": true,
+      "request": "requests/me.coach.update.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/coach-profile.put.json"
+        },
+        "invalid_social": {
+          "status": 400,
+          "file": "errors/invalid_social.json"
+        }
+      }
+    },
+    {
+      "id": "me.home",
+      "method": "GET",
+      "path": "/me/home",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/home.json"
+        },
+        "new_user": {
+          "status": 200,
+          "file": "me/home.new_user.json"
+        },
+        "server_error": {
+          "status": 500,
+          "file": "errors/server_error.json"
+        }
+      }
+    },
+    {
+      "id": "me.courses",
+      "method": "GET",
+      "path": "/me/courses",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/courses.json"
+        },
+        "cat_special": {
+          "status": 200,
+          "file": "me/courses.cat-special.json"
+        },
+        "search_empty": {
+          "status": 200,
+          "file": "me/courses.search-empty.json"
+        },
+        "paged": {
+          "status": 200,
+          "file": "me/courses.page1.json"
+        }
+      }
+    },
+    {
+      "id": "courses.show",
+      "method": "GET",
+      "path": "/courses/{id}",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "courses/{{path.id}}.json"
+        },
+        "not_found": {
+          "status": 404,
+          "file": "errors/not_found.json"
+        }
+      }
+    },
+    {
+      "id": "lessons.stream",
+      "method": "GET",
+      "path": "/lessons/{id}/stream",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "lessons/stream.json"
+        },
+        "not_enrolled": {
+          "status": 403,
+          "file": "errors/not_enrolled.json"
+        }
+      }
+    },
+    {
+      "id": "lessons.audio",
+      "method": "GET",
+      "path": "/lessons/{id}/audio",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "lessons/audio.json"
+        },
+        "not_enrolled": {
+          "status": 403,
+          "file": "errors/not_enrolled.json"
+        }
+      }
+    },
+    {
+      "id": "lessons.progress",
+      "method": "PUT",
+      "path": "/lessons/{id}/progress",
+      "auth": true,
+      "request": "requests/lessons.progress.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "lessons/progress.json"
+        },
+        "watched": {
+          "status": 200,
+          "file": "lessons/progress.watched.json"
+        }
+      }
+    },
+    {
+      "id": "progress.batch",
+      "method": "POST",
+      "path": "/progress/batch",
+      "auth": true,
+      "request": "requests/progress.batch.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "progress/batch.json"
+        }
+      }
+    },
+    {
+      "id": "devices.list",
+      "method": "GET",
+      "path": "/me/devices",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "me/devices.json"
+        }
+      }
+    },
+    {
+      "id": "devices.delete",
+      "method": "DELETE",
+      "path": "/me/devices/{id}",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 204,
+          "file": null
+        },
+        "not_found": {
+          "status": 404,
+          "file": "errors/not_found.json"
+        }
+      }
+    },
+    {
+      "id": "tv.pair.start",
+      "method": "POST",
+      "path": "/tv/pair/start",
+      "auth": false,
+      "request": "requests/tv.pair.start.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "tv/pair-start.json"
+        },
+        "rate_limited": {
+          "status": 429,
+          "file": "errors/rate_limited.json"
+        }
+      }
+    },
+    {
+      "id": "tv.pair.poll",
+      "method": "POST",
+      "path": "/tv/pair/poll",
+      "auth": false,
+      "request": "requests/tv.pair.poll.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "tv/pair-poll.pending.json"
+        },
+        "confirmed": {
+          "status": 200,
+          "file": "tv/pair-poll.confirmed.json"
+        },
+        "expired": {
+          "status": 410,
+          "file": "errors/pair_code_expired.json"
+        }
+      }
+    },
+    {
+      "id": "tv.pair.confirm",
+      "method": "POST",
+      "path": "/tv/pair/confirm",
+      "auth": true,
+      "request": "requests/tv.pair.confirm.json",
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "tv/pair-confirm.json"
+        },
+        "invalid_code": {
+          "status": 404,
+          "file": "errors/pair_code_invalid.json"
+        },
+        "device_limit": {
+          "status": 409,
+          "file": "errors/device_limit.json"
+        }
+      }
+    },
+    {
+      "id": "tv.logout",
+      "method": "POST",
+      "path": "/tv/logout",
+      "auth": true,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 204,
+          "file": null
+        }
+      }
+    },
+    {
+      "id": "app.config",
+      "method": "GET",
+      "path": "/app/config",
+      "auth": false,
+      "request": null,
+      "responses": {
+        "default": {
+          "status": 200,
+          "file": "app/config.json"
+        },
+        "upgrade_required": {
+          "status": 426,
+          "file": "errors/upgrade_required.json"
+        }
+      }
+    }
+  ]
+}

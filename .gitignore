@@ -1,0 +1,11 @@
+local/
+dist/
+*.test
+.DS_Store
+__pycache__/
+cmd/*/dist/
+cmd/*/media/**/*.ts
+cmd/*/media/**/*.m3u8
+cmd/*/media/**/*.mp3
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

@@ -1,0 +1,12 @@
+<svg width="432" height="432" viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <!-- Android 13 themed icon, 108 dp: alpha only (the launcher colors it); the mark as one shape, the red circle cut from the yellow pill and the cyan pill from both by a 1.46 dp gap (8 mark units); same placement as android-fg.svg -->
+  <g transform="translate(54 54) scale(0.18235)">
+    <defs><mask id="cut" maskUnits="userSpaceOnUse" x="-170" y="-170" width="340" height="340"><g transform="rotate(-47.45)">
+      <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFFFFF"/>
+      <circle r="80.7" fill="#000000"/><circle r="72.7" fill="#FFFFFF"/>
+      <rect x="-61.5" y="-30.8" width="214.19" height="110.4" rx="55.2" fill="#000000"/>
+      <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#FFFFFF"/>
+    </g></mask></defs>
+    <rect x="-170" y="-170" width="340" height="340" fill="#FFFFFF" mask="url(#cut)"/>
+  </g>
+</svg>

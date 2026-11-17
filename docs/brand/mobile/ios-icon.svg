@@ -1,0 +1,11 @@
+<svg width="1024" height="1024" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DanceFITVN">
+  <defs><clipPath id="red"><circle r="72.7"/></clipPath></defs>
+  <!-- iOS app icon, 1024 px, opaque: the mark (../mark.svg) on the Night Stage ground #141518, a full square (iOS applies its own mask); the mark is 340 of 512 wide, the width of jPlayer's record -->
+  <rect width="512" height="512" fill="#141518"/>
+  <g transform="translate(256 256) scale(1.2967)"><g transform="rotate(-47.45)">
+    <rect x="-144.69" y="-71.6" width="198.19" height="94.4" rx="47.2" fill="#FFDE59"/>
+    <circle r="72.7" fill="#FF3232"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74E5E9"/>
+    <rect x="-53.5" y="-22.8" width="198.19" height="94.4" rx="47.2" fill="#74C7CB" clip-path="url(#red)"/>
+  </g></g>
+</svg>

@@ -1,0 +1,61 @@
+/* Generated from tokens.json — Night Stage */
+:root{
+  --color-bg:#141518;
+  --color-surface:#1F2125;
+  --color-surface2:#2A2D33;
+  --color-border:#33363D;
+  --color-text:#F4F4F2;
+  --color-text2:#8E9196;
+  --color-text3:#5E6167;
+  --color-primary:#FFD028;
+  --color-onPrimary:#141518;
+  --color-accentText:#FFD028;
+  --color-red:#E5383B;
+  --color-info:#4DA3FF;
+  --color-success:#3DD68C;
+  --color-warning:#FFB020;
+  --color-danger:#FF5A5F;
+  --color-scrim:rgba(0,0,0,.55);
+  --font-display:'Barlow Condensed';
+  --font-body:'Inter';
+  --font-mono:'JetBrains Mono';
+  --space-xs:4px;
+  --space-sm:8px;
+  --space-md:12px;
+  --space-lg:16px;
+  --space-xl:20px;
+  --space-2xl:24px;
+  --space-3xl:32px;
+  --radius-sm:10px;
+  --radius-md:14px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+  --radius-pill:999px;
+  --h-button:54px;
+  --h-input:54px;
+  --h-lessonRow:58px;
+  --h-tabBar:84px;
+  --h-tvButton:88px;
+  --shadow-card:0 12px 28px rgba(0,0,0,.28);
+  --shadow-lift:0 26px 50px rgba(0,0,0,.6);
+  --motion-fast:150ms;
+  --motion-base:250ms;
+}
+[data-theme="light"]{
+  --color-bg:#F4F3EE;
+  --color-surface:#FFFFFF;
+  --color-surface2:#ECEAE3;
+  --color-border:#E0DED6;
+  --color-text:#141518;
+  --color-text2:#6A6D73;
+  --color-text3:#A3A5AA;
+  --color-primary:#FFD028;
+  --color-onPrimary:#141518;
+  --color-accentText:#9A7300;
+  --color-red:#D62828;
+  --color-info:#1F6FD1;
+  --color-success:#1E9E5A;
+  --color-warning:#C77700;
+  --color-danger:#D93636;
+  --color-scrim:rgba(0,0,0,.45);
+}

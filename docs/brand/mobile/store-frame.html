@@ -1,0 +1,77 @@
+<!doctype html>
+<!-- Adapted from jplayer-mobile/docs/brand/mobile/store-frame.html at 49de3c2. -->
+<!--
+  Store screenshot frame (docs/brand/BRAND.md section 4): a raw simulator or emulator shot on the ground of the
+  prototype's splash with a title above it. Parameters (query string): w and h, the picture's size in px; title, the
+  caption (Vietnamese, from locales/vi.json or the prototype); shot, the URL or path of the raw shot. Render with
+  scripts/brand/render.py:
+
+    local/.venv/bin/python -I scripts/brand/render.py "docs/brand/mobile/store-frame.html?w=1320&h=2868&title=Kho%C3%A1%20h%E1%BB%8Dc%20c%E1%BB%A7a%20t%C3%B4i&shot=file:///.../01.png" 1320 2868 out.png --opaque
+
+  Colors: Night Stage (reference/design/tokens.json: bg #141518, text #F4F4F2) and the red glow of the prototype's
+  splash (MS.splash, rgba(229,56,59,.45)). Face: Barlow Condensed ExtraBold, upper case, as the prototype's display
+  type (assets/fonts). Shots must be of mock data only (docs/plan/05-data.md section 7).
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>DanceFITVN store frame</title>
+<style>
+  @font-face { font-family: "Barlow Condensed"; font-weight: 800; src: url("../../../assets/fonts/BarlowCondensed-ExtraBold.ttf"); }
+  html, body { margin: 0; padding: 0; background: #141518; overflow: hidden; }
+  #frame {
+    position: relative; overflow: hidden; background: #141518;
+    width: var(--w); height: var(--h);
+  }
+  /* The splash's red glow, centred behind the title and the top of the shot. */
+  #frame::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 30%, rgba(229, 56, 59, .45) 0, rgba(229, 56, 59, 0) 60%);
+  }
+  #title {
+    position: absolute; left: 8%; right: 8%; top: calc(var(--w) * .07);
+    margin: 0; color: #F4F4F2; text-align: center; text-transform: uppercase;
+    font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; font-weight: 800;
+    font-size: calc(var(--w) * .085); line-height: 1.05; letter-spacing: .01em;
+  }
+  #shot {
+    position: absolute; left: 9%; width: 82%; top: calc(var(--w) * .30);
+    border-radius: calc(var(--w) * .06); box-shadow: 0 calc(var(--w) * .02) calc(var(--w) * .06) rgba(0, 0, 0, .45);
+  }
+  /* Landscape (Apple TV, the Android tablet): the title above, the shot centred under it and bleeding off the bottom. */
+  #frame.land #title { top: calc(var(--h) * .05); font-size: calc(var(--h) * .075); }
+  #frame.land #shot { top: calc(var(--h) * .22); border-radius: calc(var(--h) * .03); }
+</style>
+</head>
+<body>
+<div id="frame">
+  <h1 id="title"></h1>
+  <img id="shot" alt="">
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const w = +q.get("w") || 1320, h = +q.get("h") || 2868;
+  const frame = document.getElementById("frame");
+  frame.style.setProperty("--w", w + "px");
+  frame.style.setProperty("--h", h + "px");
+  document.getElementById("title").textContent = q.get("title") || "";
+  const shot = document.getElementById("shot");
+  // The shot is as wide as the frame lets it (82%), or as tall as the room under the title: a portrait shot is
+  // shown whole; a landscape frame lets the shot bleed off the bottom.
+  shot.onload = () => {
+    const a = shot.naturalWidth / shot.naturalHeight;
+    if (w > h) {
+      frame.classList.add("land");
+      const hh = h * .80;
+      shot.style.height = hh + "px"; shot.style.width = hh * a + "px"; shot.style.left = (w - hh * a) / 2 + "px";
+    } else {
+      const top = w * .30, room = h - top - w * .05;
+      if (room * a < w * .82) {
+        shot.style.width = room * a + "px"; shot.style.left = (w - room * a) / 2 + "px";
+      }
+    }
+  };
+  shot.src = q.get("shot") || "";
+</script>
+</body>
+</html>

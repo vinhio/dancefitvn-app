@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "validation_failed",
+    "message": "Thông tin chưa hợp lệ",
+    "fields": {
+      "first_name": "Tên là bắt buộc",
+      "email": "Email không hợp lệ"
+    }
+  }
+}

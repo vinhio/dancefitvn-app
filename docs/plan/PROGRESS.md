@@ -1,0 +1,445 @@
+# PROGRESS — DanceFITVN App
+
+Điểm nối lại của orchestrator (08 §5). Trạng thái: `todo` · `doing` · `done` · `blocked`. Ngày dạng YYYY-MM-DD.
+
+## 1. Phase
+
+| Phase | Tên | Trạng thái | Bắt đầu | Xong | Ghi chú |
+|---|---|---|---|---|---|
+| P0 | Khả thi & khung | done | 2026-11-14 | 2026-11-14 | 13 gói test xanh (+ -race, -tags tvos); fallback F1 (secret), F2 (picker objc/JNI); không cần F3 |
+| P1 | Lõi dữ liệu & mock | done | 2026-11-14 | 2026-11-14 | 26 gói test xanh (+ -race); contractcheck -self PASS 24/50; Clock, Tracker.Update 0 alloc; fallback F1; G1/G3/G4 đã đề xuất |
+| P2 | Nền giao diện | done | 2026-11-14 | 2026-11-15 | 35 gói test xanh (+ -race, -tags tvos/kitdemo); kitdemo layout ≤1 pt 17/17 iOS + Android (10 ngoại lệ chữ); token = CSS; K17 chờ duyệt |
+| P3 | Mobile: vào app & duyệt khoá học | done | 2026-11-15 | 2026-11-15 | 38 gói test xanh (+ -race, tvos); 10 trạng thái M01–M05B PASS iOS sim (pixel 0,07–1,34 %) + tester 2 máy; F6 sinh trắc học + F7 mở URL chạy thật; Android thiết bị chờ mở khoá PIN |
+| P4 | Mobile: phát bài | done | 2026-11-15 | 2026-11-15 | 42 gói test xanh (+ -race, tvos, vet 4 hệ); M06–M10 PASS iOS sim + tester; HLS/tốc độ/lật/A–B/lưu 10 s/≥90 % chứng minh trên iPhone sim; Now Playing + nghe nền iOS; Android thiết bị blocked (PIN): P4.2, P4.6c; F8 keep-awake |
+| P5 | Mobile: tải xuống & ngoại tuyến | done | 2026-11-15 | 2026-11-15 | 45 gói test xanh (+ -race, tvos, vet 4 hệ); M09, M11–M14 PASS iOS sim + tester; Range 206 sau mất mạng, sha256 sai → xoá, MP3 offline, batch tiến độ chứng minh trên iPhone sim; F4 mạng, F5 + F5a nền; Android thiết bị chờ PIN |
+| P6 | Mobile: tài khoản & kết nối TV | done | 2026-11-15 | 2026-11-15 | 46 gói test xanh (+ -race, tvos, vet 4 hệ); 10 trạng thái M15–M16-linked, M-toast PASS iOS sim + tester; F2 chọn ảnh thật iPhone sim; overlay mock; P6.1c (menu dev) không làm (tuỳ chọn) |
+| P7 | Apple TV | done | 2026-11-15 | 2026-11-15 | 12 màn TV + toast PASS sim 1080p + tester (0,49–1,17 %); walk 600 phím; focus 331/332 khớp (K9a chờ duyệt); Apple TV thật: engine, nền, keep-awake, TV05 4K p95 9,7 ms, bộ nhớ PASS; review lần 2 PASS |
+| P8 | Hoàn thiện & phát hành thử | done | 2026-11-15 | 2026-11-16 | live/hybrid; PrivacyInfo iOS/tvOS; release.sh → ipa iOS 4,9 MB + tvOS 4,3 MB (chưa ký), APK 5,5 MB (debug key, 16 KB); VoiceOver mobile + TV; đo 3 máy thật PASS (iPhone 15 mở 0,98 s, Apple TV 0,44 s, A17 1,02 s; video 10 phút không tăng bộ nhớ); README; 44 việc mở trong BLOCKERS, đều có dự phòng |
+
+## 2. Kết quả khả thi P0
+
+| Câu hỏi | Kết quả | Bằng chứng |
+|---|---|---|
+| gDesk build + chạy iPhone sim | Đạt (iOS 27.0) | `local/p0/ios.png` |
+| gDesk build + chạy Android emulator 412×892 | Đạt (android-35) | `local/p0/android.png` |
+| gDesk build + chạy Apple TV sim | Đạt (tvOS 27.0, simulator Apple TV) | `local/p0/tv.png` |
+| Font tiếng Việt Core Text / gotext | Đạt | `local/p0/fonts.md`, `fonts-android.png` |
+| AVPlayer HLS 9:16, rate, lật (iOS, tvOS) | Đạt | `local/p0-results.md` (avspike) |
+| MediaPlayer HLS, speed, lật (Android) | Đạt | `local/p0-results.md` (ampspike) |
+| `secret` trên iOS/Android (F1?) | F1 (Android đo; iOS theo mã, chưa chạy sim) | `local/p0-results.md` (P0.8) |
+| `files` mở ảnh (F2?) | F2 = picker objc/JNI (chép từ jPlayer Mobile) | `local/p0-results.md` (P0.8) |
+| Quyết định đi tiếp | Đi tiếp (df-reviewer PASS 2026-11-14) | báo cáo P0.10 |
+
+## 3. Công đoạn
+
+| ID | Công đoạn | Agent | Trạng thái | Ghi chú |
+|---|---|---|---|---|
+| P0.0 | Kế hoạch P0, xác nhận API gDesk theo 06 §1 | df-architect | done | local/plans/P0.md (2026-11-14) |
+| P0.1 | Kiểm workspace (worktree, nhánh, `replace`), cài `gdesk` từ worktree, `.gitignore`, cây PLAN §4.3, `internal/archtest`, `main.go`, `gdesk.json` (ios, android, tvos; `localNetworking`, `cleartextHosts`) | df-chores | done | go vet + test + -race xanh; archtest 10 test (bản gọn); gdesk 27d5b5f khớp worktree; SDK Android sửa ở CLAUDE.md §6 |
+| P0.2 | App tối thiểu chạy iPhone simulator (393×852) — nền `--bg`, chữ "DANCEFIT" Barlow | df-systems | done | `local/p0/ios.png`; nền #141518 = `--bg`; Barlow 800 theo PostScript name; lệch dọc ~4 DIP (line-height, chờ P2) |
+| P0.3 | App tối thiểu chạy emulator `dfv-412x892` (android-35) | df-systems | done | `local/p0/android.png`; nền #141518; Barlow 800 khớp iOS (251,3 DIP); tz JNI đúng; cold start 807 ms. Có điện thoại thật cắm → luôn `ANDROID_SERIAL=emulator-5554` |
+| P0.4 | App tối thiểu chạy simulator Apple TV, `ui.WithDirectionalFocus()`, 2 nút đổi focus bằng mũi tên | df-systems | done | `local/p0/tv.png`, `tv-right.png`; focus ←→ bằng XCUIRemote (`local/p0/remote/run.sh`); 0 alloc mỗi phím; focus vẽ theo `.tbtn.focus` (mã prototype thắng) |
+| P0.5 | Font tiếng Việt (D5) trên Core Text và gotext | df-systems | done | 9 mặt chữ subset 834 KB; `TestFacesResolve` Core Text + gotext; GT15 xác nhận → PostScript name. Còn: chữ không đặt family trên iOS/tvOS ra SF (sửa ở P2) |
+| P0.6 | Spike `cmd/avspike` iOS + tvOS (04 §5) | df-systems | done | HLS loopback cả iPhone + TV; tốc độ 0.5–1.5 đúng 3 chữ số; lật (iOS vẽ lật, TV transform layer); tua ±10, A–B; 0 alloc/khung + /tick; avftv không cgo. TV Load 67–104 ms trên UI thread → xem P4 |
+| P0.7 | Spike `cmd/ampspike` Android (04 §5) | df-systems | done | HLS loopback phát được (không cần F3); tốc độ 0.5/1.0/1.5 đo 0.500/1.000/1.500, pitch 1.00; lật đúng; ~0 alloc/khung; emulator SwiftShader → đo fps lại ở P4 với `-gpu host`. Engine chép jplayer-mobile@49de3c2. archtest cho phép `cmd/<name>` (đã sửa) |
+| P0.8 | Kiểm `secret` và `files` trên iOS/Android (06 §4) | df-systems | done | secret: F1 (uikit/android không có SecretDriver; Android trả ErrUnsupported; FileStore round-trip + quyền 0600 đạt). files: F2 = picker objc/JNI (chép `jplayer-mobile/internal/sys/pickimage*` ở P6). Chạy probe trên iOS sim chưa làm (bị chặn quyền, xem BLOCKERS) |
+| P0.9 | Chụp prototype (07 §3.1), vectors, chuỗi | df-matcher | done | 43 ID × 2 bộ (dpr3, 1x) + layout.json; vectors fmt 17/size 10/focus 400; 286 chuỗi. TV so pixel dùng `prototype-1x/tv` (dpr3 TV = 5760×3240); mobile rộng 394 |
+| P0.10 | Duyệt P0, quyết định đi tiếp | df-reviewer | done | Vòng 1 FAIL (gofmt 5 tệp, binary lạc) → sửa → PASS 2026-11-14. 13 việc mang sang P1+ (xem local/plans/P1.md) |
+| P1.0 | Kế hoạch P1 | df-architect | done | local/plans/P1.md (2026-11-14); lịch W1 1.1∥1.4 → W2 1.2∥1.3 → W3 1.5∥1.7 → W4 1.6∥1.8 → W5 1.9∥1.10 → 1.11 |
+| P1.1 | `model`, `format` (Clock, Size, ngày, Short) | df-logic | done | vectors 17+10+9 tie JS; Clock 0 alloc ~3 ns; 69 file mock decode strict; secrets in `***`; `model.Date` thay tag format (json v2) |
+| P1.2 | `api` Client, `Transport`, `Error`, header, ETag, Live | df-logic | done | 24 route × 50 kịch bản qua client thật; 16 lỗi; ETag/304; refresh single-flight; Live retry GET; Hybrid; phủ 96,1 % |
+| P1.3 | `api/mock` 6 quy tắc + máy chủ media loopback | df-logic | done | 24 route × 50 kịch bản (bảng kỳ vọng khoá với routes.json); 401 cho 18 route auth; máy chủ media Range/HEAD/416/Content-Type; `mockfs.go` embed = thư mục; server chép `jplayer-mobile/internal/yt/server.go` |
+| P1.4 | `internal/sys` secret (F1 nếu G1 chưa có), install id | df-systems | done | F1 + install id qua restart trên Android (no_backup), iPhone + TV sim (cờ loại sao lưu đọc lại = true); clock → `internal/clock`; `locales.MustTexts` |
+| P1.5 | `auth` (single-flight refresh), `store` (cache, prefs, lớp ghi đè mock) | df-logic | done | auth: mọi kịch bản login/refresh/logout; refresh 1 lần cho 10 caller; đăng xuất xoá cache giữ tải xuống. store: Backend/Memory chép jPlayer TV (P7.5 dùng lại), Dir, Cache, Prefs, Overlay mock. Cách nối cho P3: local/plans/P3-notes-from-P1.md |
+| P1.6 | `progress`, `download`, `pairing` | df-logic | done | progress: lưu 10 s, ngưỡng 0,9, hàng chờ + batch 100; Tracker.Update 0 alloc 18,6 ns. download: Range nối tiếp + If-Range, sha256, tối đa 2, Wi-Fi gate, qua mock thật. pairing: poll 3 s, hết hạn, 429, mọi kịch bản tv.pair.* |
+| P1.7 | `qr` | df-logic | done | Viết mới (jPlayer/gDesk không có QR); L/M/Q/H v1–40; URL ghép mã → v3 29×29 M trùng libqrencode; CoreImage đọc được (DFV_SLOW=1); 16 ma trận khác libqrencode chỉ ở mask (ISO) |
+| P1.8 | `cmd/contractcheck` + `-self` trong test | df-logic | done | `-self` PASS 24 route / 50 kiểm; test lệch hình dạng, thiếu khoá, sai kiểu, sai status; che mật khẩu/token; http thường chỉ cho loopback |
+| P1.9 | Test bổ sung theo 07 §2 (refresh đồng thời, hàng chờ, Range) | df-tests | done | Ma trận 07 §2 đủ cho P1 (thêm `TestFlushNeverSendsALessonTwice`); archtest bản đầy đủ chép jplayer-mobile (go list -deps, selfcheck, viRule có dấu tổ hợp); không lỗi sản phẩm |
+| P1.10 | Đề xuất G1, G3 (và G4) | df-gdesk | done | G1, G3 (G3a plist Face ID + G3b driver), G4 (= GM45 jPlayer) đã đề xuất; bản nháp local/gdesk-proposals/ |
+| P1.11 | Duyệt P1 | df-reviewer | done | Vòng 1 FAIL (D1 lộ mật khẩu qua usage, D2 Tracker mất bản lưu khác bài, D3 default) → sửa → PASS 2026-11-14 |
+| P2.0 | Kế hoạch P2 | df-architect | done | local/plans/P2.md; 7 đợt; không G mới |
+| P2.1 | Sinh `internal/tokens` từ `reference/design/tokens.json` (`go generate`), test màu = biến CSS | df-chores | done | 16 màu Dark sinh từ tokens.json; 14 biến :root + scrim .dim-bg = CSS prototype; file sinh khớp; accentText chỉ kiểm với tokens.css |
+| P2.2 | `theme`, `icon` (bộ `IC` của prototype) | df-ui | done | theme Look + Inter 16/400 mặc định (hết rơi về SF); Label giãn chữ px + hộp dòng Chrome; 46 icon khớp Chromium ≤2 %; radial, bóng chữ; splash khớp M01 cả 2 máy; 0 alloc khi vẽ. Core Text đo hẹp 1,23 px \"MỚI CẬP NHẬT\" |
+| P2.3 | `poster` (công thức + bảng màu) | df-ui | done | 16 bảng màu (PAL khớp index.html); 0 alloc vẽ; TV 0,93 %; mobile 1,55–8,9 % (cạnh AA, vị trí/màu khớp ±1 px) → P2.7 tinh chỉnh; vũ công không lật (mã prototype thắng, sửa 02 §5) |
+| P2.4 | Kit A: Button, Chip, Input, Row, Switch, Segmented, Radio, Progress | df-ui | done | Kit A + RoundButton, IconButton, text presets; hộp lệch 0 trên cả 2 máy (trừ chip ±0,5, icon bioLogin −0,62); 0 alloc vẽ lại; press/switch chép jplayer-mobile |
+| P2.5 | Kit B: Sheet + dim, Toast, TabBar, Top bar, Badge, Codebox, Avatar, LessonRow, CourseCard, OfflineBar | df-ui | done | Sheet/dim, Toast, TabBar, TopBar, Badge, Codebox, Avatar, LessonRow(+List), CourseCard, OfflineBar, gesture (Drag 80 DIP/0,6, Edge 26 DIP); hộp lệch 0 trừ chữ ±1,3; K17 không phát lại; sheet/toast/gesture chép jplayer-mobile |
+| P2.6 | Điều hướng mobile (stack, sheet, toast, Back/vuốt mép) | df-ui | done | stack Go/Back/Replace, Back: sheet → pop → Home → thoát; vuốt mép = Back; tab bar chỉ ở màn gốc; safe area đo: iPhone 59/34, Android 45,333/24 (cử chỉ) hoặc 48 (3 nút); 0 alloc khung ổn định |
+| P2.7 | Trang `kitdemo` (`-tags kitdemo`) + so layout thành phần | df-matcher | done | layout ≤1 pt PASS 17/17 iOS + 17/17 Android (10 ngoại lệ chữ có lý do: local/shots/kit-exceptions-*.txt); pixel 3x: 266 phần tử lệch (icon do chưa snap gốc theo điểm ảnh thiết bị — local/plans/P3-notes-from-P1.md) → P3 |
+| P2.8 | Duyệt P2 | df-reviewer | done | Vòng 1 FAIL (D1 shotcmp -proto-3x lệch gốc, D2 tài liệu, D3 K17–K19 vào BLOCKERS) → sửa → PASS 2026-11-15 |
+| P3.0 | Kế hoạch P3 | df-architect | done | local/plans/P3.md (lập sớm 2026-11-15); 5 đợt; G8 mới (mở URL ngoài, F7 = chép jplayer openurl) |
+| P3.1 | `scripts/shot.sh` + dựng trạng thái `DFV_STATE` (build dev) + dump `layout.json` | df-systems | done | App thật chạy iOS/Android/TV qua mock; shot.sh ios\|android\|tester + -compare; DFV_STATE (M01–M05B + M02-locked/-device/-offline/-expired, M03/M04-offline, UPGRADE, LOGIN, FORGOT); F7 mở trình duyệt 2 máy; size iOS 14,6 MB / APK 15,4 MB (có mock); splash cũ đã xoá |
+| P3.2 | Màn 01, 02, 02B, 03B (đăng nhập + mọi lỗi `auth.login`), nút sinh trắc học (K13) | df-ui | done | env/shell/screens; 01/02/02B/03B + upgrade (426); mọi kịch bản auth.login; boot 600–1300 ms; M01–M03B ≤0,06 pt iOS; snap icon DIP nguyên (pixel lệch 266→192, icon 80→32); vi.json 179 khoá; nối internal/app để P3.1 |
+| P3.2b | Sinh trắc học F6 (`internal/sys/biometric_*`) + lưu refresh token sau sinh trắc học | df-systems | done | Face ID (iPhone sim: khớp/không khớp/huỷ/không có khoá plist) + vân tay (emulator: đúng/sai×3/khoá/huỷ) chạy thật; BiometricBridge.java + jni.NewProxy; BioVault giữ bản sao refresh; scripts/ios-faceid-plist.sh; local/p3/bio.md |
+| P3.3 | Màn 03 Trang chủ | df-ui | done | M03 86 phần tử ≤1 pt iOS (span.d#2 −1,24 kerning); loading/offline/new_user/retry; 0 alloc khung + cuộn; chép mẫu jplayer views/home.go |
+| P3.4 | Màn 04 Khoá học (lọc, tìm, rỗng) | df-ui | done | M04/-special/-empty ≤0,48 pt iOS; 4 bộ lọc, tìm 28 ca, rỗng, offline, phân trang lặp con trỏ; lọc 0 alloc; công tắc `SearchFoldAccents` (K18) = false; nav.NewPageFlush; sửa test tab shell |
+| P3.5 | Màn 05, 05B | df-ui | done | 05 + 05B: hero scrim, ô play vàng, tab, danh sách bài, tải, offline, ghi danh mở URL; M05 khớp mọi khoá (\"Tải hết\" −0,97), M05B ≤0,02; 0 alloc; memo lọc → env.Env; Segmented 0 alloc. Dòng khoá tạm ở screens/locked_row.go |
+| P3.6 | Test luồng (đăng nhập → trang chủ → khoá học → chi tiết, ngoại tuyến) | df-tests | done | flow_mobile_test.go qua wiring thật 2 máy: hành trình đầy đủ, mọi lỗi login, sinh trắc học, offline từng màn, hết phiên, 10 request 1 refresh, phản hồi sau logout không vào cache, phân trang; test chuỗi locale. Lỗi 426 giữa phiên → đã sửa (env.Refused/UpgradeOf, mọi màn + login/bio, kèm StoreURL); TestStatesReachTheirScreen thất thường (đang sửa) |
+| P3.7 | So ảnh M01–M05B | df-matcher | done | iOS thiết bị 10/10 PASS layout + pixel (0,07–1,34 %; M05 0,87 %, M05B 0,91 %); Android tester 10/10 layout PASS; Android thiết bị chờ mở khoá PIN (BLOCKERS); gạch chân 05B; snap hộp/icon/chữ (−0,5 DIP, local/shots/text-shift.md); TestStatesReachTheirScreen 40/40 |
+| P3.8 | Duyệt P3 | df-reviewer | done | Vòng 1 FAIL (D1–D6) → sửa → PASS 2026-11-15; Android thiết bị chạy trước P4.9 |
+| P4.0 | Kế hoạch P4 | df-architect | done | local/plans/P4.md (lập sớm 2026-11-15); thêm P4.4a (hợp đồng UI) + P4.6a (nối app, Queue.Flush khi có mạng); gói mới internal/player; G9 mới (Android keep-awake, F8) |
+| P4.1 | Chép engine `avf` (iOS + tvOS) | df-systems | done | e2e iOS 26 test + tvOS 15 test PASS trên sim: HLS/MP3, tốc độ 5 mức chính xác, ±10, A–B, hết bài, lật, nền MP3, 0 alloc, không rò; sửa 3 lỗi engine; TV Load 88 → 2 ms (warm session) |
+| P4.2 | Chép engine `amp` (Android) | df-systems | done | e2e amp 33/33 PASS trên điện thoại thật Galaxy A17 (API 36): HLS load→play 310 ms, tốc độ MP3 chính xác, HLS ±5 % (8 s) do MediaPlayer, ±10 lặp đúng, A–B, lật, 0 alloc/tick, keep-up 1,5× 0,91/0,996; sửa hasAudioTrack (nền giải mã video) |
+| P4.3 | `player` (trạng thái phát, A–B, token, lưu tiến độ) | df-logic | done | internal/player (chép jplayer-mobile player/events/transport): bắt đầu/resume, A–B, ±10, tốc độ vòng, lặp, nhịp, token, URL hết hạn thử 1 lần, phiên/ngắt, lưu qua Tracker; tick 0 alloc 12 ns; lớp archtest player |
+| P4.4a | Hợp đồng UI phát bài (env/routes) để P4.4, P4.5 tách tệp | df-ui | done | env.Playback/Prefs/PlaybackServices, route video/audio/done + sheet options, actions PlayNext/ToDetail, FakePlayback; locked_row → kit LessonModeLocked; default switch kit/poster; bio theo features.face_id_login; chuỗi P4 vào vi.json |
+| P4.4 | Màn 06 Video (tự ẩn 03 §5a) + sheet 07 | df-ui | done | 06 + sheet 07: tự ẩn 3000 ms, ±10, trước/sau, A–B, 8 nhịp, lật, tốc độ; M06/-playing/-hidden ≤0,03 DIP; M07 ≤0,03 trừ 3 chữ 1,04 (kerning, đã có ngoại lệ); 0 alloc mỗi khung video; VideoView/fit/taps chép jplayer np/* |
+| P4.5 | Màn 08 Nghe, 10 Hết bài | df-ui | done | 08 Nghe (wave 70 vạch, ±10, tốc độ vòng, lặp/nhịp, chip tải) + 10 Hết bài (đếm 5→0, PlayNext, K19 bỏ emoji); M08/M10 ≤0,03 pt; 0 alloc; kit Wave, Ring |
+| P4.6 | Now Playing, nghe nền, `AVAudioSession`, dịch vụ media Android | df-systems | done | Chia thành P4.6a (xong), P4.6b (xong), P4.6c (blocked) |
+| P4.6a | Nối app: engine, player, progress.Tracker/Queue (Flush khi có mạng lại), prefs | df-systems | done | engine (lateMedia iOS, session ấm ngoài UI), player, Tracker/Queue (Flush khi có mạng + foreground), prefs (quality iOS), vòng đời, keep-awake (F8 Android), Surface.Keep; iPhone smoke OK (local/p4/wire). Gộp Services + trạng thái M06–M10 trên wire thật: xong (df-ui) |
+| P4.6b | (theo P4.md) phần 2 nền/Now Playing | df-systems | done | Now Playing iPhone sim (tên, khoá, bìa, tốc độ, lệnh play/pause/toggle/seek/±10, không trước/sau); nghe nền 21 s; xoá khi đăng xuất/10 phút; WatchedLocal; icon thông báo trung tính; local/p4/nowplaying, MANUAL.md |
+| P4.6c | (theo P4.md) phần 3 màn khoá — chạy cuối | df-systems | blocked | iOS màn khoá: mục kiểm tay (local/p4/MANUAL.md); Android: chờ mở khoá PIN — gồm (P4.2 đã xong trên Galaxy A17) phần còn lại, các bước Android trong MANUAL.md, so ảnh thiết bị M01–M10 (hoãn từ P3.8), số đo -gpu host |
+| P4.7 | Test + benchmark khung video | df-tests | done | 9 test luồng phát mới qua wire thật 2 máy (06 điều khiển, hết bài→10→bài sau, nghe nền, offline, lưu 10 s, hàng chờ, đăng xuất, URL hết hạn, chưa ghi danh); benchmark 0 alloc; ổn định 3 test chập chờn. Lỗi 05 không dùng WatchedLocal → đã sửa (env.Services.WatchedLocal); mock Ensure chập chờn khi tải nặng |
+| P4.8 | So ảnh M06–M10 (phần P4) | df-matcher | done | M06/-playing/-hidden (layout, video che toàn màn), M07 (1,31 %, sheet), M08 (0,76 %), M10 (0,38 %) PASS iOS sim + tester 2 máy; M01–M05B không hồi quy; shotcmp luật hàng space-between/around |
+| P4.9 | Duyệt P4 | df-reviewer | done | Vòng 1 FAIL (D1 build Android, D2 avf ghi đè seek, D3 thiếu bằng chứng sim, D4 G9, D5 sổ sách) → sửa + lỗi lưu sau Ended → PASS 2026-11-15 |
+| P5.0 | Kế hoạch P5 | df-architect | done | local/plans/P5.md (lập sớm 2026-11-15); thêm P5.1b, P5.2a, P5.1c; G5 tách G5a/G5b; mạng = chép jplayer network_* (F4) |
+| P5.1 | `internal/sys`: FreeSpace, mạng (F4 hoặc G4), thư mục tải | df-systems | done | F4 chép jplayer network_*: iPhone + Apple TV sim PASS (wifi, 0 alloc); FreeSpace (NSURL iOS, statfs tvOS/Android); AudioDir no-backup + chuyển một lần; e2e/sys + devtest-android.sh (wifi/data/airplane); Android chỉ build/vet |
+| P5.1b | download: metadata + job lưu qua khởi động lại, PauseAll, huỷ không chặn, format.GB | df-logic | done | Meta + pending lưu qua khởi động lại, PauseAll, Forget (huỷ không chặn), Lookup, chờ Wi‑Fi (Q-P5-2), log Range, URL ký không lộ; format.GB 0 alloc; Start(lesson, CourseInfo) |
+| P5.1c | Nối app tải xuống: mạng → offline, iOS background task, DFV_NETWORK/DFV_DL_KBPS/DFV_BADSHA, scripts/net.sh, trạng thái chụp | df-systems | done | wireDownloads = env.DownloadManager; mạng → offline/PauseAll/ResumeAll (K23); F5a bgtask iOS; dlTransport cắt mạng + DFV_DL_KBPS + DFV_BADSHA; scripts/net.sh; M09/M11–M14 states; sign-out đúng thứ tự; iPhone sim: nền, Wi‑Fi only, cắt mạng + Range 206 + sha256, sha sai, MP3 offline (local/p5/wire); sửa probe đọc cache ETag khi offline |
+| P5.2a | Hợp đồng env.Downloads, pref Wi-Fi, fake, chuỗi | df-ui | done | env.DownloadManager (Items/Jobs/FreeSpace/Start/Pause/Resume/Forget/Delete/Events), WiFiPrefs, actions DlTap/DlAll/StartDownloads/AskDelete/DeleteDownload + toast; FakeDownloads; stub 09/11/14; 23 chuỗi |
+| P5.2 | Sheet 09, màn 11, 12, sheet 14, trạng thái nút tải | df-ui | done | 09 (chọn bài/cả khoá, chỉ bài có audio, Wi‑Fi, dung lượng trống), 11 (nhóm theo khoá, thẻ dung lượng, thẻ đang tải cập nhật trực tiếp), 12 rỗng, 14 xoá; M11/M12/M14 ≤0,2 pt, M09 ≤1 (kerning đã chấp nhận); 0 alloc |
+| P5.3 | Màn 13 + thanh ngoại tuyến + quy tắc 03 §2 | df-ui | done | 13 Ngoại tuyến (khoá cache hoặc từ file đã tải, phát MP3, cập nhật sự kiện); video + mất mạng → 13; cập nhật trực tiếp detail/video/audio/home; F-14; K23 dòng chờ Wi‑Fi; M13 ≤1 DIP; 0 alloc |
+| P5.4 | Đề xuất G4, G5 | df-gdesk | done | G4 cập nhật kết quả F4; G5a (background.Extend, ~0,5 ngày) + G5b (transfer: URLSession nền / DownloadManager, 3–4 ngày) đã đề xuất |
+| P5.5 | Test (máy bay, nối tiếp Range, sha256) | df-tests | done | 10 test luồng tải/ngoại tuyến qua wire thật 2 máy (tải→xoá, huỷ, Wi‑Fi only, máy bay + MP3 offline + Range 206 + sha256, batch tiến độ khi có mạng, sha sai, hết chỗ, đăng xuất giữ, khởi động lại); sửa TestFlowSessionExpiry (-race ×10) |
+| P5.6 | So ảnh M09, M11–M14 | df-matcher | done | M09 0,99 %, M11 1,18 %, M12 0,87 %, M13 0,75 %, M14 0,70 % PASS iOS sim + tester 2 máy; M01–M10 không hồi quy; sửa nền nút huỷ (--sf2); che K11 |
+| P5.7 | Duyệt P5 | df-reviewer | done | PASS vòng 1 (2026-11-15); 9 ghi chú không chặn (N1 bằng chứng sim cũ, N2 index chưa tách theo user → P6.0b, N3 If-Range, N4 sentinel, N5 toast nền, N6 IO UI, N7 privacy 2 lý do, N8 Android, N9 kích thước mock) |
+| P6.0 | Kế hoạch P6 | df-architect | done | local/plans/P6.md (lập sớm 2026-11-15); thêm P6.0b, P6.1a, P6.1b, P6.3b, (P6.1c tuỳ chọn); overlay mock chưa nối → P6.1b |
+| P6.0b | overlay xử lý tv.pair.confirm; Tracker.Wait | df-logic | done | overlay: tv.pair.confirm khôi phục TV; Tracker.Wait; N2 index theo (user, bài), file dùng chung xoá khi không ai giữ; N3 If-Range lưu qua khởi động lại; N4 sentinel bọc core |
+| P6.1a | Hợp đồng env tài khoản/thiết bị/ghép mã + fake + chuỗi | df-ui | done | env.AccountServices (Me/UpdateMe/ChangePassword/Coach/UploadAvatar/PickPhoto/Devices/DeleteDevice/PairConfirm/Logout) + view giữ, FailureOf; route 15/15B/15C/16 + sheet stub; logout thật (Pause→Leave→Reset→login→Logout nền); FakeAccount; N5 toast nền; 19 chuỗi mới |
+| P6.1 | Màn 15, 15B, sheet đổi mật khẩu, sheet đăng xuất | df-ui | done | 15 Tài khoản (huy hiệu, công tắc Wi‑Fi/tự phát lưu, TV, dung lượng), 15B Thông tin (form, kiểm tra, validation_failed, email_change_pending), sheet mật khẩu; bàn phím nav.Page; M15/M15B/M15B-password/M15-logout ≤1 pt; 0 alloc |
+| P6.1b | Nối app: overlay mock, Logout chờ lưu, Login chờ logout | df-systems | done | AccountServices gộp vào Services; overlay mock (lưu <data>/mock-overlay.json, ETag tự sinh, URL media không phụ thuộc cổng); Logout: Tracker.Wait + flush 5 s → mgr.Logout, Login/BioLogin chờ; PickPhoto qua sys.PickImage; 10 trạng thái P6; iPhone sim: 15B lưu qua overlay, chọn + cắt + tải ảnh, đăng xuất không banner; bằng chứng P5 cut/bg chạy lại |
+| P6.2 | Màn 15C Hồ sơ HLV | df-ui | done | 15C (liên kết/địa điểm, giới hạn, invalid_social, lưu giữ qua rebuild); M15C ≤0,92 pt; kit TextArea |
+| P6.3 | Chọn ảnh (F2 hoặc G2) + sheet 15D cắt ảnh 512×512 | df-systems | done | F2 chép jplayer pickimage*: iPhone sim PHPicker chọn thật 4 ảnh (HEIC/PNG/27 MP/EXIF 6) đúng chiều → 512×512; tvOS ErrUnsupported; ImageIO cho ảnh lớn; gói internal/avatar (Decode/Crop/Export); Android build/vet |
+| P6.3b | Sheet 15D cắt ảnh (kéo, zoom, 512×512 JPEG) | df-ui | done | 15D (chọn ảnh, kéo không kẹp, slider 1..3, Export 512×512 = avatar.Export, K25); M15D ≤0,75 pt; kit Slider, CropView; 0 alloc kéo |
+| P6.4 | Màn 16 Kết nối Apple TV + sheet chọn máy gỡ (`device_limit`) | df-ui | done | 16 Kết nối TV (6 ô, dán/thường/gạch, liên kết, gỡ, 410, device_limit → sheet gỡ máy → xác nhận lại); M16/M16-code/M16-linked/M-toast ≤1 pt; 0 alloc khung |
+| P6.1c | (tuỳ chọn) Menu dev: chạm dòng phiên bản 8 lần | df-ui | không làm | 2026-11-16: không làm ở 1.0 (Q-P8-20; DFV_STATE đã phủ các trạng thái) |
+| P6.5 | Đề xuất G2 | df-gdesk | done | G2a (thư viện ảnh, PhotoPickerDriver + bridge/system/photos, 2–2,5 ngày) đã đề xuất; G2b camera tuỳ chọn (chỉ khi mở lại K7) |
+| P6.6 | Test | df-tests | done | flow_account_mobile_test.go 11 test × 2 máy (~112 subtest) qua wire thật: 15B lưu qua overlay + khởi động lại, từ chối, mật khẩu, 15C, ảnh 512×512, đăng xuất, đăng nhập lại, 16 liên kết/gỡ/liên kết lại, device_limit, lỗi ghi/đọc (offline/426/token_expired/500). Lỗi ô mã 0×0 sau gỡ liên kết → đã sửa tận gốc (kit.SetHidden, 15 chỗ) |
+| P6.7 | So ảnh M15–M16-linked, M-toast | df-matcher | done | 10 trạng thái M15–M16-linked, M-toast PASS iOS sim (0,34–1,42 %) + tester 2 máy; M01–M14 không hồi quy (29/29); bỏ viền đỏ ô mã (Q-P6.4-2); input làm tròn dòng chữ như Chrome |
+| P6.8 | Duyệt P6 | df-reviewer | done | Vòng 1 FAIL (D1–D3 tài liệu, D4 viền đỏ 15C) → sửa + lỗ hở đăng xuất + huy hiệu → vòng 2 còn 1 chữ (07 M15D) → sửa → PASS 2026-11-15 |
+| P7.0 | Kế hoạch P7 | df-architect | done | local/plans/P7.md (lập sớm 2026-11-15); thêm P7.2b, P7.5a–d; chép jplayer-tv focus/item/video/walk/mirror/tvstore/remote; không G mới; G1 gấp cho tvOS |
+| P7.1 | Khung TV, nav, focus (D8), toast, phím | df-ui | done | tv/focus (chép jplayer-tv, bỏ nhớ focus theo màn), tvkit Item/Button/Nav/Toast/Slide/Raise, shell + env contract + tvtest; nav/nút/Slide/toast ≤2 px; focus mặc định đúng F-7; 0 alloc di chuyển focus; layoutdump Transformer |
+| P7.2 | TV01, TV02 (QR, poll, hết hạn) | df-ui | done | welcome.go, code.go, tvkit.QR, tvkit.Backdrop; hộp ≤2 px so TV01/TV02.layout.json; QR khớp libqrencode; poll 3 s, mã mới khi 410/hết 300 s; 0 alloc tick đếm ngược/khung/QR; Adopt do Services.Pair (P7.5b) làm trước OnSignedIn |
+| P7.2b | Relay ghép mã trong overlay mock + test in-process + cmd/mockserve 127.0.0.1:8787 | df-logic | done | Overlay.EnablePairRelay (mã 6 ký tự, poll_secret, hết hạn 300 s, confirm/poll/logout); cmd/mockserve 127.0.0.1:8787 (chỉ loopback); devAPITransport(DFV_API) — nối vào wire ở P7.5b. Sửa sau: thông điệp lỗi lấy từ mock errors/*.json (archtest xanh); hàng chờ tiến độ coi bản lưu hỏng là rỗng (log 1 lần) |
+| P7.3 | TV04, TV05, TV06 | df-ui | done | home/courses/detail + tvkit PosterTile/FilterChip/Row; hộp ≤2 px (cf2/cf3 3,5 px do Core Text chữ số → đo ở P7.7); offset lưới 0/100/536/972/1408, dl9 161; tải lỗi → TV11; 0 alloc focus/khung |
+| P7.4 | TV07, TV08, TV09, TV10, TV11, TV12 | df-ui | done | player/panel/music/upnext/error/settings + tvkit plane/panel/opt/rows/disc/beats/wave/scrub/countdown/medal; stub.go xoá, tvwelcome xoá; hộp ≤2 px (TV10 d/p 3,2 px, TV12 "Tự động" 2,1 px — chữ Core Text); TV12 Left s* → nav3; 0 alloc tick player/music/wave/upnext; env thêm CachedCourse/RememberCourse/Holder |
+| P7.5 | Build tvOS: `tvos` trong gdesk.json, brand assets tạm (placeholder của gDesk `kits/cli/testdata/tvos`), KeepAwake | df-systems | done | brandassets tạm, không cảnh báo icon, CFBundleIcons + TVTopShelfImage; keep-awake chỉ khi video phát; còn tvos-remote.sh + e2e/remote → P7.5c |
+| P7.5a | avftv: tín hiệu khung hình đầu (ẩn sân khấu K5) | df-systems | done | avftv: khung đầu qua EventVideoSize (26–51 ms sau Load), SetBackground tạm dừng video + Paused, nhạc chạy nền; e2e tvOS 16/16 |
+| P7.5b | Nối app TV (wiring, gỡ tag !tvos 6 helper) | df-systems | done | services_tv/player_tv/media_tvos/underlay_tv/states_tv; Adopt trước OnSignedIn; DFV_API cho mobile + TV; 15 trạng thái DFV_STATE TV; flow_tv_test; sim 4K: TV01 → ghép qua mockserve → TV04 (local/p7/p75b/); build android/ios/tvos OK |
+| P7.5c | Cổng bộ nhớ 4K (R1) + kiểm thiết bị | df-systems | done | sim: bộ nhớ PASS (trim_tv.go), TV05 4K p95 9,9 ms; Apple TV thật: TV05 p95 9,7–9,8 ms, bộ nhớ −33 MB PASS, R3/R4, keep-awake (local/p8/appletv/) |
+| P7.5d | Ghép hai máy (local/plans/P7.md §8.2): iPhone sim + Apple TV sim, điện thoại xác nhận, TV đăng xuất → điện thoại báo chưa liên kết | df-systems | done | Làm xong 2026-11-16 ở P8.6 (carry-over, bằng chứng `local/p8/pair/`). Mirror NSUserDefaults (store.Mirror + tvstore, sim 9/9 lần chạy) là bước của P7.5b, không phải P7.5d | — 2026-11-16: hai sim qua mockserve, TV mã → điện thoại 16 xác nhận → TV home + toast → TV đăng xuất → 16 chưa liên kết (local/p8/pair/); tìm ra race đọc thiết bị ở 16 → df-ui |
+| P7.6 | Random walk 600 phím, vector focus, `local/focus-diff.md` | df-tests | done | vector tổng hợp 23/400 khác; màn mức app 1/332 khác (TV05 cg0 Right → K9a đề xuất); TV12 s* Left → nav3 khớp; walk seed 20261114 ×600 từ TV04 và TV01 đạt mọi bất biến (sâu ≤ 6 + 2×vòng upnext→detail như prototype tvGo), seed +1..+7 thăm đủ 11 màn; walk tất định (RunUntilIdle), sửa fake WatchOnline; flows Menu/Play-Pause/toast; -race đạt (walk rút ngắn) |
+| P7.6b | Sửa TV trước duyệt: tải lại khi gắn lại màn (reader chung, 8 màn), avatar không chạy đồng bộ trong Mounted, focus sau Go có khung (doc) | df-ui | done | remount_test, handoff_test; dáng focus sau Back TV04 không tái hiện |
+| P7.7 | So ảnh TV01–TV12, TV-toast | df-matcher | done | sim 1080p + tester: 12/12 PASS chỉ với `scripts/shot.sh … tvos -compare` (0,49–1,17 %); mask/ngoại lệ trong shot.sh + app-exceptions-tv.txt; textShift −0,1 ở 1x |
+| P7.8 | Đề xuất G6 nếu `focus-diff` có màn đi sai | df-gdesk | done | không cần G6: chỉ 1 nước khác là lỗi lạ của prototype (TV05 cg0 Right), TV12 sửa ở màn |
+| P7.9 | Duyệt P7 | df-reviewer | done | lần 1 FAIL (TV02 khoảng trắng) → sửa → lần 2 PASS (local/reviews/P7.md, P7-pass2.md) |
+| P8.0 | Kế hoạch P8 | df-architect | done | local/plans/P8.md; live build chưa nối (P8.1a/b); ipa ký → BLOCKERS; 2 PrivacyInfo (DiskSpace E174.1/85F4.1, UserDefaults CA92.1 tvOS, C617.1, 35F9.1); a11y chép Hush/Decor jPlayer; G10 TalkBack mới; Q-P8-1…24 |
+| P8.1 | Mode `live`/`hybrid`, `contractcheck` với server (nếu có URL + tài khoản thử) | df-logic | done | P8.1a xong (api.DefaultBase, CheckLiveRoutes + test 24 route, contractcheck qua mockserve HTTP: PASS 24 route; local/p8/api/); P8.1b xong (apimode.go: bản live dùng api.DefaultBase, không mock/overlay/state; dev DFV_API + DFV_LIVE_ROUTES hybrid qua CheckLiveRoutes; check-livebuild.sh 19 marker; smoke iPhone + TV sim qua mockserve; live 13M/12M/10M vs mock 28M/26M/21M); server thật → BLOCKERS |
+| P8.2 | Đóng gói: `PrivacyInfo.xcprivacy`, `gdesk package` ipa/aab/tvOS ipa (cần chứng chỉ → BLOCKERS) | df-systems | done | PrivacyInfo iOS (C617.1, 35F9.1, E174.1+85F4.1; 8 loại dữ liệu) + tvOS (C617.1, 35F9.1, CA92.1; 5 loại), quét nhị phân khớp; release.sh (snapshot sạch, check-ios/android + check-livebuild, doctor, --sim, demo); dist/release (build lại 2026-11-16 từ cây cuối): ipa iOS 4,9 MB (5.094.312 B) + tvOS 4,3 MB (4.516.258 B) chưa ký, APK debug-key 5,5 MB (5.752.188 B; libmain.so 14,4 MB) (căn 16 KB qua CCC_OVERRIDE_OPTIONS — G11), dSYM, SHA256SUMS; 1.0.0(1), targetSdk 36, icon phẳng; sim release live mở được login/TV01; UDID/team script lấy từ env; tvstore errSync bọc sentinel. P8.2c nháp store (docs/store, docs/release.md; 42 TBD). P8.3c G10 đã đề xuất. APK phát hành trên Galaxy A17 đã kiểm ở P8.4 (2026-11-16; U12 còn phần kiểm tay) |
+| P8.3 | Trợ năng: nhãn cho nút icon, thứ tự đọc | df-ui | done | 2026-11-16: P8.3a–d xong (chi tiết dưới). P8.3a mobile xong (kit.Hush/Decor chép jPlayer; sheet che phần dưới; video 06 ẩn điều khiển khỏi VoiceOver, sân khấu là nút; MagicTap 06/08; nhãn mọi nút; slider ±10 s; heading; 27 trạng thái × 2 máy test; shots M03/M05/M06/M07/M15 PASS); P8.3b TV xong (nav là tab, poster tile = tên khoá, chip radio, panel TV08 che player, mã đọc từng ký tự, QR/countdown decor, toast status, ChangeScreen, thứ tự đọc; shots TV 5 tvos + 12 tester PASS); P8.3c G10 đã đề xuất; P8.3d dump sim: iPhone 6/6 PASS, TV06/TV08 PASS, TV04/TV07 thiếu trait/giá trị thanh tiến độ + tab/tốc độ đọc như toggle + nút tải thiếu ngữ cảnh → df-ui đã sửa (thanh tiến độ RoleText + giá trị "01:12 / 03:40" do bridge uikit không gán trait cho RoleProgress; tab/tốc độ là nút selected, không còn toggle; nút tải có "Bài 05 · …"; TV08 tốc độ đang dùng ở giá trị; TV06 d1↓ = dl8 khớp prototype); dump iOS 6/6 + TV 4/4 PASS; shots PASS |
+| P8.4 | Đo hiệu năng 07 §5 | df-tests | done | 2026-11-16: iPhone 15 và Galaxy A17 đo trên máy thật (U-perf đóng; số đo và ghi chú ở §5 và report.md). Trước đó: local/p8/perf/report.md. Apple TV thật: mở → TV04 436 ms (p90 443), TV05 focus p95 9,94 ms, video 10 phút +0,1 MB — PASS. Sim iPhone: mở 1296 ms PASS, cuộn khoá học 60 fps PASS, cuộn chi tiết 59,1 fps với 1 khoảng 33–40 ms ở đuôi mỗi lần lướt (cần đo máy thật), video −2,1 MB. 104 test DoesNotAllocate + bench khung 0 alloc (TV cần -tags tvos). Kích thước: ipa 4,9 MB, tvOS 4,3 MB, APK 5,5 MB (16 KB). Đã đo trên máy thật 2026-11-16 (xem `local/p8/perf/report.md`) | Android thật (Galaxy A17, 90 Hz): mở → Home 1024 ms (p90 1036) PASS; cuộn khoá học 89,9 fps PASS; cuộn chi tiết 85 fps, 0 khoảng trống, nhưng 11/20 lần lướt có 1 khung đầu sau nghỉ 33–35 ms (paint+present lạnh) → df-ui; video 10 phút −1,4 MB PASS (dòng log pos=0.00 cần xem); APK phát hành 0 FAIL (targetSdk 36, 16 KB, mở 699 ms); không crash/ANR. iPhone 15 thật: mở → Home 982 ms (p90 988) PASS; cuộn khoá học 60,1 fps 0 khoảng PASS; cuộn chi tiết 59,4 fps, 24 khoảng 33–37 ms ở 6 khung cuối mỗi lần lướt (bỏ 1 vsync, work ≤11,1 ms) → df-ui; video 10 phút −0,7 MB PASS. Chấm lại bằng perf-scroll.sh mới (đếm mọi khung): iPhone 15 chi tiết 0 khoảng PASS, A17 chi tiết 0 khoảng PASS (khung đầu sau nghỉ ≤35 ms chỉ với lướt giả lập — ngoại lệ ghi nhận, G13). Bảng cuối: local/p8/perf/report.md Update 3.
+| P8.5 | README repo (tiếng Anh), PROGRESS, BLOCKERS sạch | df-chores | done | 2026-11-16: `README.md` (EN), kit tiếng Việt → `docs/plan/README.vi.md`; BLOCKERS nhóm theo chủ (User, DanceFITVN, Backend, Account holder, gDesk owner), đóng việc xong; §12 sửa tài liệu; CLAUDE.md §6; tệp thừa → `local/_trash/`. Chờ df-reviewer (P8.6) |
+| P8.6 | Duyệt cuối (cả 9 phase, compliance scan) | df-reviewer | done | lần 1 FAIL (B1 bản phát hành cũ, B2 sổ sách) → sửa → lần 2 PASS; P0–P8 PASS (local/reviews/P8-final.md, P8-final-pass2.md) |
+| P8.d1 | Thiết bị thật iPhone 15 (người dùng cho phép, chỉ cài/test) | df-tests | done | ký Apple Development + profile team (e2e/ios-device-sign.sh); e2e engine 26/26 + sys PASS; so 32 trạng thái layout + pixel PASS (0,07–1,44 %, mask nút AssistiveTouch của máy); không crash; Face ID: không khoá plist → none, có khoá → face (LAContext thật); M02 mở bảng Face ID hệ thống khi vào màn đăng nhập, nhận mặt → Home, không crash. Còn tay: Now Playing màn khoá, huỷ/sai Face ID, gọi/Siri, mạng |
+| P8.d2 | Thiết bị thật Apple TV "Home Theater" (tvOS 27.2, 4K) | df-systems | done | ký Apple Development + profile tvOS wildcard (Xcode tự tạo); ghép mock → TV04; engine e2e 16 PASS (+1 skip: HLS loopback sau khi app bị treo nền — CDN thật chưa kiểm); avftv unit 115 PASS; nền: nhạc chạy, video dừng; keep-awake đúng; TV05 4K p95 9,7–9,8 ms PASS; bộ nhớ R1 PASS (−33 MB, đỉnh 157 MB); không crash. Lỗi lặp A–B khi B = cuối media đã sửa 2026-11-16 (`internal/player/events.go` onEnded; test `TestEndedWithLoop`). LogoutTV chặn phiên mới (services_tv.go + logout_tv_test.go) |
+| P8.d3 | Android thật Galaxy A17 qua Wi‑Fi adb (`ANDROID_SERIAL`) | — | done | 2026-11-16: perf và APK phát hành đã chạy trên máy; kết quả ở dòng P8.4 và `local/p8/perf/report.md` |
+| K30 | Không tạo tài khoản trong app (quyết định người dùng 2026-11-17, 01 §3 K30) | df-ui | done | `login.go`: dòng chân thành chữ mờ `login.membersOnly` (bỏ `login.noAccount`/`login.register`, không còn đường nào mở `links.register`: `Login.openLink` chỉ còn `forgot_password`); `welcome.go` (TV01): `tv.welcome.membersOnly` thay `tv.welcome.audience`, một dòng, khối rộng 755,26 (<1040 chỗ poster); `locked.go`: bỏ nút `a.btn.p` + `openEnroll` (`enroll_url` không còn được mở), thay bằng chữ `locked.contact`, `locked.body` đổi chữ; `scrFoot.btn` thành `ui.Widget`. Test: `TestLoginFooterIsTheMembersOnlyNotice`, `TestLockedHasNoEnrollAction` (393×852 và 412×892), `TestWelcomeNoticeFitsOnOneLine` (1920×1080). Tài liệu: `docs/store/review-notes.en.md`, `docs/store/data-safety.md`. TV: không màn TV nào mở hay hiện hành động đăng ký/tham gia (chỉ toast "Xem dancefitvn.com để biết thêm" của "Tìm hiểu thêm", không mở trình duyệt) |
+| K31 | Đăng nhập ở giới hạn thiết bị: sheet chọn máy + `replace_device_id` (01 §3 K31; đóng BLOCKERS B3; backend Q-A1) | df-ui, df-logic | done | `model.LoginRequest.ReplaceDeviceID` (`omitzero`), `api.Client.LoginReplacing`, `auth.Manager.LoginReplacing` (+`Remote`), `env.Services.LoginReplacing` (mobileWire, shelltest.Fake); mock `Transport.pick`: scenario `device_limit` + `replace_device_id` không rỗng → `auth/login.json`, overlay ghi máy đã gỡ; `env.ReplaceableDevices` (điện thoại, mới nhất trước), `env.LoginReplace{Retry,Done,Cancel}` trong `DevicesSheetParams`; `DevicesSheet` chế độ đăng nhập (không chọn sẵn, "Gỡ và đăng nhập", 400→toast+đóng, offline→toast, 409 lại→dựng lại, lỗi khác→banner của form); `Login.deviceLimit` (giữ mật khẩu, banner bấm được = hỏi lại), sinh trắc học gặp 409 → banner + focus mật khẩu. Test: `login_replace_test.go` (12 test × 2 máy), `TestFlowLoginDeviceLimitReplace`, `TestLoginReplacing*` (api, mock, HTTP, auth, store, model); trạng thái M02-device (mở sheet), M02-device-pick; contractcheck: không có mẫu cho trường tuỳ chọn nên không thêm (`-self` giữ nguyên) |
+| K32 | Chính sách bảo mật ở màn Tài khoản (01 §3 K32; yêu cầu Google Play) | df-ui | done | `account.go`: hàng `link:privacy` ("Chính sách bảo mật", biểu tượng shield, chevron) cuối thẻ "Ứng dụng", mở `links.privacy` bằng `Env.OpenURL`; ẩn khi rỗng/chưa có cấu hình (hỏi `Config` một lần khi mở màn); không ở TV, không có mục xoá tài khoản (K30). Test: `account_privacy_test.go` (hiện/ẩn/mở URL/cấu hình đến muộn/offline, bố cục không đẩy phần trên, 0 alloc, 2 máy); box test M15 chạy với `links.privacy` rỗng (`noPrivacy`), trạng thái M15* của shot dùng knob `noPrivacy`, M15-privacy có hàng |
+| K34 | Điều khoản sử dụng ở màn Tài khoản (01 §3 K34; chủ sản phẩm duyệt 2026-11-17) | df-ui | done | `model.Links.Terms` (`json:"terms"`, tuỳ chọn); `account.go`: hàng `link:terms` ("Điều khoản sử dụng", biểu tượng list, chevron) ngay dưới `link:privacy`, mở `links.terms` bằng `Env.OpenURL`; ẩn khi rỗng/chưa có cấu hình (mock không có trường → ẩn ở chế độ mock); `syncLinks` đặt đường kẻ cho hàng cuối đang hiện. Knob `noPrivacy` và helper test làm rỗng cả `terms`. Test: `account_terms_test.go` (hiện/ẩn/mở URL/chỉ có terms/cấu hình đến muộn, 0 alloc, 2 máy). contractcheck: `links.terms` là extra key → cảnh báo, không lỗi. Backend: `links.terms` ở `app.config` (internal/mobile, mặc định `/dieu-khoan-su-dung`) |
+| B-code | Màn 16: không xoá được ký tự sai trong ô mã (báo cáo máy thật 2026-11-17) | df-ui | done | Gốc: `codeField` là `headless.TextField` vô hình rộng bằng cả hàng; chạm/kéo vào ô đặt con trỏ vào giữa hoặc đầu chuỗi (`HandlePointer` của TextField, và iOS `setSelectedTextRange`), nên Backspace của bàn phím xoá ký tự khác hoặc không xoá gì (tái hiện: gõ `7K4M2X`, chạm ô 1 → con trỏ 1/6, Backspace → `K4M2X`). `SetText` trong OnChange KHÔNG làm hỏng (đã chứng minh: con trỏ về cuối, Backspace ở 1/5/6 ký tự đều xoá). Sửa `internal/ui/kit/codebox.go`: con trỏ ghim ở cuối (`pin` trước/sau HandleKey/HandleText; `HandlePointer` chỉ lấy focus, không chọn/kéo; `SelectText` của bàn phím bỏ qua; sửa-theo-khoảng (`Replacing`) giữ khoảng của nó); chữ đang soạn (Telex/dự đoán) hiện trong ô (`shown()`), `Value` vẫn chỉ là chữ đã chốt. Không đổi `Keyboard` (gDesk không có autocapitalization; `KeyboardEmail` chưa kiểm trên máy); các ô nhập khác không lọc/ghi đè trong OnChange nên không cùng lỗi. Test: `codebox_edit_test.go` (4 test × 2 máy: Backspace sau ký tự sai/chữ thường/đủ 6/thứ 7/dán, con trỏ ở cuối sau chạm/kéo/phím/SelectText, đường IME Replace + Compose), `TestConnectWrongCodeCanBeDeletedAndRetyped` (màn 16, 2 máy). Cần kiểm tay trên máy thật |
+| B-code2 | Màn 16, lần 2: ô mã vẫn không xoá được trên máy thật (iPhone 15 Telex, Galaxy A17 Samsung Tiếng Việt) + 3.7 bàn phím che nút "Kết nối TV" | df-ui | done (chưa kiểm trên máy: chủ dự án dừng chạy máy; build dev có vết gỡ lỗi tạm đã cài trên iPhone, mã nguồn đã gỡ vết) | Gốc: KHÔNG ở đường IME. `codeBox.Layout` bỏ qua `Layout(&b.label)` khi ô rỗng, mà `Label.Paint` vẽ layout của lần Layout cuối: ô bị xoá chữ vẫn vẽ chữ cũ, còn viền tiêu điểm (`b.focused`) và `Value` đã đổi — đúng triệu chứng "vòng di chuyển sang trái, ô giữ chữ, gõ xy ghi đè ô 1-2" (cả khi Backspace thường, không cần IME); test cũ chỉ đọc `Label.Text` nên không bắt được. Bản sao IME chữ thường là bàn phím giữ chữ gõ thô của nó (`ABcde`), không phải lỗi đồng bộ. Sửa (`internal/ui/kit/codebox.go`): ô rỗng cũng được Layout; thêm: `Value` = những gì ô hiển thị kể cả chữ đang soạn (bàn phím Telex soạn từng chữ, không chốt đến khi tắt bàn phím → trước đây Value rỗng, nút KẾT NỐI TV tắt dù đủ 6 chữ), `OnChange` báo từng bước soạn, và `FocusChanged(false)` chốt chữ đang soạn thay vì bỏ. 3.7: `screens/connect.go` hạ bàn phím ở ký tự thứ 6 (lượt kế, `AfterFunc(0)`, huỷ khi bấm nút); chạm ô để sửa thì bàn phím lên lại. Test: `TestCodeBoxesDeletedCharacterLeavesTheBox` (đọc pixel Snapshot, thất bại trước khi sửa), `TestCodeBoxesCompositionIsTheCode`, `TestCodeBoxesInputMethod` (cập nhật), `TestConnectSixthCharacterTakesTheKeyboardDown`, `TestConnectComposingKeyboard`, 2 máy. Chuỗi mới: không. Không sửa gDesk; ghi nhận cho chủ gDesk: iOS `canvas.backspace` dùng bản `c.marked` riêng nên lệch nếu Go kết thúc composition bằng `SetText` (chưa gặp ở ô mã). Cần kiểm tay trên máy thật |
+| B-text | Android (Galaxy A17, bản live, dữ liệu thật) hiện ô vuông ở chữ Việt ("Bụng", "Nắng", "Thương") và emoji 🤠; iPhone đúng | df-systems | done (code + test; không kiểm máy theo quyết định người dùng) | Gốc: (1) dữ liệu API là NFD (chữ gốc + dấu kết hợp); Android vẽ bằng `gotext`: không ghép NFC, không đặt dấu, tra glyph từng rune → U+0306 (trăng) và U+031B (móc) không có trong font nhúng (subset chỉ giữ U+0300–0303, 0309, 0323) lẫn fallback Android của gotext (Noto CJK, Noto Sans Symbols…; không Roboto) → ô vuông ở "Nắng", "Thương"; "Bụng" NFD có glyph nhưng Inter `dotbelowcomb` advance 495 → dấu chấm tách ra. iOS: Core Text ghép NFC và fallback hệ thống. (2) emoji: chuỗi fallback gotext Android không có font emoji, và gotext không vẽ glyph màu (chỉ `typeset`/Core Text là `ColorEngine`). Bằng chứng `local/p8/android-text/` (missing-before-after.txt: font cũ thiếu U+0306, U+031B, U+1F920; ảnh tester 412×892). Sửa: `internal/format/nfc.go` (+`nfc_table.go` sinh bởi `scripts/gen-nfc.py` từ unicodedata, chỉ stdlib — không dùng x/text, Q-P2-2) ghép NFC 0 cấp phát cho chuỗi đã NFC; `api.Decode` (json v2 `WithUnmarshalers` cho mọi string) dùng ở `send`, thân lỗi, `download` index; `scripts/fonts/charset.py` thêm U+0306, U+031B → `assets/fonts` subset lại (+7 KB); `internal/app/textengine*.go`: engine "dancefitvn" trên Android = gotext, đoạn có glyph thiếu thì `typeset` (gDesk, `WithoutSystemFonts` + font app + font emoji đọc từ `font_fallback.xml`/`fonts.xml` `und-Zsye`, dự phòng NotoColorEmoji/SamsungColorEmoji), lấy layout ít ô thiếu hơn, glyph màu qua `ColorGlyph`; tạo lười ở emoji đầu tiên; go.mod thêm `bridge/text/typeset` (kéo `go-text/typesetting`, libmain.so +3,8 MB chưa strip). Test: `format` (bảng NFC + 1172 vector Python, 0 alloc), `api` TestDecodeComposes, `theme` TestFontsCoverVietnamese/AppText (thất bại với font cũ: 72 lỗi), `app` TestColorText* (0 alloc đường Latin), TestTextSampleRender 412×892. Ghi nhận: K19 (bỏ 🎉) có thể xem lại vì Android nay vẽ được emoji màu (người dùng quyết) |
+| B-device | Lỗi trên máy thật với API production (2026-11-17): A2.11 bìa khoá học, F1–F5, F8, F10, A2.10 | df-ui | done (F4 chỉ một nửa, xem dưới) | **A2.11/K14**: mọi poster khoá học nhận `cover_url` qua `poster.SetCover(loader, url)` (tải sau khi gắn vào cây bằng `ui.Go`, huỷ khi rời; lỗi/chưa tải giữ poster vector); `Services.Cover` (mobile + TV) → `app/covers.go`: mock (URL của máy chủ media mock hoặc `mock-media://`) bị từ chối `core.ErrUnsupported` nên mode mock giữ bảng màu; live: cache đĩa `store.Images` (`<cache>/covers`, 64 MiB, khoá = URL bỏ query, tươi 7 ngày, quá hạn mà ngoại tuyến vẫn dùng tệp cũ) rồi giải mã + thu nhỏ còn 1280 px cạnh dài (`decodeCover` dùng `boxReduce`, `artKey` của F9) vào `components.ImageCache`. Bài học dùng bìa khoá của nó (`player.Lesson.CoverURL`); tab Tải xuống cần `CoverURL` trong `download.Meta` (`course_cover_url`, bản ghi cũ không có → poster vector). **F1**: `Course.Short()` bỏ "®", cắt ở ":" đầu (`ShortName()` giữ hoa thường, dùng ở `ShortName`/home); poster vẽ tiêu đề trong clip bo góc, `titleBox` rộng tối đa chỗ còn lại (tên xuống dòng như CSS). **F2**: `div.d` TV06 `Wrap`, tối đa 2 dòng + "…" (prototype không giới hạn; 3 dòng đẩy nút ra ngoài 1080). **F3**: `format.Join`/`DropBlank`; `env.Fill` bỏ phần " · " rỗng khi một giá trị rỗng (mọi mẫu), các chỗ ghép tay (`lesson meta`, `locked`, `offline`, hàng tải xuống, TV06) dùng `format.Join`. **F5**: `kit.MedalText` ("_" → cách), chú thích huy hiệu/medal xuống dòng ở ranh giới từ và nhỏ dần (tới 70 %) khi một từ quá rộng, chữ phụ trong lục giác nhỏ dần (tới 60 %) rồi "…"; hàng huy hiệu TV chia đều chỗ; ô Họ/Tên 15B mỗi ô (cột−12)/2 (K29 đã duyệt). **F8**: `tv.code.qrSub` = "Mở dancefitvn.com/mobile/tv trên điện thoại". **F10**: `groupHead` cắt tên khoá bằng "…", giữ " · n/total bài". **F4**: cột nút cạnh (Âm thanh…) lùi lên để không đè tiêu đề dài; **chưa tái hiện được** chuyện nút ‹ và … bị dải đen ~210 px che trên Android (nghi là viền đen letterbox của video 9:16 vẽ đè lên nút; cần ảnh và `layout.json` từ máy để chắc). **A2.10**: prototype TV06 (`index.html:679`) chỉ có "· Đã xem", không có trạng thái đang xem → khớp prototype, không đổi. **Chip tag rỗng** (audio, video, TV player; bài production không có tag): ẩn chip và bỏ khoảng cách sau nó (prototype: phần tử flex không có thì không có gap, index.html:425/436/683), chip kế bên lên vị trí đầu; test `defects_chips_test.go` (2 điện thoại), `TestPlayerWithoutATagHasNoEmptyChip` (TV). `TestErrorText` hết phụ thuộc thứ tự: đọc hotline đua với khung hình, nay giữ bằng `svc.Hold()`. Test: `poster cover_test.go`, `app covers_test.go`, `store images_test.go`, `format text_test.go`, `kit TestBadgeLongNames…`, `tvkit TestMedalLongNames…`, `screens defects_*_test.go`, `info_names_test.go`, `tv/screens defects_test.go`, `model short_test.go` <br> **Vòng 2 (máy thật 3.1, 3.3–3.5, 3.7)**: **3.1** thẻ hồ sơ TV: `settingsCard.Layout` chia chỗ hàng huy hiệu đều, mỗi huy hiệu vẽ nhỏ dần (`tvkit.Medal.SetScale`, tối thiểu theo chữ chú thích 70 %) thay vì `max(share, 140)`; nhãn dưới và dòng gợi ý không bao giờ ra ngoài thẻ 600×840 (1..8 huy hiệu; 3 huy hiệu vẫn 140 như prototype); mobile `badgeRow` xếp tối đa 3 ô mỗi dòng, dòng sau cách 10 (prototype chỉ có 3). **3.3** `Connect.load` lấy trạng thái từ chính câu trả lời `GET /me/devices` (không từ view đã lưu mà đăng xuất/đăng nhập xoá), giữ id TV của câu trả lời cho "Ngắt kết nối" (không có thì hỏi lại máy chủ trước khi xoá), đọc lại một lần sau 2 s nếu lần đầu lỗi. **3.4** `Settings.logout` chạy một lần; `Welcome` bỏ qua Select 450 ms đầu (phím lặp/muộn của chính cú bấm Đăng xuất không rơi vào "Đăng nhập" → mã). **3.5** `Home`/`Courses`: sau lần đọc đầu lỗi tự đọc lại sau 2 s rồi 6 s (nút "Thử lại" vẫn hiện), và khi app về lại trước màn hình (mới: `env.ForegroundWatcher`/`ForegroundAware`, `mobileWire.lifecycle`: Active sau Background) đọc lại ngay nếu chưa có nội dung. **3.7** gợi ý dưới QR nhỏ dần (tối thiểu 75 %) tới khi địa chỉ không bị cắt giữa chừng, hộp giữ cao 62; kicker nhạc dính "… · BÀI 02" bằng no-break space và `kit.Label` coi U+00A0/2007/202F không phải chỗ ngắt. Không chuỗi mới. Test: `settings_test.go` (`…BadgesStayOnTheCard`, `…LogoutAlwaysLandsOnWelcome`), `account_test.go` (`…ManyBadgesStayInTheScreen`), `connect_test.go` (`…FollowsTheServerNotTheKeptView`), `home_test.go` (`…FirstReadRecovers`, `…ReadCutByTheBackgroundIsReadAgain`), `downloads_mobile_test.go` (`TestWireWatchForeground`), `code_test.go` (`…HintKeepsTheAddressUnbroken`), `music_test.go` (`…KickerKeepsTheNumber…`), `label_test.go` (`…NoBreakSpace…`) |
+| B-play | Bài tải lỗi (playlist HLS 404) mà màn 06 vẫn vẽ biểu tượng TẠM DỪNG như đang phát (iPhone, bản live, 2026-11-17) | df-ui | done | Gốc: `kit.DiscButton.SetIcon` (và `IconButton.SetIcon`, `SideButton.SetOn`) chỉ đặt trường + `Repaint`; con `Icon` chỉ nhận glyph/mực ở `Layout`, mà đổi biểu tượng không kéo theo layout. Khi phát thì tick mỗi giây đổi chữ giờ → relayout nên che lỗi; sau lỗi không còn tick nên PAUSE kẹt (cả khi tạm dừng không có tick). Player thật vốn đúng (`fail`: want=false, StateError, Play → `reload` lấy lại `lessons.stream`). Sửa: `DiscButton.SetIcon` đặt luôn glyph của con; `IconButton.SetIcon`, `SideButton.SetOn` (mực) tương tự. TV: `Player`/`Music` báo `player.err.load` khi `ChangeError` (trước không có gì), nút `p1`/đĩa đã về "Phát" và bấm là thử lại. Test: `video_error_test.go` (glyph vẽ, hai máy), `kit TestButtonsDrawTheChangeAtOnce`, `app TestFlowFailedPlaylistShowsPlayAndRetries` (engine mở playlist lỗi → toast → PLAY → bấm → `lessons.stream` lần 3 → phát), TV `player_error_test.go`; `FakePlayback.Fail/Play` và `tvtest.Playback.Fail/Toggle` theo đúng `Player.fail`/`Play` |
+| B-audio | Sheet tải audio hiện "0,0 MB", tải rồi mới báo "Tải lỗi, thử lại" khi `audio_size_bytes` null và `lessons.audio` 404 | df-ui, df-logic | done | Prototype không có trạng thái "không rõ dung lượng" → đề xuất tối thiểu (chuỗi mới chờ duyệt, §7): kích thước không rõ (≤0) hiện "—" ở hai radio, nút chỉ "Tải xuống"; "Cả khoá" = tổng các cỡ đã biết. `has_audio` false/null: nút tải của hàng bị ẩn (chỗ giữ nguyên: `kit.DlUnavailable`), nút "Âm thanh" của màn 06 ẩn (nút cuối cột, các nút khác không dời), `DlTap`/`StartDownloads` báo toast mới `toast.audioMissing` thay vì mở sheet/đóng im. `lessons.audio` hoặc tệp 404: `download.ErrNoAudio` (là `core.ErrNotFound`), `Manager.Unavailable` + `wireDownloads.noAudio` nhớ trong lần chạy; `State` = `DlUnavailable` nên nút biến mất, không còn "thử lại"; Start từ chối không hỏi lại server. Mock chỉ có `has_audio` bool + `audio_size_bytes` số (không có null): test dùng overlay `courses/set-35.json`. Test: `download_audio_test.go`, `video_error_test.go`, `kit TestLessonRowWithoutAudioHasNoButton`, `download TestAudioNotFoundMarksTheLessonUnavailable`, `app TestFlowDownloadAudioNotFound` |
+| B-kbd | Sheet mật khẩu: chạm "Lưu mật khẩu" lần đầu khi bàn phím mở chỉ hạ bàn phím (iPhone); Android: Back khi bàn phím mở đóng cả sheet | df-ui | done | Gốc 1: chạm nút lấy focus khỏi ô → bàn phím hạ → hệ thống báo `Keyboard` về 0 ngay khi ngón còn trên kính → đáy sheet hạ theo, nút trôi khỏi dưới ngón, lúc nhả `Inside` sai nên không bấm. Sửa ở `kit.Button.HandlePointer`: ngón không dịch quá `TouchSlop` thì vẫn là một lần chạm dù nút đã dịch (áp cho mọi `kit.Button`: mật khẩu, thông tin, hồ sơ HLV, đăng nhập, kết nối). Gốc 2: `Nav.InterceptKey` đi thẳng `Back()`; nay khi có ô nhập focus và bàn phím đang hiện thì Back đầu chỉ bỏ focus (hạ bàn phím), Back sau mới đóng (hiện chưa kiểm trên Android thật: nếu hệ thống tự tiêu Back của IME thì app không nhận, nếu nhận khi `Keyboard()` đã 0 thì vẫn đóng sheet). Trang Thông tin/Hồ sơ HLV: nút "Cập nhật" nằm dưới bàn phím khi bàn phím mở (bố cục chân trang cố định của prototype) nên không chạm được trước khi hạ bàn phím — ghi nhận, không đổi. Test: `keyboard_tap_test.go` (chạm đầu, Back, 2 máy; đăng nhập chạm đầu) |
+| B-tvfocus | TV06: Phải từ "Quay lại" nhảy tới bài CUỐI | df-ui | done | Đo 1..12 bài: app **trùng** luật tâm–tâm của prototype (`moveFocus`: nút nằm ở y 871, hàng gần nhất theo chiều cao = `dl7`, hay bài cuối khi ≤8 bài) — không phải lỗi mã. Theo yêu cầu: lệch có chủ ý **K33 (chờ duyệt)**: `d2` Phải → hàng bài đầu tiên đang thấy (đầu danh sách); `d1` Phải vẫn → `d2`, mọi hướng khác như prototype. `detail.go` `toList` (`OnMove`), hoàn nguyên một dòng. Test: `detail_focus_test.go` (1–12 bài, danh sách đã cuộn, vector TV06 chỉ khác đúng một nước) |
+| B-tvblack | Apple TV đen một lần sau để rỗi, phải mở lại | df-systems | done | Không có lỗi keep-awake: chỉ khi video phát (Q-P7-11) nên màn rỗi/nhạc để screen saver đến là đúng hệ thống. Lỗi hồi phục có thể: app báo lifecycle Active chỉ Resync đồng hồ; driver uikit báo quay lại bằng `EventVisibility` (vẽ chỉ phần đổi), không `EventExpose` như Android, nên màn không đổi gì thì không vẽ lại — nếu hệ thống bỏ ảnh cũ thì đen. Sửa dự phòng: `Active` ở TV gọi `uiClock.Expose` (`EventExpose` → khung kế vẽ toàn bộ). Chưa tái hiện trên thiết bị (không đụng máy); test chứng minh khung vẽ lại: `app TestTVResumeDrawsTheWholeFrame`. Nếu còn đen: lỗi nằm ở driver (ghi cho chủ gDesk), không ở app |
+| B-brand | Thương hiệu DanceFITVN theo cách jPlayer `docs/brand` (yêu cầu chủ dự án 2026-11-17) | df-systems | done (chủ duyệt 2026-11-17, BLOCKERS D1 đóng) | Dấu = vẽ lại vector dấu ba viên thuốc của logo web (`docs/brand/mark.svg`, khớp điểm ảnh, lệch 0,11 % ở mép khử răng cưa), chữ "DanceFIT®" dò từ PNG (`scripts/brand/trace.py`); nguồn gốc chép nguyên ở `docs/brand/source/` (SHA256SUMS). `docs/brand/generate.sh` (Chromium + Pillow trong local/.venv) → `icon.png` (RGB 1024, nền `#141518`), iOS dark/tinted, Android adaptive (fg/bg/mono), splash, `assets/brand/notification.png`, Play icon 512 + feature graphic 1024×500 ("Dễ · Vui · Khoẻ", "Ứng dụng học tập dành cho huấn luyện viên" từ splash), tvOS App Icon 3 lớp (Back nền, Middle quầng đỏ splash, Front cả dấu) 400×240 @1x/@2x + App Store 1280×768, Top Shelf 1920×720 + Wide 2320×720 @1x/@2x (thay placeholder gDesk; Contents.json gốc sửa tên thư mục cho khớp). `gdesk.json`: android.icon.{foreground,background,monochrome}, android.splash.icon, ios.iconDark/iconTinted. `cmd/brandcheck` (chép jPlayer, thêm kiểm tvOS + wiring gdesk.json) ok; gdesk build ios/android/tvos ok (Assets.car có dark + tinted; APK có mipmap + monochrome; tvOS CFBundlePrimaryIcon + TVTopShelfImage, actool không cảnh báo); icon nhiều lớp + Top Shelf thấy trên Home simulator tvOS 27 (`local/brand/evidence/`) |
+
+## 4. gDesk (G) và dự phòng (F) đang dùng
+
+| ID | Trạng thái (chưa đề xuất / đã đề xuất / đồng ý / xong / không cần) | Dự phòng đang dùng | Ghi chú |
+|---|---|---|---|
+| G1 | đã đề xuất (2026-11-14) | F1 | GẤP cho tvOS: Caches có thể bị xoá → TV đăng xuất |
+| G2 | đã đề xuất (2026-11-15) | F2 (đã chạy thật iPhone sim P6.3) | G2a thư viện; G2b camera tuỳ chọn |
+| G3 | đã đề xuất (2026-11-14) | F6 (đã chạy thật P3.2b) | G3a: `kits/cli` thiếu `NSFaceIDUsageDescription` — **release-critical** cho iOS (P8): bản ký bằng `gdesk package` crash khi mở Face ID; `release.sh` vá tạm trước khi ký (Q-P8-9) |
+| G4 | đã đề xuất (2026-11-14) | F4 | F4 chép jplayer-mobile 49de3c2 ở P5.1: iPhone + Apple TV sim PASS; Android chờ emulator |
+| G5a | đã đề xuất (2026-11-15) | F5a (objc beginBackgroundTask trong app) | xin thêm thời gian nền |
+| G5b | đã đề xuất (2026-11-15) | F5 (tải khi app mở + nối Range) | tải nền hệ thống |
+| G6 | chưa đề xuất | — | không cần: P7.8 chỉ có K9a (lỗi lạ của prototype), TV12 sửa ở màn (K9b) |
+| G7 | chưa đề xuất | — | |
+| G9 | đã đề xuất (2026-11-15) | F8 = chép `jplayer-mobile/internal/sys/keepawake_android.go` | Android PowerDriver giữ màn sáng |
+| G8 | đã đề xuất (2026-11-15) | F7 (đã chạy thật P3.1) | mở URL ngoài trên iOS/Android |
+| G10 | đã đề xuất (2026-11-15) | không có (1.0 Android không TalkBack, Q-P8-15; nhãn tiếng Việt ở thông báo media) | cầu trợ năng Android (`AccessibilityNodeProvider`) = GM10 jPlayer, 4–5 ngày; P8.3c. **Giới hạn 1.0 đã biết** (README, BLOCKERS nhóm gDesk owner) |
+| G11 | đã đề xuất (2026-11-15) | F9: `scripts/release.sh` đặt `CCC_OVERRIDE_OPTIONS` (`-Wl,-z,max-page-size=16384`); `check-android.sh` kiểm LOAD ≥ 16 KB — APK 1.0.0(1) đã `0x4000` | căn trang 16 KB cho libmain.so (`kits/cli/android.go:325`), ~0,5 ngày; P8.2. Build thường (`gdesk build -os android`) vẫn 4 KB đến khi có G11 |
+| G12 | đã đề xuất (2026-11-16) | không cần: app mô tả thanh tiến độ là RoleText + Value (giá trị `01:12 / 03:40`, `kit.DescribeBar`); TV08 ghi tốc độ hiện tại ở giá trị "Đang dùng" | uikit `traitsOf`: RoleProgress không có trait (đề xuất staticText + updatesFrequently, phần trăm từ `Now`); focus luôn cộng `selected` trùng FlagSelected (tách ra). Nhỏ, không chặn, ~0,5–1 ngày. Đề xuất đầy đủ: BLOCKERS "Đề xuất gDesk" § G12, bản nháp `local/gdesk-proposals/G12-uikit-progress-selected.md`. Khi có: `DescribeBar` → RoleProgress, TV08 → FlagSelected |
+| G13 | đã đề xuất (2026-11-16) | không cần cho 1.0 (chạm thật có input boost; khung ổn định đạt cổng) | Android ADPF `APerformanceHint` cho UI thread (mục tiêu = chu kỳ làm tươi, báo thời lượng mỗi khung, `notifyWorkloadIncrease` API 36 trước khung đầu sau nghỉ); móc ở `postFrame`/`frame` của driver Android. Lý do: Galaxy A17 khung đầu fling sau ~300 ms nghỉ ~30 ms (CPU ở xung sàn) vs 7 ms khi nhân bận (`local/p8/perf/report.md` ghi chú 10–14). Chưa biết power HAL MediaTek có nghe không. ~1–2 ngày gồm đo. BLOCKERS "Đề xuất gDesk" § G13, bản nháp `local/gdesk-proposals/G13-android-adpf-frame-hint.md` |
+| G14 | chưa đề xuất (2026-11-17) | trong app: `format.NFC` ở `api.Decode`, font thêm U+0306/U+031B, `internal/app/textengine.go` (gotext + typeset cho emoji, Android) | gotext NFC + đặt dấu, fallback Android (Roboto, emoji), glyph màu (B-text) |
+
+## 5. Khác biệt đã biết với prototype
+
+K1–K16 ở 01 §3. Ghi thêm ở đây mọi lệch còn lại sau so ảnh (ID trạng thái, mô tả, lý do).
+
+| Trạng thái | Lệch | Lý do | Duyệt |
+|---|---|---|---|
+| K-posters (P2.3) | Poster nhỏ lệch pixel 1,55–8,9 % khi so 1x | Do thu nhỏ 3x→1x; so 3x-3x chỉ khác mép | đã giải thích (P2.7b) |
+| M04 tìm kiếm (K18 đề xuất) | Tìm không dấu ("khoa" khớp "Khoá") như 03 §4; mã prototype không bỏ dấu | Hiện làm theo mã prototype; cần người dùng chọn | chờ người dùng |
+| M10 (K19 đề xuất) | Bỏ emoji 🎉 ở "Bạn đã xem hết khoá học" | Android (gotext) không vẽ emoji màu; giữ một giao diện cho 2 hệ (D2) | chờ người dùng |
+| kitdemo M03, M07, M09 (iOS) | Hộp chữ có chữ Việt dấu chồng hẹp hơn tới 1,3 pt | Chrome tải Google Fonts theo subset unicode-range (latin / vietnamese), không kern qua ranh giới; gDesk kern cả chuỗi. Sửa cần đổi engine chữ | orchestrator chấp nhận 2026-11-15 |
+| kitdemo M03, M07, M14 (Android) | Độ rộng chữ gotext lệch Chrome tới 2 pt (icon căn giữa theo chữ lệch theo) | Bộ dựng chữ Go đo khác Chrome | orchestrator chấp nhận 2026-11-15 |
+| kitdemo M15, M15-logout (Android) | Chú thích huy hiệu `b#1` lệch tới 5,43 pt (đặt đúng giữa huy hiệu rộng hơn) | Luật kéo giãn của shotcmp không phân biệt chữ inline căn giữa với khối con | ngoại lệ theo phần tử |
+| Pixel mọi trang chữ | Mép glyph khác (Core Text vs Chrome rasterize) | So pixel 3x-3x; vùng có chữ ngưỡng lỏng hơn | orchestrator chấp nhận 2026-11-15 |
+| iOS M02–M04 pixel | 0,3–1,3 % điểm ảnh lệch > 32/255, toàn ở mép chữ | Core Text vs Chrome rasterize; đạt ngưỡng 1,5 % | orchestrator chấp nhận 2026-11-15 |
+| Android M03 | Tiêu đề, thanh, phần tô hero rộng hơn luật dự đoán 19 pt | Khối CSS rộng theo poster; luật kéo giãn đoán hộp cố định 257 | ngoại lệ theo phần tử |
+| Chữ toàn app | Gốc x dịch −0,5 DIP, đường cơ sở làm tròn DIP nguyên | Hiệu chỉnh thực nghiệm (iOS 3x tốt nhất ở −0,5); nguyên nhân chưa rõ. Điều kiện: kiểm Android thiết bị, đo lại tvOS ở P7, test raster gDesk | tạm chấp nhận (P3.8) |
+| M03 dòng chào (K20 đề xuất) | Thứ/ngày + lời chào theo giờ máy | Prototype viết cứng "Thứ bảy, 14/11 · Chào buổi sáng" | chờ người dùng |
+| M07 (iOS) sheet | Hàng "Chất lượng video": 3 hộp chữ lệch 1,04 pt | Như dòng kerning subset Google Fonts (kitdemo) | orchestrator chấp nhận 2026-11-15 |
+| M07 `span.d#1`, M08 `cycleSpeed#1` (Android) | Rộng hơn tới 1,31 pt | Độ rộng chữ gotext (như dòng kitdemo Android) | ngoại lệ theo phần tử |
+| M06, M06-playing, M06-hidden | Chỉ so layout, che toàn màn | Vùng video là khung thật (K5), theo kế hoạch P4 | theo kế hoạch |
+| P5 tải qua di động (K23 đề xuất) | Xếp hàng chờ Wi‑Fi + toast "Đang chờ Wi‑Fi để tải" | Prototype không có trường hợp này | chờ người dùng |
+| M16 (K24 đề xuất) | Ẩn dòng hết hạn/gợi ý mã | Điện thoại không biết mã TV | chờ người dùng |
+| M15D (K25 đề xuất) | Xác nhận khi chưa chọn ảnh: đóng, không gửi | Server chỉ giữ ảnh đã cắt | chờ người dùng |
+| M09 (iOS) `span.d#1` | 1,21 pt | Kerning subset Google Fonts (như dòng kitdemo) | ngoại lệ theo phần tử |
+| M11, M14 (Android) `i#1`, `i#2` | Thanh tô 71 %/64 % lệch 12–13,5 pt | Luật kéo giãn giữ độ rộng phần tô bám trái (như M03 `i#1`) | ngoại lệ theo phần tử |
+| M11, M14 (Android) `span.muted#2`, `span.tt#2`, `b#2`, `span.val#2`, `svg.i#19` | ≤1,5 pt | Độ rộng chữ gotext | ngoại lệ theo phần tử |
+| M15B-password `span.d#1` | 1,30 pt | Kerning subset Google Fonts | ngoại lệ theo phần tử |
+| M15*, footer `p.muted#1` | "DanceFITVN 1.0 (prototype)" vs số phiên bản build | Khác có chủ ý; nằm ngoài màn (y 920) | theo thiết kế |
+| Ô nhập (toàn app) | Gốc chữ làm tròn theo CSS px của đỉnh line box | Chrome snap line box `.inp input` | đã áp |
+| Android tester M15*, M15C, M15D | badge `b#1` 5,4 pt; `input#1` 1,5 pt; hàng 2 nút | Giới hạn luật kéo giãn 412 | ngoại lệ theo phần tử |
+| TV (K26 đề xuất) | 5 chỗ style inline đè kiểu focus (vd TIẾP THEO focus vẫn nền tối chữ tối) | Làm giống prototype; đề xuất sửa | chờ người dùng |
+| TV (K27 đề xuất) | Select bắn khi nhả phím; giữ 550 ms một lần | Prototype bắn khi nhấn | chờ người dùng |
+| TV11 (K28 đề xuất) | Tải lỗi khi ngoại tuyến → màn TV11 | Prototype không có trường hợp này | chờ người dùng |
+| sheet, toast (K17 đề xuất) | Hoạt ảnh chỉ chạy khi mở, không phát lại mỗi lần vẽ lại; đóng không hoạt ảnh (như prototype) | Prototype phát lại hoạt ảnh do render lại DOM — lỗi phụ, không phải ý đồ | chờ người dùng |
+| TV02 `p.muted#2` | Đếm ngược hết hạn khác giây | K8 (thời gian chạy) | chấp nhận (mask) |
+| TV02 `c2` | Focus mặc định ở `c2` (vàng, 1,06×) | Prototype focus `c1` — nút mô phỏng app bỏ (K2); `c2` chưa scale đúng y 880 | chấp nhận |
+| TV04 `div.d#2`, TV05 `div.d#1` | fontSize tính 36/60 px | Prototype đặt cỡ ở con inline, div tính 16 px; hộp lệch ≤0,84 px | chấp nhận (chỉ style) |
+| TV05 `cf2`, `cf3` | x lệch ≈3,1 px | Core Text đo chữ số hai chữ số hẹp hơn Chrome ≈1,6 px/chip, dồn sang chip sau | chấp nhận |
+| TV10 `div.d`, `p.muted` | Hẹp hơn 3,2 px | Dấu chồng "TUYỆT VỜI" Core Text vs Chrome | chấp nhận (dung sai 3,5) |
+| TV12 `s0` `span.tt`/`b` | "Tự động" 28 px hẹp hơn 2,1 px | Đo chữ Core Text vs Chrome | chấp nhận (dung sai 2,5) |
+| TV02 `c1` | Không có | Nút mô phỏng của prototype (K2) | chấp nhận (mask) |
+| TV02 hộp QR | Mask | K1 | chấp nhận |
+| TV-toast `div.d#2` | fontSize/lineHeight tính khác | Như TV04 `div.d` | chấp nhận (chỉ style) |
+| TV07, TV08 mặt phẳng video | Mask | K5 | chấp nhận |
+| TV12 ảnh, huy hiệu, dòng phiên bản | Mask | Ảnh mock + K2 | chấp nhận |
+| TV05 (K9a đề xuất) | `cg0` Phải → `cg1` (cùng hàng) | Prototype nhảy lên chip `cf1` do điểm tâm–tâm (548 < 600) — lỗi lạ, không phải ý đồ | chờ người dùng |
+| TV06 (K33 đề xuất) | `d2` ("Quay lại") Phải → hàng bài đầu tiên đang thấy | Prototype chấm tâm–tâm nên Phải rơi vào hàng ngang chiều cao nút (`dl7`; bài cuối khi ≤8 bài) — người dùng thấy là nhảy lạ (máy thật 2026-11-17) | chờ người dùng |
+
+Ghi chú hiệu năng (P8.4, 2026-11-16; số đo đầy đủ ở `local/p8/perf/report.md`, ghi chú 10–14):
+
+- Đuôi cuộn chi tiết trên iPhone 15 và sim iPhone 16 (33–37 ms, cuối mỗi cú lướt): không phải khung chậm và không mất vsync. Đó là khung không đổi (crawl): gDesk đặt nội dung cuộn theo pixel thiết bị (`framework/ui/scroll.go` placeContent), nên khi dưới 1 px mỗi khung thì khung vẽ y hệt khung trước và không present. Đếm mọi khung thì không còn khoảng trống; công việc mỗi khung ≤ 11,1 ms.
+- Khung đầu sau nghỉ trên Android (Galaxy A17, cuộn chi tiết): sau ~300 ms không có việc, CPU ở xung sàn nên khung đầu tốn ~28–32 ms; cùng khung đó 7 ms khi nhân bận. Layout 0,04 ms, không do app. Đề xuất gDesk G13 (ADPF); không cần cho 1.0.
+- `scripts/perf-scroll.sh` đã sửa bởi df-systems: xem `local/p8/perf/report.md` (số cuối).
+- Cấp phát: NavGoBack (mỗi điều hướng) và ConnectKeystroke (mỗi phím ở ô nhập của gDesk) không phải đường nóng theo khung hay chạm (CLAUDE.md §5, 07 §5). Chấp nhận; không có test `DoesNotAllocate` cho hai đường này.
+
+## 6. Câu hỏi đã trả lời / đã dùng mặc định
+
+| Q | Trả lời hoặc mặc định | Ngày |
+|---|---|---|
+| Q1 | Không cần giao diện sáng | 2026-11-14 (người dùng) |
+| Q2 | Có đăng nhập Face ID / vân tay | 2026-11-14 (người dùng) |
+| Q4 | Bundle ID `com.jivecode.dancefitvn` | 2026-11-14 (người dùng) |
+| Q9 | API không có `bpm` → 120 BPM | 2026-11-14 (người dùng) |
+| Q12 | Tự ẩn điều khiển video sau 3 s (prototype đã cập nhật) | 2026-11-14 (người dùng) |
+| Q-P0-2 | Android SDK = `/opt/homebrew/share/android-commandlinetools` (CLAUDE.md §6 ghi sai, sửa ở P0.1) | 2026-11-14 (mặc định) |
+| Q-P0-3 | Chép engine jPlayer vào `internal/media/{avf,amp}` ngay ở P0.6/P0.7 | 2026-11-14 (mặc định) |
+| Q-P0-4 | `avftv` không cgo (objc.Invocation, KVC transform) | 2026-11-14 (mặc định) |
+| Q-P0-5 | Múi giờ Android qua JNI `TimeZone.getDefault` | 2026-11-14 (mặc định) |
+| Q-P0-6 | `targetSdk` 35, xem lại ở P8 | 2026-11-14 (mặc định) |
+| Q-P0-7 | Barlow Condensed chỉ 700/800 | 2026-11-14 (mặc định) |
+| Q-P0-8 | Nguồn font ở `local/fonts/source`, URL + sha256 trong `assets/fonts/README.md` | 2026-11-14 (mặc định) |
+| Q-P0-9 | F2 = picker objc/JNI (`bridge/system/files` không phải picker); sửa 06 | 2026-11-14 (mặc định) |
+| Q-P0-10 | Chỉ emulator android-35 | 2026-11-14 (mặc định) |
+| Q5, Q7, Q8 | Mặc định PLAN §8 | 2026-11-14 (mặc định) |
+| Q-P0.7-2 | `clock` đã chuyển `internal/clock` (P1.4) | 2026-11-14 (mặc định) |
+| Q-P0.5-3 | Emoji 🎉 trong "Bạn đã xem hết khoá học": gotext không vẽ emoji màu → P3.0 quyết (mặc định: bỏ emoji, ghi K mới) | 2026-11-14 (mặc định, chờ P3.0) |
+| Q-P0.8-3 | Khoá F1: Android đặt ở `no_backup`, iOS đánh dấu `NSURLIsExcludedFromBackupKey` → P1.0/P1.4 làm (R4) | 2026-11-14 (mặc định) |
+| Q-P1-1 | Mock: app embed qua `mockfs.go` gốc (`!live`), test dùng `os.DirFS` | 2026-11-14 (mặc định) |
+| Q-P1-2 | `clock` chuyển sang `internal/clock` | 2026-11-14 (mặc định) |
+| Q-P1-3 | Mock vá `size_bytes`/`sha256` của audio theo file thật lúc phục vụ (tắt được); mock/ không sửa | 2026-11-14 (mặc định) |
+| Q-P1-4 | Mock có ETag/304 | 2026-11-14 (mặc định) |
+| Q-P1-5/6 | `install_id` + kho F1 ở thư mục `secret/` không sao lưu | 2026-11-14 (mặc định) |
+| Q-P1-9 | `progress.batch` `rejected[]` giữ thô rồi bỏ; hỏi backend (BLOCKERS) | 2026-11-14 (mặc định) |
+| Q-P1-10 | Refresh chỉ khi `token_expired`; lỗi mạng khi refresh giữ phiên | 2026-11-14 (mặc định) |
+| Q-P1.4-D1 | `go.mod` thêm `require bridge/system` (module gDesk đã có replace; cần cho `secret`) | 2026-11-14 (orchestrator chấp nhận) |
+| Q-P1.4-D2 | tvOS: DataDir/SecretDir trong `Library/Caches` (như jPlayer TV T0.5); mất phiên nếu tvOS xoá cache → G1/P7.5 | 2026-11-14 (orchestrator chấp nhận) |
+| Q-P1-12 | Lớp system được import `foundation/ffi`, `android/jni` (sửa PLAN §4.2) | 2026-11-14 (mặc định) |
+| Q-P1-13 | Lớp ghi đè mock lưu `<data>/mock-overlay.json` | 2026-11-14 (mặc định) |
+| Q-P2-1 | Safe area: nội dung bắt đầu 54 khi inset trên ≤ 59; tab bar 50 + max(34, inset dưới); đo thật ở P2.6 | 2026-11-14 (mặc định) |
+| Q-P2-2 | Không chuẩn hoá dấu ở P2 (cấm x/text); test khẳng định vi.json + mock đã dựng sẵn (NFC); xem lại P8. **2026-11-17 (B-text):** dữ liệu thật là NFD → `format.NFC` viết bằng stdlib (bảng sinh từ unicodedata), áp ở `api.Decode`; vẫn không dùng x/text | 2026-11-14 (mặc định) |
+| Q-P2-3 | Sheet/toast: hoạt ảnh khi mở, đóng ngay; không phát lại khi vẽ lại (K17 đề xuất) | 2026-11-14 (mặc định) |
+| Q-P2-4 | Vuốt mép: dải 26 DIP, nhận khi ≥ 80 DIP hoặc > 0,6 DIP/ms, không hoạt ảnh trượt | 2026-11-14 (mặc định) |
+| Q-P2-5 | Chấm radio 10 (theo mã); sửa 02 §6 | 2026-11-14 (mặc định) |
+| Q-P2-6 | Font dự phòng huy hiệu: Barlow Condensed 800 | 2026-11-14 (mặc định) |
+| Q-P2-7 | Sheet có ô nhập nâng lên trên bàn phím | 2026-11-14 (mặc định) |
+| Q-P2-8 | P2.7 tách: df-ui làm kitdemo + layoutdump; df-matcher làm capture + `cmd/shotcmp` | 2026-11-14 (mặc định) |
+| Q-P2-9 | `app.Run(app.Options{Mock: mockAPI()})` | 2026-11-14 (mặc định) |
+| Q-P2-10 | df-ui được sửa `internal/app/{splash,tvwelcome,root_mobile,fonts_test,root_kitdemo}.go` trong P2 | 2026-11-14 (mặc định) |
+| Q-P2.4-1 | Viền 1,2/1,6 px: vẽ đúng giá trị CSS, giữ nội dung lùi 1 (Chrome làm tròn layout về 1 px ở dpr 1) | 2026-11-15 (mặc định) |
+| Q-P2.4-2 | Field/Radio trả hộp viền; nơi gọi tự chừa `FieldGap` 16 / `RadioGap` 10 | 2026-11-15 (mặc định) |
+| Q-P2.5-1 | Vuốt mép dùng `gesture.Edge` (không trượt theo tay) | 2026-11-15 (mặc định) |
+| Q-P2.5-2 | Kéo sheet xuống từ cả tấm khi nội dung đã cuộn lên đầu (trừ ô nhập) | 2026-11-15 (mặc định) |
+| Q-P2.6-1 | Vuốt mép gọi đúng Back (đóng sheet, màn gốc → Trang chủ) — D2 | 2026-11-15 (mặc định) |
+| Q-P2.6-2 | Android 3 nút (đáy 48, tab bar 98): ghi đè safe area trong test, không thêm máy test | 2026-11-15 (mặc định) |
+| Q-P3-13 (= Q-P0.5-3) | Bỏ emoji 🎉 trên cả iOS và Android (gotext không vẽ emoji màu) → K19 đề xuất, áp dụng P4 | 2026-11-15 (mặc định, chờ người dùng duyệt K19) |
+| Q-P3-11 | Tìm kiếm: theo mã prototype (không bỏ dấu) vì mã prototype thắng tài liệu 03 §4; bỏ dấu = K18 đề xuất chờ người dùng | 2026-11-15 (orchestrator) |
+| Q-P3-12 | Chip lọc chỉ hiện số ở "Tất cả 15" (theo mã); sửa 03 §8 | 2026-11-15 (mặc định) |
+| Q-P3-17 | Chỉ xử lý 426 / `force_update`, không tự so `min_version` | 2026-11-15 (mặc định) |
+| Q-P3-5 | Sinh trắc học sau đăng xuất: nếu refresh bị thu hồi → xoá bản sao, báo phiên hết hạn; hỏi backend (BLOCKERS) | 2026-11-15 (mặc định) |
+| Q-P3-24 | df-systems được ghi `internal/auth/bio.go` | 2026-11-15 (orchestrator) |
+| Q-P3-* khác | Theo mặc định trong local/plans/P3.md | 2026-11-15 (mặc định) |
+| Q-P3.2-1 | Snap gốc icon theo DIP nguyên (Chrome snap phần tử thay thế theo CSS px); mở rộng Button/Chip/LessonRow + viền/khung ở P3.7 | 2026-11-15 (orchestrator) |
+| Q-P3.2-2 | Chữ "hoặc" ẩn cùng nút sinh trắc học | 2026-11-15 (mặc định) |
+| Q-P3.2b-1 | Server ép đăng xuất (refresh bị từ chối) → xoá luôn bản sao sinh trắc học | 2026-11-15 (mặc định) |
+| Q-P3.2b-2 | Câu mô tả Face ID (NSFaceIDUsageDescription): script đọc từ `vi.json`, không để cứng | 2026-11-15 (orchestrator) |
+| Q-P3.3-1 | Home dùng tuỳ chọn tràn lề của `nav.Page` thay cho bản sao `homeFrame` | 2026-11-15 (orchestrator) |
+| Q-P3.3-2 | Ảnh đại diện Home: thêm nguồn URL vào Services sau P3.1 (tránh sửa Services song song); tạm vẽ người mặc định, che khi so pixel | 2026-11-15 (mặc định) |
+| Q-P3.5-1 | Dòng bài khoá: tạm widget riêng `screens/locked_row.go`; chuyển vào kit (`LessonModeLocked`) khi lessonrow.go rảnh | 2026-11-15 (orchestrator) |
+| Q-P3.5-2 | Nút ghi danh 05B: vẽ gạch chân như prototype (thẻ `<a>` mặc định) — mã prototype thắng | 2026-11-15 (orchestrator) |
+| Q-P3.5-3 | Dòng hỗ trợ 05B ẩn khi không có cấu hình app | 2026-11-15 (mặc định) |
+| Q-P4-1 | Tuỳ chọn phát ban đầu theo `initState` prototype (0.75×, lật bật, nhịp bật, lặp tắt), chỉ trong tiến trình | 2026-11-15 (mặc định) |
+| Q-P4-2 | Video vừa khung (contain) | 2026-11-15 (mặc định) |
+| Q-P4-3 | Chất lượng video chỉ áp iOS; Android không chọn biến thể HLS → K21 đề xuất | 2026-11-15 (mặc định) |
+| Q-P4-4 | Trước/sau/tự phát tiếp giữ A/B như prototype (K22 nếu người dùng muốn tính lại) | 2026-11-15 (mặc định) |
+| Q-P4-5 | Tự ẩn đếm lại 3 s khi chuyển từ tải sang phát | 2026-11-15 (mặc định) |
+| Q-P4-6 | Giữ màn hình sáng khi phát video | 2026-11-15 (mặc định) |
+| Q-P4-7 | Lệnh màn khoá: phát/dừng/±10/tua; không trước/sau | 2026-11-15 (mặc định) |
+| Q-P4-10 | Thêm lớp `internal/player` vào archtest (df-logic được sửa archtest) | 2026-11-15 (orchestrator) |
+| Q-P4-11 | df-ui được sửa `internal/app/states_mobile.go` cho trạng thái chụp P4 | 2026-11-15 (orchestrator) |
+| Q-P4-16 | Xoá `cmd/avspike`, `cmd/ampspike` sau P4.9 | 2026-11-15 (mặc định) |
+| Q-P4-* khác | Theo local/plans/P4.md | 2026-11-15 (mặc định) |
+| Q-P4.3-1 | Nghe (audio) bài khác luôn bắt đầu từ 0 (prototype, 03 §3) | 2026-11-15 (mặc định) |
+| Q-P4.3-2 | File tải mất: Resolver tự chuyển sang phát trực tuyến (P5) | 2026-11-15 (mặc định) |
+| Q-P4.4a-1 | Lỗi chưa ghi danh khi phát: Replace(detail) (không để 06 chết trong stack) | 2026-11-15 (mặc định) |
+| Q-P4.1-1 | iPhone `avf.NewSession` (~60 ms) khởi động trước ngoài UI thread (P4.6a) | 2026-11-15 (mặc định) |
+| Q-P4.1-2 | tvOS: thêm chế độ nền audio cho nhạc tập TV09; TV tự dừng video khi vào nền — quyết ở P7 | 2026-11-15 (mặc định) |
+| Q-P4.4-1 | Hàng chất lượng 07: không rẽ theo runtime.GOOS (D2) — hỏi khả năng qua `env.Prefs` (P4.6a cung cấp) | 2026-11-15 (orchestrator) |
+| Q-P4.4-2 | `Surface.Keep()` khi tạm dừng/rời/vào nền để giữ khung dừng (P4.6a) | 2026-11-15 (mặc định) |
+| Q-P4.4-3 | Nút điều khiển đang ẩn không được kích hoạt qua trợ năng → P8.3 | 2026-11-15 (mặc định) |
+| Q-P4.6a-1 | Đăng xuất: thử gửi hàng chờ tiến độ một lần rồi xoá (không gửi dưới người dùng sau) | 2026-11-15 (mặc định) |
+| Q-P4.6a-2 | prefs ở `<data>/state/prefs.json` (sửa 05 §6) | 2026-11-15 (mặc định) |
+| Q-P4.5-1 | Tự phát tiếp tắt: vẫn đếm về 0 như prototype, không phát | 2026-11-15 (mã prototype thắng) |
+| Q-P4.5-2 | `WatchedLocal` thêm vào Services ở P4.6b | 2026-11-15 (orchestrator) |
+| Q-P4.5-3 | PlayAudio từ 08 đẩy thêm màn như prototype `go()` | 2026-11-15 (mặc định) |
+| Q-P4.6b-1 | Lệnh Play từ màn khoá cho video đang dừng ở nền: bỏ qua (video chỉ phát khi app ở trước) | 2026-11-15 (mặc định) |
+| Q-P5-1 | Thêm dòng P5.1b, P5.2a, P5.1c | 2026-11-15 (mặc định) |
+| Q-P5-2 | Đang dùng dữ liệu di động + "Chỉ tải qua Wi‑Fi": xếp hàng chờ, toast "Đang chờ Wi‑Fi để tải", tự tải khi có Wi‑Fi (K23 đề xuất) | 2026-11-15 (mặc định) |
+| Q-P5-3 | Loại mạng không rõ coi như được phép tải | 2026-11-15 (mặc định) |
+| Q-P5-4 | Toast "Đã tải xong bài NN" khi xong từng bài | 2026-11-15 (mặc định) |
+| Q-P5-5 | Danh sách/tiến độ dùng số byte thật; sheet 09 dùng kích thước trong catalog | 2026-11-15 (mặc định) |
+| Q-P5-6 | Thư mục audio chuyển sang vùng không sao lưu (chuyển một lần) | 2026-11-15 (mặc định) |
+| Q-P5-7 | iOS background task xin thêm thời gian tải (F5a) | 2026-11-15 (mặc định) |
+| Q-P5-8 | Đăng xuất: tạm dừng và giữ file tải | 2026-11-15 (mặc định) |
+| Q-P5-9 | Không đo được dung lượng trống: để trống giá trị | 2026-11-15 (mặc định) |
+| Q-P5-10 | Sheet 09 chỉ đếm bài có audio | 2026-11-15 (mặc định) |
+| Q-P5.2-1 | Job tạm dừng (K23): dòng phụ dùng chuỗi có sẵn `toast.waitWiFi` | 2026-11-15 (orchestrator) |
+| Q-P5.2-2 | Sheet 09 ẩn dòng dung lượng trống khi chưa đo được | 2026-11-15 (mặc định) |
+| Q-P6-1 | M16: ẩn dòng "Mã hết hạn sau … · gợi ý …" (điện thoại không biết mã TV) → K24 đề xuất; che khi so ảnh | 2026-11-15 (mặc định) |
+| Q-P6-5 | Đổi mật khẩu: đủ 3 ô, mới ≥ 8, nhập lại khớp; `wrong_password` → ô đỏ + toast | 2026-11-15 (mặc định) |
+| Q-P6-8/9 | Kéo ảnh không kẹp (như prototype), không pinch | 2026-11-15 (mặc định) |
+| Q-P6-12 | "Xác nhận" khi chưa chọn ảnh mới: đóng, không tải lên → K25 đề xuất | 2026-11-15 (mặc định) |
+| Q-P6-16 | Menu dev: chạm dòng phiên bản 8 lần, chỉ bản dev | 2026-11-15 (mặc định) |
+| Q-P6-22 | Ô "Họ" tràn màn như prototype (mã prototype thắng) | 2026-11-15 (mặc định) |
+| Q-P6-* khác | Theo local/plans/P6.md | 2026-11-15 (mặc định) |
+| Q-P6.4-1 | Trạng thái đã liên kết không thêm tên TV / lần hoạt động (prototype không có) | 2026-11-15 (mã prototype thắng) |
+| Q-P6.4-2 | Mã bị từ chối: chỉ toast, giữ mã, bỏ viền đỏ (prototype) | 2026-11-15 (mã prototype thắng) |
+| Q-P7-1 | Dùng chung mã: chỉ gỡ tag `!tvos` ở 6 helper, không tái cấu trúc mobileWire | 2026-11-15 (mặc định) |
+| Q-P7-3 | 5 chỗ style inline của prototype đè kiểu focus: làm giống prototype, đề xuất sửa → K26 | 2026-11-15 (mặc định) |
+| Q-P7-4 | Select bắn khi nhả phím (prototype: khi nhấn); giữ 550 ms bắn một lần → K27 | 2026-11-15 (mặc định) |
+| Q-P7-5 | Bỏ nút "Mô phỏng" (K2): "Quay lại" giữ y 880 và nhận focus mặc định | 2026-11-15 (mặc định) |
+| Q-P7-6 | Prefs TV → NSUserDefaults (mirror); token + install id trong file mã hoá ở Caches tới khi có G1 | 2026-11-15 (mặc định) |
+| Q-P7-7 | Tạo sim "DanceFITVN Apple TV 1080p" để chụp 1x | 2026-11-15 (mặc định) |
+| Q-P7-8 | Tải lỗi khi ngoại tuyến → màn TV11 → K28 | 2026-11-15 (mặc định) |
+| Q-P7-10 | "Nhạc tập" từ nav phát audio bài hiện tại ở vị trí chung (như prototype) | 2026-11-15 (mặc định) |
+| Q-P7-16 | Cấp quyền ghi: archtest (df-systems), layoutdump (df-ui), relay overlay + cmd/mockserve (df-logic) | 2026-11-15 (orchestrator) |
+| D8 (sửa) | Prototype không nhớ focus theo màn → TV không dùng tính năng nhớ focus của lớp focus jPlayer | 2026-11-15 (mã prototype thắng) |
+| Q-P7.3-1 | TV04–TV06: lỗi tải không phải offline cũng sang TV11 (không còn gì để hiện; mở rộng K28) | 2026-11-15 (mặc định) |
+| Q-P7.3-2 | TV04 không có continue: giữ chip "TIẾP TỤC XEM" như prototype | 2026-11-15 (mặc định) |
+| Q-P7.4-1 | TV10 quay lại từ TV06: giữ số giây còn lại như prototype (`cdT`) — đã sửa (Env.UpNextLeft) | 2026-11-15 (prototype thắng) |
+| Q-P7.4-2 | Đăng xuất TV luôn về welcome dù LogoutTV lỗi (phiên đã xoá cục bộ) | 2026-11-15 (mặc định) |
+| Q-P7.2-1 | QR TV02: quiet zone ≈2,5 module (giữ hộp 340 px của prototype, mã mới nhất prototype thắng); kiểm quét bằng điện thoại thật ở P7.7/thủ công | 2026-11-15 (mặc định) |
+| Q-P7-* khác | Theo local/plans/P7.md §11 | 2026-11-15 (mặc định) |
+| Q-P8-* | Theo local/plans/P8.md (mặc định 1–24), trừ Q-P8-11: không tải bundletool; kích thước lấy từ APK/aab, ghi chú | 2026-11-15 (cổng 1 P8) |
+| Quy ước UI | Mọi lần đổi `Hidden` ngoài Layout của chính widget phải qua `kit.SetHidden` (đánh dấu layout lại); container bỏ qua con ẩn phải Layout con với kích thước 0 | 2026-11-15 (orchestrator) |
+| Q-Android-1 | Sai số tốc độ HLS trên MediaPlayer (thiết bị thật): ±10 % cửa sổ 3 s, ±5 % cửa sổ 8 s; MP3 giữ ±3 % (tốc độ đặt đọc lại chính xác) | 2026-11-15 (orchestrator chấp nhận) |
+| Q-P0.7-3 | Emulator chạy `-gpu host` khi đo hiệu năng (P4, P8) | 2026-11-14 (mặc định) |
+
+## 7. Chuỗi mới chờ duyệt (Q13)
+
+| Khoá | Chuỗi | Chỗ dùng |
+|---|---|---|
+| `login.passwordPlaceholder` | Nhập mật khẩu | P3.2 (chuỗi mới, Q13) |
+| `login.err.attemptsTpl` | Bạn còn {n} lần thử | P3.2 (chuỗi mới, Q13) |
+| `login.err.check` | Kiểm tra lại email và mật khẩu | P3.2 (chuỗi mới, Q13) |
+| `login.err.lockedTitle` | Tài khoản đang tạm khoá | P3.2 (chuỗi mới, Q13) |
+| `login.err.lockedTpl` | Thử lại sau {n} phút | P3.2 (chuỗi mới, Q13) |
+| `login.err.deviceTitle` | Đã đạt giới hạn thiết bị | P3.2 (chuỗi mới, Q13) |
+| `login.err.deviceSub` | Gỡ bớt một thiết bị để tiếp tục | P3.2 (chuỗi mới, Q13) |
+| `login.err.offlineTitle` | Không kết nối được | P3.2 (chuỗi mới, Q13) |
+| `login.err.offlineSub` | Kiểm tra mạng rồi thử lại | P3.2 (chuỗi mới, Q13) |
+| `common.errorTitle` | Hệ thống đang bận | P3.2 (chuỗi mới, Q13) |
+| `common.errorSub` | Vui lòng thử lại sau ít phút | P3.2 (chuỗi mới, Q13) |
+| `common.retry` | Thử lại | P3.2 (chuỗi mới, Q13) |
+| `session.expired` | Phiên đăng nhập đã hết hạn | P3.2 (chuỗi mới, Q13) |
+| `session.expiredSub` | Đăng nhập lại để tiếp tục | P3.2 (chuỗi mới, Q13) |
+| `tv.settings.versionTpl` | DanceFITVN cho Apple TV · Phiên bản {v} | P7.4 TV12 (K2, chuỗi mới, Q13) |
+| `tv.error.code` | Mã lỗi: NET-503 | P7.4 TV11 khi không đọc được hotline (chuỗi mới, Q13) |
+| `a11y.position` | Vị trí phát | P8.3a thanh tua 06 / sóng 08 (chuỗi mới, Q13) |
+| `a11y.showPassword` | Hiện mật khẩu | P8.3a mắt mật khẩu 02 (chuỗi mới, Q13) |
+| `a11y.hidePassword` | Ẩn mật khẩu | P8.3a (chuỗi mới, Q13) |
+| `a11y.pairCode` | Mã liên kết | P8.3b TV02 (chuỗi mới, Q13) |
+| `a11y.current` | Đang dùng | P8.3d TV08: giá trị của tốc độ hiện tại, đọc sau phụ đề (chuỗi mới, Q13) |
+| `a11y.lessonTpl` | Bài {no} · {title} | P8.3d M05: giá trị của nút tải/phát, nói bài nào (chuỗi mới, Q13) |
+| `tv.home.subNewTpl` | “{quote}” · {dur} | P7.3 TV04 khi không có continue (chuỗi mới, Q13) |
+| `upgrade.title` | Cần cập nhật ứng dụng | P3.2 (chuỗi mới, Q13) |
+| `upgrade.body` | Phiên bản này không còn được hỗ trợ. Cập nhật để tiếp tục dùng DanceFITVN. | P3.2 (chuỗi mới, Q13) |
+| `upgrade.button` | Cập nhật | P3.2 (chuỗi mới, Q13) |
+| `bio.reason` | Đăng nhập DanceFITVN | P3.2 (chuỗi mới, Q13) |
+| `bio.cancel` | Dùng mật khẩu | P3.2 (chuỗi mới, Q13) |
+| `bio.failed` | Không xác thực được. Hãy đăng nhập bằng mật khẩu | P3.2 (chuỗi mới, Q13) |
+| `home.weekday.0–5` | Chủ nhật … Thứ sáu | P3.2 (chuỗi mới, Q13) |
+| `home.afternoon` | Chào buổi chiều | P3.2 (chuỗi mới, Q13) |
+| `home.evening` | Chào buổi tối | P3.2 (chuỗi mới, Q13) |
+| `locked.previewChip` | XEM THỬ (viết hoa của "Xem thử") | P3.2 (chuỗi mới, Q13) |
+| `bio.faceIdUsage` | (câu mô tả Face ID trong Info.plist) | P3.1, Q-P3.2b-2 |
+| `player.err.load` | Không phát được bài này. Thử lại sau | P4, Q13; B-play: dùng lại ở TV07/TV09 khi tải lỗi (trước TV không báo) |
+| `a11y.pause` | Tạm dừng | P4, Q13 |
+| `a11y.seekBack` | Lùi 10 giây | P4, Q13 |
+| `a11y.seekFwd` | Tới 10 giây | P4, Q13 |
+| `toast.dlFailed` | Tải lỗi, thử lại | P5, Q13 |
+| `toast.noSpace` | Không đủ bộ nhớ | P5, Q13 |
+| `toast.waitWiFi` | Đang chờ Wi‑Fi để tải | P5, Q13 |
+| `a11y.cancelDownload` | Huỷ tải | P5, Q13 |
+| `a11y.fileOptions` | Tuỳ chọn file | P5, Q13 |
+| `toast.pwSaved` | Đã đổi mật khẩu | P6, Q13 |
+| `toast.pwRequired` | Nhập đủ ba ô mật khẩu | P6, Q13 |
+| `toast.pwShort` | Mật khẩu mới cần ít nhất 8 ký tự | P6, Q13 |
+| `toast.pwMismatch` | Mật khẩu nhập lại không khớp | P6, Q13 |
+| `toast.pwWrong` | Mật khẩu hiện tại chưa đúng | P6, Q13 |
+| `toast.infoInvalid` | Thông tin chưa hợp lệ | P6, Q13 |
+| `toast.emailPendingTpl` | Kiểm tra hộp thư {email} để xác nhận email mới | P6, Q13 |
+| `toast.maxPlacesTpl` | Tối đa {n} địa điểm | P6, Q13 |
+| `toast.photoTooLarge` | Ảnh tối đa 2 MB | P6, Q13 |
+| `toast.photoUnreadable` | Không đọc được ảnh này | P6, Q13 |
+| `toast.codeExpired` | Mã đã hết hạn. Lấy mã mới trên TV | P6, Q13 |
+| `toast.offline` | Không kết nối được, thử lại sau | P6, Q13 |
+| `account.versionTpl` | DanceFITVN {v} | P6, Q13 |
+| `devices.thisDevice` | Máy này | P6, Q13 |
+| `devices.lastSeenTpl` | Hoạt động {date} | P6, Q13 |
+| `devices.remove` | Gỡ thiết bị | P6, Q13 |
+| `a11y.zoom` | Thu phóng ảnh | P6, Q13 |
+| `a11y.removeLink` | Xoá liên kết | P6, Q13 |
+| `a11y.removePlace` | Xoá địa điểm | P6, Q13 |
+| `toast.downloaded` | Đã tải xong bài | Toast sau khi tải; nguồn: `reference/tools/capture_dancefitvn.py:64` (trạng thái M-toast), không có trong JS prototype |
+| `a11y.play` | Phát | Nhãn trình đọc màn hình cho nút phát |
+| `login.membersOnly` | Ứng dụng hỗ trợ cho các thành viên của DanceFITVN | K30, người dùng duyệt 2026-11-17 (chữ do người dùng đưa nguyên văn): dòng chân M02/M02B thay "Chưa có tài khoản? Đăng ký trên website" (bỏ `login.noAccount`, `login.register`) |
+| `tv.welcome.membersOnly` | Ứng dụng hỗ trợ cho các thành viên của DanceFITVN | K30, người dùng duyệt 2026-11-17 (nguyên văn): dòng thứ hai của đoạn TV01, thay `tv.welcome.audience` ("Dành cho huấn luyện viên đã có tài khoản dancefitvn.com") |
+| `locked.contact` | Liên hệ DanceFITVN để tham gia khoá học | K30, người dùng duyệt 2026-11-17 (nguyên văn): chân M05B thay nút "Đăng ký trên website" (bỏ `locked.enroll`) |
+| `locked.body` (đổi chữ) | Khi tham gia khoá học, khoá học sẽ tự xuất hiện trong “Khoá học của tôi”. | K30, người dùng duyệt 2026-11-17 (nguyên văn, dấu ngoặc cong giữ nguyên): thay "Đăng ký trên dancefitvn.com, khoá học sẽ tự xuất hiện trong “Khoá học của tôi”." |
+| `devices.removeAndLogin` | Gỡ và đăng nhập | K31, người dùng duyệt 2026-11-17 (U19): nút đỏ của sheet chọn máy khi đăng nhập ở giới hạn thiết bị (dùng lại `devices.remove` "Gỡ thiết bị" ở sheet của `tv.pair.confirm`) |
+| `tv.code.qrSub` (đổi chữ) | Mở dancefitvn.com/mobile/tv trên điện thoại | B-device F8, người dùng duyệt 2026-11-17: `/tv` là 404, trang thật là `/mobile/tv` (prototype: "Mở dancefitvn.com/tv trên điện thoại") |
+| `account.privacy` | Chính sách bảo mật | K32, người dùng duyệt 2026-11-17 (U20): hàng mở `links.privacy` ở màn Tài khoản (điện thoại) |
+| `account.terms` | Điều khoản sử dụng | K34, chủ sản phẩm duyệt 2026-11-17: hàng mở `links.terms` ở màn Tài khoản (điện thoại) |
+| `download.sizeUnknown` | — | B-audio: dung lượng audio không rõ (`audio_size_bytes` null): radio "Chỉ bài này"/"Cả khoá" và nút (nút chỉ "Tải xuống", dùng lại `download.confirm`); chờ duyệt |
+| `toast.audioMissing` | Bài này chưa có file âm thanh | B-audio: `has_audio` false, hoặc server trả `not_found` cho audio (không có "thử lại"); chờ duyệt |
+- contractcheck sends the app's client headers (api.ClientHeader; -platform/-app-version/-install-id; tv.pair.start/poll always tvos); tests in cmd/contractcheck/headers_test.go.
+- api.DefaultBase changed to https://dancefitvn.com/mobile/api/v1 (user decision 2026-11-16); README, 05-data, PLAN D3, store docs, BLOCKERS B4 and scripts/README updated.
