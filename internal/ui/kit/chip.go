@@ -88,6 +88,9 @@ type Chip struct {
 	// Bg and Fg replace the kind's background and text color when not zero
 	// (`background:#2F6FE0;color:#fff`, :489).
 	Bg, Fg color.Color
+	// Spoken, when not empty, is what assistive technologies read in place of
+	// Text.
+	Spoken string
 
 	label    Label
 	attached bool
@@ -115,12 +118,18 @@ func (b *Chip) SetText(s string) {
 	}
 }
 
-// AccessibleLabel returns the chip's text.
-func (b *Chip) AccessibleLabel() string { return b.Text }
+// AccessibleLabel returns the chip's text, or Spoken.
+func (b *Chip) AccessibleLabel() string {
+	if b.Spoken != "" {
+		return b.Spoken
+	}
+
+	return b.Text
+}
 
 // Describe describes the chip as text.
 func (b *Chip) Describe(_ *ui.Context, n *platform.SemanticNode) {
-	n.Role, n.Label = platform.RoleText, b.Text
+	n.Role, n.Label = platform.RoleText, b.AccessibleLabel()
 }
 
 // Layout sizes the chip around its icon and text, 22 tall.

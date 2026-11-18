@@ -56,7 +56,7 @@ var bannerTitles = []string{"Contracts", "Creation", "Main functions", "Helper F
 var coreDirs = []string{
 	"internal/model", "internal/api", "internal/api/mock", "internal/auth", "internal/store",
 	"internal/progress", "internal/download", "internal/format", "internal/qr", "internal/pairing", "internal/clock",
-	"internal/avatar",
+	"internal/avatar", "internal/safe",
 }
 
 // uiCommonDirs are the shared interface packages: tokens, theme, icons,

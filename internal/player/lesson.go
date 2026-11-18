@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"dancefitvn-app/internal/media"
+	"dancefitvn-app/internal/safe"
 	"slices"
 )
 
@@ -175,13 +176,14 @@ func (p *Player) resolve() {
 	work := func(c context.Context) {
 		defer lcancel()
 		defer context.AfterFunc(c, lcancel)()
-		var url string
-		var err error
-		if kind == KindAudio {
-			url, err = p.o.Resolver.AudioURL(lctx, id)
-		} else {
-			url, err = p.o.Resolver.VideoURL(lctx, id)
-		}
+		// A panic of the Resolver is a failed load, not a load that never ends.
+		url, err := safe.Value("player.resolve", func() (string, error) {
+			if kind == KindAudio {
+				return p.o.Resolver.AudioURL(lctx, id)
+			}
+
+			return p.o.Resolver.VideoURL(lctx, id)
+		})
 		p.o.Dispatch(func() { p.onResolved(gen, url, err) })
 	}
 	if p.o.Go != nil {

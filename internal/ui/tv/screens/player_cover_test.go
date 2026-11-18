@@ -86,6 +86,21 @@ func coverRig(t testing.TB, img *scene.Image, fast bool) (*rig, *tvtest.Services
 	return r, svc
 }
 
+// wordmarkShown reports whether the box above the ring (the wordmark's 56 tall line, 40
+// above the ring's top at 496) has a pixel of the brand's yellow, however dim.
+func (r *rig) wordmarkShown() bool {
+	snap := r.pixels()
+	for y := 395; y < 465; y++ {
+		for x := 800; x < 1120; x++ {
+			if c := snap.RGBAAt(x, y); c.R > 90 && c.G > 70 && c.B < c.G/2 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // px returns the pixel of the last frame.
 func (r *rig) px(x, y int) color.RGBA { return r.pixels().RGBAAt(x, y) }
 
@@ -118,11 +133,12 @@ func TestPlayerLoadingShowsTheDarkenedCover(t *testing.T) {
 	// The ring is --pr (#FFD028) at the top, where it stands with the motion off.
 	pixNear(t, color.RGBA{R: 255, G: 208, B: 40, A: 255}, r.px(ringTopX, ringTopY), 6, "the ring's arc")
 	assert.Greater(t, r.px(ringLeftX, ringLeftY).G, r.px(offRingX, offRingY).G, "the ring's track is lighter than the cover")
+	assert.False(t, r.wordmarkShown(), "a cover is there: no wordmark")
 }
 
 // TestPlayerLoadingWithoutACoverIsBlackWithTheRing (K47): no cover URL, a cover that is
-// refused, and a cover not loaded yet all give #0B0B0C with the ring, never the old
-// stage (a gradient, the yellow glow, the stripes).
+// refused, and a cover not loaded yet all give #0B0B0C with the ring and the dimmed
+// wordmark above it (the owner's addition), never the old stage (a gradient, the yellow glow, the stripes).
 func TestPlayerLoadingWithoutACoverIsBlackWithTheRing(t *testing.T) {
 	t.Parallel()
 	t.Run("refused", func(t *testing.T) {
@@ -134,6 +150,7 @@ func TestPlayerLoadingWithoutACoverIsBlackWithTheRing(t *testing.T) {
 			pixNear(t, want, r.px(at[0], at[1]), 0, "the hole is plain")
 		}
 		pixNear(t, color.RGBA{R: 255, G: 208, B: 40, A: 255}, r.px(ringTopX, ringTopY), 6, "the ring's arc")
+		assert.True(t, r.wordmarkShown(), "the dimmed DanceFITVN wordmark stands above the ring")
 	})
 
 	t.Run("no url", func(t *testing.T) {
@@ -147,6 +164,7 @@ func TestPlayerLoadingWithoutACoverIsBlackWithTheRing(t *testing.T) {
 		assert.Nil(t, r.player().Plane().Cover())
 		pixNear(t, color.RGBA{R: 0x0b, G: 0x0b, B: 0x0c, A: 255}, r.px(holeLeftX, holeY), 0, "plain")
 		pixNear(t, color.RGBA{R: 255, G: 208, B: 40, A: 255}, r.px(ringTopX, ringTopY), 6, "the ring's arc")
+		assert.True(t, r.wordmarkShown(), "the dimmed DanceFITVN wordmark stands above the ring")
 	})
 }
 

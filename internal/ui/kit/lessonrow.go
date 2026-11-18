@@ -165,6 +165,11 @@ type LessonRow struct {
 	// DoneLabel are the download button's while its file is coming (it cancels)
 	// and once it is on the device.
 	DlLabel, PlayLabel, CancelLabel, DoneLabel string
+	// Damaged marks a downloaded file (Download DlDone) the system could not play: the
+	// button shows the warning in --dg in place of the download icon in --ok, and
+	// DamagedLabel names it. The prototype has no such state (K49).
+	Damaged      bool
+	DamagedLabel string
 	// Lesson names the row's lesson for the two buttons ("Bài 03 · Stink and
 	// Dutty"): their value, so that "Tải xuống" says which lesson it downloads.
 	Lesson string
@@ -183,7 +188,8 @@ type LessonRow struct {
 	attached bool
 	// dlFor is the Download the button last laid out for: the button is kept laid
 	// out when its constraints do not change, so a new state must unmark it
-	dlFor LessonDownload
+	dlFor    LessonDownload
+	dlBadFor bool
 	// dimmed, c and p paint the row under its layer: made once.
 	dimmed func()
 	c      *ui.Context
@@ -292,6 +298,8 @@ func (r *LessonRow) PerformChildAction(_ *ui.Context, key uint64, a platform.Sem
 // is coming, and says that the file is there once it is.
 func (d *lessonDl) AccessibleLabel() string {
 	switch {
+	case d.row.Download == DlDone && d.row.Damaged && d.row.DamagedLabel != "":
+		return d.row.DamagedLabel
 	case d.row.Download == DlIng && d.row.CancelLabel != "":
 		return d.row.CancelLabel
 	case d.row.Download == DlDone && d.row.DoneLabel != "":
@@ -325,11 +333,11 @@ func (r *LessonRow) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 		w = 0
 	}
 	r.sync()
-	if r.dlFor != r.Download {
+	if r.dlFor != r.Download || r.dlBadFor != r.Damaged {
 		// the download button's icon (glyph, size, ink) is made in its own Layout, which
 		// the cache of Context.Layout skips for the same constraints: a file that
 		// finished while the row was laid out showed the old icon next to the new count
-		r.dlFor = r.Download
+		r.dlFor, r.dlBadFor = r.Download, r.Damaged
 		r.dl.Relayout()
 	}
 	pad := r.Bleed()
@@ -608,6 +616,9 @@ func (d *lessonDl) sync() {
 		ink, glyph, size, stroke = theme.InkPrimary, icon.X, lesCross, lesCrossStroke
 	case DlDone:
 		ink, stroke = theme.InkSuccess, lesDlStrokeOn
+		if d.row.Damaged {
+			ink, glyph = theme.InkDanger, icon.Warn // K49: --dg `ic('warn')`, the shape says it too
+		}
 	case DlNone, DlUnavailable, LessonDownloadUnknown:
 	default:
 	}

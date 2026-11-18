@@ -54,6 +54,7 @@ type FakeDownloads struct {
 	spaceOK  bool
 	cellular bool
 	noAudio  map[string]struct{} // lessons the server has no audio for (FailDownload with env.ErrNoAudio)
+	damaged  map[string]struct{} // files the system cannot play (SetDamaged, K49)
 
 	started, cancelled, deleted []string
 	pauses, resumes, refreshes  int
@@ -64,6 +65,7 @@ type FakeDownloads struct {
 
 var (
 	_ env.DownloadManager = (*FakeDownloads)(nil)
+	_ env.DamagedFiles    = (*FakeDownloads)(nil)
 	_ env.Foregrounder    = (*Fake)(nil)
 )
 
@@ -74,7 +76,7 @@ var (
 // newFakeDownloads returns the demo state over the course of the prototype (nil
 // when the mock folder has none: then the state is empty).
 func newFakeDownloads(f *Fake, c *model.Course) *FakeDownloads {
-	d := &FakeDownloads{f: f, known: map[string]env.DownloadItem{}, noAudio: map[string]struct{}{}, free: demoFree, total: demoTotal, spaceOK: true}
+	d := &FakeDownloads{f: f, known: map[string]env.DownloadItem{}, noAudio: map[string]struct{}{}, damaged: map[string]struct{}{}, free: demoFree, total: demoTotal, spaceOK: true}
 	if c == nil {
 		return d
 	}
@@ -178,8 +180,22 @@ func (d *FakeDownloads) DoneCount() int {
 func (d *FakeDownloads) Items() []env.DownloadItem {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	out := slices.Clone(d.items)
+	for i := range out {
+		_, out[i].Damaged = d.damaged[out[i].LessonID]
+	}
 
-	return slices.Clone(d.items)
+	return out
+}
+
+// Damaged says whether the file of the lesson was marked by SetDamaged and still
+// stands (K49).
+func (d *FakeDownloads) Damaged(lessonID string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	_, ok := d.damaged[lessonID]
+
+	return ok && indexOf(d.items, lessonID) >= 0
 }
 
 // Jobs are the downloads under way, in the order they started.
@@ -317,6 +333,7 @@ func (d *FakeDownloads) Delete(lessonID string) error {
 	if i := indexOf(d.items, lessonID); i >= 0 {
 		d.items = slices.Delete(d.items, i, i+1)
 	}
+	delete(d.damaged, lessonID) // the verdict goes with the file
 	d.mu.Unlock()
 	d.topic.Publish(env.DownloadEvent{Kind: env.DownloadEventChanged, LessonID: lessonID})
 
@@ -332,8 +349,27 @@ func (d *FakeDownloads) Events() *event.Topic[env.DownloadEvent] { return &d.top
 func (d *FakeDownloads) Clear() {
 	d.mu.Lock()
 	d.items, d.jobs = nil, nil
+	clear(d.damaged)
 	d.mu.Unlock()
 	d.topic.Publish(env.DownloadEvent{Kind: env.DownloadEventChanged})
+}
+
+// SetDamaged marks the file of a lesson on the device as one the system cannot
+// play, or clears the mark (K49), and publishes DownloadEventChanged. It panics
+// for a lesson that has no file.
+func (d *FakeDownloads) SetDamaged(lessonID string, on bool) {
+	d.mu.Lock()
+	if indexOf(d.items, lessonID) < 0 {
+		d.mu.Unlock()
+		panic("shelltest: SetDamaged: no file of " + lessonID)
+	}
+	if on {
+		d.damaged[lessonID] = struct{}{}
+	} else {
+		delete(d.damaged, lessonID)
+	}
+	d.mu.Unlock()
+	d.topic.Publish(env.DownloadEvent{Kind: env.DownloadEventChanged, LessonID: lessonID})
 }
 
 // SetDownload puts a lesson of the demo course (or one Start has seen) in a
@@ -348,6 +384,7 @@ func (d *FakeDownloads) SetDownload(lessonID string, state kit.LessonDownload, p
 		panic("shelltest: SetDownload: unknown lesson " + lessonID)
 	}
 	ev := env.DownloadEvent{Kind: env.DownloadEventChanged, LessonID: lessonID, No: it.No}
+	delete(d.damaged, lessonID) // a file put in place again is judged anew
 	was := indexOf(d.jobs, lessonID)
 	if i := indexOf(d.items, lessonID); i >= 0 {
 		d.items = slices.Delete(d.items, i, i+1)

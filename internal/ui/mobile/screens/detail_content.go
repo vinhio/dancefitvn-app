@@ -130,7 +130,7 @@ func newLessonRow(e *env.Env, c model.Course, l model.Lesson, resumed bool) *kit
 		No: l.No, Title: l.Title, Download: kit.DlNone,
 		DlName: "dlTap:" + key, PlayName: "playAudio:" + key, // `data-act="dlTap"`, the offline disc's
 		Lesson:  e.Fill("a11y.lessonTpl", "no", format.No(l.No), "title", l.Title), // value of the download button and the play disc
-		DlLabel: e.T("a11y.download"), PlayLabel: e.T("a11y.play"), CancelLabel: e.T("a11y.cancelDownload"), DoneLabel: e.T("video.side.downloaded"),
+		DlLabel: e.T("a11y.download"), PlayLabel: e.T("a11y.play"), CancelLabel: e.T("a11y.cancelDownload"), DoneLabel: e.T("video.side.downloaded"), DamagedLabel: e.T("a11y.fileDamaged"),
 	}
 	r.Name = "playVideo:" + key
 	seen := l.Progress.Watched || e.WatchedLocal(l.ID) // the server's, or this run's
@@ -155,6 +155,7 @@ func newLessonRow(e *env.Env, c model.Course, l model.Lesson, resumed bool) *kit
 		r.Download, r.Progress = kit.DlIng, p
 	case kit.DlDone, kit.DlUnavailable:
 		r.Download = st
+		r.Damaged = st == kit.DlDone && env.Damaged(e.Downloads(), l.ID) // K49
 	case kit.DlNone, kit.LessonDownloadUnknown:
 	default:
 	}
@@ -187,8 +188,9 @@ func (k *detailContent) syncDownloads() {
 			}
 			r.SetProgress(p)
 		case kit.DlDone:
-			if r.Download != kit.DlDone {
-				r.Download = kit.DlDone
+			bad := env.Damaged(k.e.Downloads(), k.ids[i]) // K49
+			if r.Download != kit.DlDone || r.Damaged != bad {
+				r.Download, r.Damaged = kit.DlDone, bad
 				r.Relayout()
 			}
 		case kit.DlUnavailable:

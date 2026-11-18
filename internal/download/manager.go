@@ -15,6 +15,7 @@ import (
 
 	"dancefitvn-app/internal/clock"
 	"dancefitvn-app/internal/model"
+	"dancefitvn-app/internal/safe"
 )
 
 // ====================================================================
@@ -507,7 +508,9 @@ func (m *Manager) pumpLocked() (evs []Event) {
 // run is the goroutine of one job.
 func (m *Manager) run(ctx context.Context, j *job) {
 	defer m.wg.Done()
-	err := m.execute(ctx, j)
+	// A panic of the transfer (a broken file, a bad answer) fails this job; the
+	// others and the app go on.
+	err := safe.Call("download.run", func() error { return m.execute(ctx, j) })
 
 	m.mu.Lock()
 	m.running--

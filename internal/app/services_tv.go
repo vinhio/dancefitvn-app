@@ -35,6 +35,7 @@ import (
 	"dancefitvn-app/internal/model"
 	"dancefitvn-app/internal/pairing"
 	"dancefitvn-app/internal/progress"
+	"dancefitvn-app/internal/safe"
 	"dancefitvn-app/internal/store"
 	"dancefitvn-app/internal/sys"
 	tvenv "dancefitvn-app/internal/ui/tv/env"
@@ -479,7 +480,9 @@ func (w *tvWire) Avatar(ctx context.Context, url string) (*scene.Image, error) {
 		return nil, err
 	}
 
-	return w.images.Loader(url, func(ctx context.Context) (*scene.Image, error) { return w.fetchImage(ctx, url) })(ctx)
+	return w.images.Loader(url, func(ctx context.Context) (*scene.Image, error) {
+		return safe.Value("app.avatar", func() (*scene.Image, error) { return w.fetchImage(ctx, url) })
+	})(ctx)
 }
 
 // WatchedLocal tells whether lessonID was watched in this run (the tracker
@@ -1071,7 +1074,7 @@ func (w *tvWire) fetchImage(ctx context.Context, url string) (*scene.Image, erro
 	if err != nil {
 		return nil, err
 	}
-	img, err := components.DecodeImage(data)
+	img, err := decodePicture(data)
 	if err != nil {
 		return nil, fmt.Errorf("app: image: %w", err)
 	}
@@ -1145,7 +1148,7 @@ func (w *tvWire) background(fn func()) {
 	w.mu.Unlock()
 	go func() {
 		defer w.bg.Done()
-		fn()
+		safe.Run("app.background", fn)
 	}()
 }
 

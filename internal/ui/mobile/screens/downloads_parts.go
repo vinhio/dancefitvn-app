@@ -91,6 +91,9 @@ const (
 	// dlMoreW, dlMoreH, dlMorePad, dlMoreIcon are the `button` of `askDelete`: 6 of
 	// padding around the 22 `ic('more')` on a 26 line.
 	dlMoreW, dlMoreH, dlMorePad, dlMoreIcon float32 = 34, 38, 6, 22
+	// dlWarnIcon, dlWarnStroke are the marker of a file that does not play (K49):
+	// `ic('warn',16)` in --dg, dlRowGap before the size (the prototype has none).
+	dlWarnIcon, dlWarnStroke float32 = 16, 2
 )
 
 // blockItem is a part of a blockStack with the margins above and under it.
@@ -169,6 +172,10 @@ type fileRow struct {
 	more   *moreButton
 	last   bool // the last row of the screen has no line under it
 	label  string
+	// warn is the marker of a file that does not play, nil for a sound one (K49);
+	// spoken is what the row says of it.
+	warn   *kit.Icon
+	spoken string
 }
 
 // fileText is `span.tt`: the title as a block over the tag and length of the
@@ -271,6 +278,12 @@ func newFileRow(e *env.Env, it env.DownloadItem, last bool) *fileRow {
 	r.OnPress = func() { e.Act.PlayAudio(course, id, no) }
 	r.more.OnPress = func() { e.Act.AskDelete(course, id, no) }
 	r.Add(r.poster, r.text, r.val, r.more)
+	if it.Damaged { // K49: the lesson streams, the file stays until it is deleted
+		r.warn = kit.NewIcon(icon.Warn, dlWarnIcon, theme.InkDanger)
+		r.warn.Stroke = dlWarnStroke
+		r.spoken = e.T("a11y.fileDamaged")
+		r.Add(r.warn)
+	}
 
 	return r
 }
@@ -423,6 +436,9 @@ func (r *fileRow) Describe(c *ui.Context, n *platform.SemanticNode) {
 	r.Pressable.Describe(c, n)
 	n.Role = platform.RoleListItem
 	n.Value = r.text.sub.Text + ", " + r.val.Text
+	if r.spoken != "" {
+		n.Value += ", " + r.spoken
+	}
 }
 
 // DescribeChildren adds the button of options as an element under the row.
@@ -450,7 +466,12 @@ func (r *fileRow) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	c.Layout(r.poster, ui.Tight(geom.Sz(dlPoster, dlPoster)))
 	vs := c.Layout(r.val, loose)
 	ms := c.Layout(r.more, ui.Tight(geom.Sz(dlMoreW, dlMoreH)))
-	tw := max(w-dlPoster-dlRowGap-dlRowGap-vs.W-dlRowGap-ms.W, 0)
+	var ws geom.Size
+	if r.warn != nil {
+		ws = c.Layout(r.warn, ui.Tight(geom.Sz(dlWarnIcon, dlWarnIcon)))
+		ws.W += dlRowGap
+	}
+	tw := max(w-dlPoster-dlRowGap-dlRowGap-vs.W-dlRowGap-ms.W-ws.W, 0)
 	ts := c.Layout(r.text, ui.Constraints{Max: geom.Sz(tw, ui.Unbounded)})
 	h := max(dlRowMin, max(dlPoster, ts.H, ms.H)+border)
 	ch := h - border
@@ -460,6 +481,9 @@ func (r *fileRow) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	c.Place(r.more, geom.Pt(end, (ch-ms.H)/2))
 	end -= dlRowGap + vs.W
 	c.Place(r.val, geom.Pt(end, (ch-vs.H)/2))
+	if r.warn != nil {
+		c.Place(r.warn, geom.Pt(end-ws.W, (ch-dlWarnIcon)/2))
+	}
 
 	return cs.Constrain(geom.Sz(w, h))
 }

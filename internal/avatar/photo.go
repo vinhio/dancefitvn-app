@@ -10,6 +10,8 @@ import (
 	_ "image/png"  // and PNG's
 	"math"
 
+	"dancefitvn-app/internal/safe"
+
 	"github.com/gdeskdev/desk/foundation/core"
 )
 
@@ -46,6 +48,11 @@ const (
 // More than MaxBytes, a side past MaxSide or a broken picture is
 // core.ErrInvalid; a format other than JPEG and PNG core.ErrUnsupported.
 func Decode(data []byte) (*image.RGBA, error) {
+	return safe.Value("avatar.Decode", func() (*image.RGBA, error) { return decode(data) })
+}
+
+// decode is Decode without the guard.
+func decode(data []byte) (*image.RGBA, error) {
 	if len(data) > MaxBytes {
 		return nil, fmt.Errorf("avatar: decode: larger than %d bytes: %w", MaxBytes, core.ErrInvalid)
 	}

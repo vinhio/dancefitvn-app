@@ -122,14 +122,14 @@ func TestChipsRowSwapsItsChips(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		r := newChipsRow("Đã tải 12 MB", "Phát trực tuyến")
+		r := newChipsRow("Đã tải 12 MB", "Phát trực tuyến", "")
 		tt := kittest.Mount(t, ph, r)
 		shownLaidOut(t, tt, r.stream, "Phát trực tuyến")
 		for range 2 {
-			r.show(true)
+			r.show(true, false)
 			shownLaidOut(t, tt, r.okc, "Đã tải 12 MB")
 			assert.False(t, tt.Shows("Phát trực tuyến"))
-			r.show(false)
+			r.show(false, false)
 			shownLaidOut(t, tt, r.stream, "Phát trực tuyến")
 			assert.False(t, tt.Shows("Đã tải 12 MB"))
 		}

@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gdeskdev/desk/foundation/core"
@@ -284,6 +285,11 @@ func (m *Manager) copyBody(ctx context.Context, j *job, r io.Reader, part string
 		if n > 0 {
 			if _, werr := f.Write(buf[:n]); werr != nil {
 				_ = f.Close()
+				if full := diskFull(werr); full != nil {
+					_ = removeFile(part) // the bytes kept would only keep the disk full
+
+					return got, full
+				}
 
 				return got, fmt.Errorf("download: write part: %w", werr)
 			}
@@ -428,4 +434,15 @@ func rangeStart(v string) (int64, bool) {
 	n, err := strconv.ParseInt(first, 10, 64)
 
 	return n, err == nil && n >= 0
+}
+
+// diskFull returns ErrNoSpace (wrapping err) when err is a write that found
+// the disk full or over its quota, else nil: the user is told "Không đủ bộ
+// nhớ" (Q13) rather than "Tải lỗi".
+func diskFull(err error) error {
+	if errors.Is(err, syscall.ENOSPC) || errors.Is(err, syscall.EDQUOT) {
+		return fmt.Errorf("%w: %w", ErrNoSpace, err)
+	}
+
+	return nil
 }

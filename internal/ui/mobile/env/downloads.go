@@ -77,6 +77,10 @@ type DownloadItem struct {
 	Paused bool
 	// Err is why a download is paused or failed; nil otherwise.
 	Err error
+	// Damaged is a file whose bytes are the right size but that the system could
+	// not play: the lesson streams in its place (K49) and the screens mark it in
+	// --dg. The file stays until the user deletes it.
+	Damaged bool
 }
 
 // CourseGroup is the downloaded lessons of one course, in the order they were
@@ -172,6 +176,15 @@ type DownloadManager interface {
 	Delete(lessonID string) error
 	// Events tells what changed.
 	Events() *event.Topic[DownloadEvent]
+}
+
+// DamagedFiles is what a DownloadManager may add: the files the system could not
+// play (K49). Env.DownloadDamaged, Damaged find it; a manager that does not have it
+// has no damaged file.
+type DamagedFiles interface {
+	// Damaged says whether the file of the lesson on the device does not play. It
+	// allocates nothing.
+	Damaged(lessonID string) bool
 }
 
 // WiFiPrefs is the preference "Chỉ tải qua Wi‑Fi" (`S.prefs.wifi`), which the
@@ -397,6 +410,14 @@ func DownloadOf(d DownloadManager, lessonID string, hasAudio bool) (st kit.Lesso
 	}
 
 	return st, progress
+}
+
+// Damaged tells whether the file of lessonID on the device is one the system could
+// not play (K49); false for a manager that does not tell. It allocates nothing.
+func Damaged(d DownloadManager, lessonID string) bool {
+	f, ok := d.(DamagedFiles)
+
+	return ok && f.Damaged(lessonID)
 }
 
 // NoAudio tells whether err is the server having no audio for the lesson.

@@ -225,33 +225,6 @@ func TestDiscButtonPlay(t *testing.T) {
 	})
 }
 
-// TestStagePaints checks the K5 stage in pixels: the gradient from #3A1A1C at the top
-// left, the glow over the middle, the six stripes of the wall, the floor's black over
-// the bottom 28 %.
-func TestStagePaints(t *testing.T) {
-	t.Parallel()
-
-	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		s := kit.NewStage()
-		tt := kittest.Mount(t, ph, newStage(placeAt(sized(s, ph.Size.W, ph.Size.H), 0, 0, 0)))
-		w, h := ph.Size.W, ph.Size.H
-		tl := vvPixel(tt, geom.Pt(1, 1))
-		assert.InDelta(t, 0x3a, float64(tl.R), 6, "the top left is the first color of the gradient")
-		assert.InDelta(t, 0x1a, float64(tl.G), 6)
-		glow := vvPixel(tt, geom.Pt(w*.5, h*.35))
-		assert.Greater(t, glow.G, uint8(60), "the yellow glow lifts the green over the middle")
-		wallX := vvPixel(tt, geom.Pt(w*.1, h*.5))
-		stripe := vvPixel(tt, geom.Pt(w*.1575, h*.5))
-		assert.Greater(t, stripe.R, wallX.R, "a stripe of white at .05 from 15.5 to 16 %")
-		last := vvPixel(tt, geom.Pt(w*.9575, h*.5))
-		near := vvPixel(tt, geom.Pt(w*.93, h*.5))
-		assert.Greater(t, last.R, near.R, "the sixth stripe, at 95.5 %")
-		wall := vvPixel(tt, geom.Pt(w*.1, h*.71))
-		floor := vvPixel(tt, geom.Pt(w*.1, h*.73))
-		assert.Less(t, floor.R, wall.R, "the floor darkens from 72 %")
-	})
-}
-
 // TestButtonsDrawTheChangeAtOnce checks the buttons of the video's controls that
 // change without a layout (the symbol and the ink keep their size): the icon child
 // carries the new symbol or ink after the very next frame, with nothing else moving

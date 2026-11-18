@@ -2,6 +2,7 @@ package progress_test
 
 import (
 	"context"
+	"dancefitvn-app/internal/safe"
 	"errors"
 	"fmt"
 	"testing"
@@ -395,4 +396,30 @@ func TestTrackerWaitAfterClose(t *testing.T) {
 	close(release)
 	r.tr.Close()
 	require.Error(t, r.tr.Wait(t.Context()))
+}
+
+// TestPanicInASaveEndsOnlyThatSave makes the sender panic while a position is
+// saved: the save ends with an error, the tracker is free for the next one, and
+// the app does not end. (docs/plan/03 section 9: a bad answer never ends the app)
+func TestPanicInASaveEndsOnlyThatSave(t *testing.T) {
+	t.Parallel()
+	safe.Expect("progress.send")
+
+	r := newRig(t)
+	r.api.saveFn = func(n int) (model.ProgressResult, error) {
+		if n == 1 {
+			panic("answer: index out of range [0] with length 0")
+		}
+
+		return model.ProgressResult{LessonID: "l_3503", PositionSec: 50}, nil
+	}
+	r.tr.Update("l_3503", "set-35", 42, 220, true)
+	r.tr.Pause()
+	r.ui.drain(1)
+	require.Empty(t, r.saved, "no OnSaved for the panicked save")
+
+	r.tr.Update("l_3503", "set-35", 50, 220, true)
+	r.tr.Pause()
+	r.ui.drain(1)
+	require.Len(t, r.saved, 1, "the next save goes through")
 }

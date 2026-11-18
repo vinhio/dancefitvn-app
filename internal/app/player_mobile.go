@@ -20,6 +20,7 @@ import (
 	"dancefitvn-app/internal/model"
 	"dancefitvn-app/internal/player"
 	"dancefitvn-app/internal/progress"
+	"dancefitvn-app/internal/safe"
 	"dancefitvn-app/internal/store"
 	"dancefitvn-app/internal/ui/mobile/env"
 	"dancefitvn-app/locales"
@@ -352,7 +353,7 @@ func (r wireResolver) AudioURL(ctx context.Context, lessonID string) (string, er
 		return "", err
 	}
 	if m := w.downloads(); m != nil {
-		if path, ok := m.Path(lessonID); ok {
+		if path, ok := m.Path(lessonID); ok && w.local.use(lessonID) {
 			return path, nil
 		}
 	}
@@ -522,6 +523,9 @@ func (p *playback) onChange(c player.Change) {
 			p.keepFrame()
 		case player.StateUnknown, player.StateIdle, player.StateLoading, player.StatePlaying:
 		default:
+		}
+		if st := p.player.State(); st == player.StatePlaying || st == player.StatePaused {
+			p.w.local.played(p.player.Lesson().ID) // the file loaded
 		}
 	case player.ChangeUnknown, player.ChangeTime, player.ChangeDuration,
 		player.ChangeSeek, player.ChangeEnded, player.ChangeError:
@@ -713,6 +717,6 @@ func (w *mobileWire) background(fn func()) {
 	w.mu.Unlock()
 	go func() {
 		defer w.bg.Done()
-		fn()
+		safe.Run("app.background", fn)
 	}()
 }

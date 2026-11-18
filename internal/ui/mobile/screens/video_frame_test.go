@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"dancefitvn-app/internal/media"
+	"dancefitvn-app/internal/ui/kit"
 	"dancefitvn-app/internal/ui/kit/kittest"
 	"dancefitvn-app/internal/ui/mobile/shell/shelltest"
 
@@ -72,7 +73,7 @@ func TestVideoMirrorFlipsThePicture(t *testing.T) {
 		pb.Pause()
 		r.Settle()
 		publishHalves(t, pb.Video())
-		r.Tester.Elapse(kittest.Frame)
+		r.Tester.Elapse(kittest.Frame + kit.CoverFade) // the loading look fades out over the first frame (K47)
 		mid := ph.Size.H / 2
 		left, right := geom.Pt(60, mid), geom.Pt(290, mid)
 		assert.True(t, pb.Mirror(), "the prototype starts with the mirror on")
@@ -85,23 +86,6 @@ func TestVideoMirrorFlipsThePicture(t *testing.T) {
 		assert.False(t, pb.Mirror())
 		assert.Equal(t, color.RGBA{R: 255, G: 0, B: 0, A: 255}, pixelAt(r, left), "not mirrored: as the engine drew it")
 		assert.Equal(t, color.RGBA{R: 0, G: 0, B: 255, A: 255}, pixelAt(r, right))
-	})
-}
-
-// TestVideoStageShowsUntilTheFirstFrame checks K5: before the engine has a frame the
-// stand-in stage shows (not black); once it has, the picture and the bars of black.
-func TestVideoStageShowsUntilTheFirstFrame(t *testing.T) {
-	t.Parallel()
-
-	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		r, pb, _ := atVideo(t, ph, false)
-		pb.Pause()
-		r.Tester.Elapse(kittest.Frame)
-		p := geom.Pt(60, 220)
-		assert.NotEqual(t, color.RGBA{A: 255}, pixelAt(r, p), "the stage")
-		publishHalves(t, pb.Video())
-		r.Tester.Elapse(kittest.Frame)
-		assert.Equal(t, color.RGBA{A: 255}, pixelAt(r, p), "the bar above the picture")
 	})
 }
 

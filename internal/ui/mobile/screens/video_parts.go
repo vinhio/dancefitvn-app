@@ -36,6 +36,10 @@ const (
 	// vPanelSide is `.vctrl{padding:0 20px 34px}` (:150): the side padding; the
 	// bottom is max(34, the safe area's bottom) (Q-P2-1).
 	vPanelSide, vPanelBottom float32 = 20, 34
+	// vTopGap is the air kept between the course and lesson lines and each round
+	// button: an addition of ours (K-ellipsis), the prototype's text never meets a
+	// button, a long production course name does.
+	vTopGap float32 = 12
 	// vChipsGap, vChipsBottom are the chips row's `gap:8px;margin-bottom:10px`
 	// (:424).
 	vChipsGap, vChipsBottom float32 = 8, 10
@@ -181,7 +185,8 @@ var (
 func newVTop(back, more *kit.RoundButton) *vTop {
 	t := &vTop{back: back, more: more}
 	t.eb = kit.Eyebrow("")
-	t.line = &kit.Label{Size: vLineSize, Weight: 700, Ink: theme.InkText}
+	t.eb.Ellipsis = true // a long course name ends in "…" between the buttons
+	t.line = &kit.Label{Size: vLineSize, Weight: 700, Ink: theme.InkText, Ellipsis: true}
 	t.block = newInline(t.line)
 	t.scrim = scene.Linear(geom.Point{}, geom.Pt(0, vTopH),
 		scene.Stop{Color: color.RGBA(0, 0, 0, vTopScrimAlpha), Offset: 0},
@@ -258,14 +263,15 @@ func (t *vTop) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	c.Place(t.back, geom.Pt(vPanelSide, y))
 	c.Place(t.more, geom.Pt(size.W-vPanelSide-ms.W, y))
 
-	room := ui.Loose(geom.Sz(max(size.W-2*vPanelSide-bs.W-ms.W, 0), ui.Unbounded))
+	free := max(size.W-2*vPanelSide-bs.W-ms.W, 0)
+	room := ui.Loose(geom.Sz(max(free-2*vTopGap, 0), ui.Unbounded)) // never under a button
 	es := c.Layout(t.eb, room)
 	ls := c.Layout(t.block, room)
 	bw, bh := max(es.W, ls.W), es.H+ls.H
 	// `<div style="text-align:center">`: a block as wide as its widest line, in
 	// the middle of the row (`justify-content:space-between` with two 40 DIP
 	// buttons), each line centered in it.
-	x := vPanelSide + bs.W + (size.W-2*vPanelSide-bs.W-ms.W-bw)/2
+	x := vPanelSide + bs.W + (free-bw)/2
 	top := y + (max(bs.H, ms.H)-bh)/2
 	c.Place(t.eb, geom.Pt(x+(bw-es.W)/2, top))
 	c.Place(t.block, geom.Pt(x+(bw-ls.W)/2, top+es.H))

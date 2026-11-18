@@ -161,6 +161,15 @@ func (c *Images) Put(key string, data []byte) error {
 	return nil
 }
 
+// Remove deletes the picture of key, for one that was filed and does not
+// decode. A nil *Images, or a key with no file, does nothing.
+func (c *Images) Remove(key string) {
+	if c == nil {
+		return
+	}
+	_ = os.Remove(c.path(key))
+}
+
 // Close waits for the prune and the writes under way. The cache writes
 // nothing after. Safe to call twice, and on a nil *Images.
 func (c *Images) Close() {

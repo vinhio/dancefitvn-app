@@ -7,6 +7,7 @@
 # TestEveryTextIsPrototypeOrNew reads this file.
 a11y.cancelDownload new
 a11y.current new
+a11y.fileDamaged new
 a11y.fileOptions new
 a11y.hidePassword new
 a11y.lessonTpl new

@@ -145,8 +145,8 @@ func TestVideoViewLayout(t *testing.T) {
 	assert.InDelta(t, 180, got.H, .001)
 }
 
-// TestVideoViewNoFrame checks black before the first frame, and the stage under
-// it showing through with Under.
+// TestVideoViewNoFrame checks black before the first frame, and what lies under it
+// showing through with Under.
 func TestVideoViewNoFrame(t *testing.T) {
 	t.Parallel()
 
@@ -160,6 +160,41 @@ func TestVideoViewNoFrame(t *testing.T) {
 		ut := kittest.Mount(t, ph, newStage(placeAt(u, 20, 20, 200)))
 		g := vvPixel(ut, geom.Pt(120, 40))
 		assert.NotEqual(t, stdcolor.RGBA{R: 0, G: 0, B: 0, A: 255}, g, "Under paints nothing: --bg shows")
+	})
+}
+
+// TestVideoViewHasPicture checks what the loading look (K47) asks of the view: no
+// picture before a frame, one with the engine's frame or the kept one, none again when
+// both are gone (a new media), and one at the start when a frame is kept.
+func TestVideoViewHasPicture(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		src := &fakeSource{}
+		v := kit.NewVideoView(src, kit.FitContain)
+		tt := kittest.Mount(t, ph, newStage(placeAt(v, 20, 20, 200)))
+		tt.Frame()
+		assert.False(t, v.HasPicture(), "before the first frame")
+
+		img, err := scene.NewImage(16, 9)
+		require.NoError(t, err)
+		src.img, src.seq = img, 1
+		v.Repaint()
+		tt.Frame()
+		assert.True(t, v.HasPicture(), "the engine's frame")
+
+		src.img, src.kept = nil, img
+		v.Repaint()
+		tt.Frame()
+		assert.True(t, v.HasPicture(), "the kept frame while the engine has none")
+
+		src.kept = nil
+		v.Repaint()
+		tt.Frame()
+		assert.False(t, v.HasPicture(), "the media was reset and nothing is kept")
+
+		src.kept = img
+		assert.True(t, kit.NewVideoView(src, kit.FitContain).HasPicture(), "a view opened on a kept frame has its picture")
 	})
 }
 

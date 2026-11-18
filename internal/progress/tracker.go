@@ -9,6 +9,7 @@ import (
 	"dancefitvn-app/internal/api"
 	"dancefitvn-app/internal/clock"
 	"dancefitvn-app/internal/model"
+	"dancefitvn-app/internal/safe"
 )
 
 // ====================================================================
@@ -309,7 +310,9 @@ func (t *Tracker) launch(s snapshot) {
 // success (the network is back).
 func (t *Tracker) send(s snapshot) {
 	defer t.wg.Done()
-	res, err := t.opts.Sender.SaveProgress(t.ctx, s.lessonID, s.req)
+	res, err := safe.Value("progress.send", func() (model.ProgressResult, error) {
+		return t.opts.Sender.SaveProgress(t.ctx, s.lessonID, s.req)
+	})
 	if errors.Is(err, api.ErrOffline) || errors.Is(err, api.ErrServer) {
 		_ = t.opts.Queue.Add(Item{LessonID: s.lessonID, PositionSec: s.req.PositionSec, DurationSec: s.req.DurationSec, ClientTime: s.req.ClientTime})
 	}

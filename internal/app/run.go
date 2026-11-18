@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 
+	"dancefitvn-app/internal/safe"
 	"dancefitvn-app/internal/ui/theme"
 	"dancefitvn-app/locales"
 
@@ -69,9 +70,12 @@ const (
 // ====================================================================
 
 // Run starts DanceFITVN on the system's driver and blocks until the app
-// ends: the time zone and the fonts first, then the window, opened once
-// the system has launched the app. o is what main gives it.
+// ends: the panic handler, the time zone and the fonts first, then the
+// window, opened once the system has launched the app. o is what main
+// gives it. A panic gDesk recovers in the app's UI work, ui.Go callbacks
+// or image loads is logged through internal/safe and the app goes on.
 func Run(o Options) error {
+	safe.Install()
 	options = o
 	SetLocalZone()
 	registerAppFonts()

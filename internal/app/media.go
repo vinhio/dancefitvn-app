@@ -14,6 +14,7 @@ import (
 
 	"dancefitvn-app/internal/media"
 	"dancefitvn-app/internal/media/fake"
+	"dancefitvn-app/internal/safe"
 	"dancefitvn-app/internal/store"
 
 	"github.com/gdeskdev/desk/foundation/core"
@@ -95,7 +96,7 @@ func warmSession(cfg media.Config, newSession func(media.Config) (media.Session,
 	proc.mu.Unlock()
 	go func() {
 		t0 := time.Now()
-		s, err := newSession(cfg)
+		s, err := safe.Value("app.session", func() (media.Session, error) { return newSession(cfg) })
 		took := time.Since(t0)
 		proc.mu.Lock()
 		proc.sess, proc.err, proc.warming = s, err, nil

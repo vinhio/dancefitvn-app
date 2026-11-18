@@ -257,7 +257,7 @@ func NewPlayer(e *env.Env) ui.Widget {
 		return newBareScreen(e, keyPlayerToggle)
 	}
 	s := &Player{e: e, pb: pb}
-	s.plane = tvkit.NewVideoPlane(pb)
+	s.plane = tvkit.NewVideoPlane(pb, e.T("splash.brand"))
 
 	s.eyebrow = &kit.Label{
 		Size: playerEyebrowSize, Weight: 800, Spacing: playerEyebrowSpacing, Upper: true, Wrap: true, Ink: theme.InkPrimary,

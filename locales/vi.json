@@ -79,6 +79,7 @@
   "a11y.close": "Đóng",
   "a11y.current": "Đang dùng",
   "a11y.download": "Tải xuống",
+  "a11y.fileDamaged": "file tải về bị lỗi, đang phát trực tuyến",
   "a11y.fileOptions": "Tuỳ chọn file",
   "a11y.hidePassword": "Ẩn mật khẩu",
   "a11y.lessonTpl": "Bài {no} · {title}",

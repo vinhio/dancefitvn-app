@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"dancefitvn-app/internal/safe"
+
 	"github.com/gdeskdev/desk/bridge/backend/android/jni"
 	"github.com/gdeskdev/desk/foundation/core"
 	"github.com/gdeskdev/desk/foundation/platform"
@@ -70,7 +72,18 @@ func pickImage(_ platform.Canvas, d Dispatch, done func([]byte, string, error)) 
 
 				return
 			}
-			go func() { finish(readPicture(uris[0])) }()
+			go func() {
+				// A panic reading the picture must still end the pick: else the
+				// picker stays "taken" and no photo can be picked again.
+				var data []byte
+				var mime string
+				err := safe.Call("sys.pickImage", func() (err error) {
+					data, mime, err = readPicture(uris[0])
+
+					return err
+				})
+				finish(data, mime, err)
+			}()
 		})
 		if err != nil {
 			finish(nil, "", fmt.Errorf("sys: %s: %w", op, err))

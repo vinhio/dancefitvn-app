@@ -4,7 +4,7 @@ Những việc cần người dùng, chủ gDesk hoặc khách DanceFITVN quyế
 
 Cập nhật 2026-11-16 (P8.6): việc đã xong nằm ở mục 1; việc còn mở xếp theo người phải làm (mục 2–6). Không việc mở nào bị bỏ. Mục "Đề xuất gDesk" ở cuối giữ nguyên.
 
-Tổng: **mở 41** — Người dùng 20, DanceFITVN 3, Backend (gFly) 2, Chủ tài khoản 3, Chủ gDesk 13 · **đóng 10** (U19, U20, B2, D1 đóng tại chỗ trong bảng của mục).
+Tổng: **mở 41** — Người dùng 20, DanceFITVN 3, Backend (gFly) 2, Chủ tài khoản 3, Chủ gDesk 13 · **đóng 11** (U19, U20, B2, D1 đóng tại chỗ trong bảng của mục).
 
 Ưu tiên: **G3a** (khoá `NSFaceIDUsageDescription`) là cần thiết cho bản phát hành iOS; **G1** đứng đầu gDesk vì tvOS (Caches có thể bị xoá → đăng xuất).
 
@@ -18,6 +18,7 @@ Tổng: **mở 41** — Người dùng 20, DanceFITVN 3, Backend (gFly) 2, Chủ
 | 2026-11-16 | U17(d) — P7.5d (ghép hai máy) | iPhone sim + Apple TV sim qua mockserve: TV mã → điện thoại xác nhận → TV đăng xuất → điện thoại báo chưa liên kết. Race đọc thiết bị ở điện thoại tìm thấy, chuyển df-ui (đã có trong P7.5d) | `local/p8/pair/` | đóng |
 | 2026-11-17 | B3 — P6 (`device_limit` khi đăng nhập, backend Q-A1) | Backend thêm trường tuỳ chọn `replace_device_id` (id `d_…` trong `devices[]` của lỗi 409) vào body `POST /auth/login`: chỉ xử lý sau khi mật khẩu đúng, máy phải đang hoạt động, cùng chủ và cùng loại; server gỡ máy rồi trả phiên bình thường; id sai → `400 validation_failed` + `fields.replace_device_id`. App: banner thành hành động và mở sheet chọn máy của `tv.pair.confirm` (K31); chọn → "Gỡ và đăng nhập" gửi lại đăng nhập kèm `replace_device_id`; mock nhận trường này (scenario `device_limit` + `replace_device_id` → `auth/login.json`) | `docs/plan/01-prototype-mapping.md` K31; `login_replace_test.go`, `TestFlowLoginDeviceLimitReplace`, `TestLoginReplacingOverHTTP`; còn: gọi thật vào máy chủ khi backend triển khai trường (contractcheck chưa có mẫu cho trường tuỳ chọn nên không thêm kiểm tra) | đóng |
 | 2026-11-18 | B-code3 (G15) — kiểu bàn phím gõ mã | Chủ gDesk duyệt 2026-11-18 ("thêm vào gDesk 1 kiểu bàn phím riêng nhập mã"). Đã làm trong `../gdesk-dancefitvn-app` (nhánh `dancefitvn-app-support`, chưa commit): `platform.KeyboardCode`; uikit không cho bàn phím mượn chữ, báo `inputDelegate` ở lượt kế sau mỗi phím, trait tắt sửa/gợi ý + viết hoa; android `VISIBLE_PASSWORD \| NO_SUGGESTIONS \| CAP_CHARACTERS`. App bỏ F10 (`sys.ForgetTyping`, `env.TypingForgetter`, `CodeBoxes.AfterKey`), ô mã xin `KeyboardCode`. Còn kiểm tay trên iPhone 15 (Telex, VNI) và Galaxy A17 (Samsung Keyboard Tiếng Việt) — ghi ở PROGRESS B-code3 | Probe bàn phím Telex thật trên simulator riêng (đã xoá): 44/44 mã Telex + 44/44 English đúng, kể cả phím cách 20 ms (`local/escalations/B-code3-probe-g15.log`); `TestCodeKeyboard` sim iOS 27 + tvOS 27; `TestUIKitVietnameseKeyboardCode` | đóng |
+| 2026-11-18 | G16 — bắt panic ở lối vào UI thread và goroutine của gDesk | Chủ gDesk duyệt 2026-11-18 ("2.1 Duyệt", rồi "hãy làm như những phần bạn khuyên" cho 4 câu hỏi). Đã làm trong `../gdesk-dancefitvn-app` (nhánh `dancefitvn-app-support`, chưa commit): `core.ErrPanic` (bọc `ErrInvalid`), `core.Panic{Where, Value, Stack}`, `core.Recovered`, `core.SetPanicHandler`, `core.SetPanicLogger` (host đặt logger của app khi có `WithLogFile`); mặc định ghi log rồi chạy tiếp, trong test panic lại. Bọc: hàng đợi `host` (`Enqueue`, `Window.Post`, waker; `Invoke` trả `ErrPanic`, không treo), `ui.Go` (work panic → then nhận `ErrPanic`; then bọc), `ui.Tester` (`RecoverPanics`, `Post`), `components.ImageCache` (luôn đóng `done`) và `Image` (`ImageFailed`). Không bọc callback sự kiện/khung của driver. App: `safe.Install()` ở `app.Run` → `safe.HandlePanic` (log where + stack; trong test panic lại trừ `safe.Expect(p.Where)`) | gDesk: test bảng core/host/ui/components, `TestDispatcherSteadyStateDoesNotAllocate` + `TestDispatcherRecoveryDoesNotAllocate` + `TestGoRecoveryDoesNotAllocate` = 0, `BenchmarkQueuePushRun` 1,22 → 1,41 µs/64 việc, 0 alloc; vet darwin/ios/tvos/android/linux/windows/js; lint 0 mới. App: `internal/safe/gdesk_test.go` (`TestRecoveredUIWorkGoesOn`: then + Post panic, việc UI sau vẫn chạy) | đóng |
 
 ## 2. Người dùng (User) — 20 việc mở
 
@@ -91,7 +92,7 @@ Tổng: **mở 41** — Người dùng 20, DanceFITVN 3, Backend (gFly) 2, Chủ
 | 2026-11-16 | P8.3 (G12 nhỏ) | gDesk uikit `traitsOf` (`bridge/backend/uikit/semantics.go:471`): RoleProgress không có trait (đề xuất staticText + updatesFrequently như UIProgressView, phần trăm từ `Now`); focus luôn cộng trait selected nên trùng FlagSelected (tách ra). ~0,5–1 ngày — xem "Đề xuất gDesk" § G12 | App mô tả thanh là RoleText + Value (`kit.DescribeBar`); TV08 ghi tốc độ hiện tại ở Value "Đang dùng" | đã đề xuất |
 | 2026-11-16 | P8.4 (G13) | Android gợi ý nhịp khung (ADPF `APerformanceHint`) cho UI thread: Galaxy A17 khung đầu fling sau ~300 ms nghỉ ~30 ms vì CPU ở xung sàn (7 ms khi nhân bận). ~1–2 ngày gồm đo — xem "Đề xuất gDesk" § G13 | Không cần cho 1.0 (chạm thật có input boost; cổng xét khung ổn định) | đã đề xuất |
 
-Thứ tự gợi ý cho chủ gDesk: G3a, G1, G11 (đều nhỏ, chặn bản phát hành), rồi G2–G5b, G8, G9, G10, G12, G13 (G13 cần đo trên máy thật). G15 đã xong (mục 1).
+Thứ tự gợi ý cho chủ gDesk: G3a, G1, G11 (đều nhỏ, chặn bản phát hành), rồi G2–G5b, G8, G9, G10, G12, G13 (G13 cần đo trên máy thật). G15 và G16 đã xong (mục 1).
 
 ## Đề xuất gDesk (chờ chủ gDesk đồng ý — D10)
 
@@ -481,3 +482,64 @@ Mẫu mỗi đề xuất:
   - Bản nháp đầy đủ: `local/gdesk-proposals/G15-code-keyboard.md`. Ước lượng **1–1,5 ngày** (uikit + android + test simulator Telex; phần Android cần Galaxy A17).
 - **Dự phòng trong app:** F10 (B-code3, đang dùng) — `internal/ui/kit/codebox.go`: ô ẩn của mã là widget riêng, không là `ui.TextDocument`, không con trỏ; `CodeBoxes.AfterKey` gọi ở lượt kế sau mỗi phím. `internal/sys/keyboard*.go`: `sys.ForgetTyping(canvas)` gửi bốn thông điệp cho `inputDelegate` của canvas view (`Handles().View`; API công khai `UITextInput`/`UITextInputDelegate`). `screens/connect.go` nối qua `env.TypingForgetter`. iOS: lỗi đã hết với bàn phím Telex thật trên simulator. Android: app không có cách báo bàn phím — chữ đang soạn hiện trong ô, chữ có dấu thành chữ gốc; bàn phím Telex vẫn nuốt phím nó ghép dấu (người dùng bấm lại) cho tới G15.
 - **Trạng thái:** **xong** — chủ gDesk duyệt 2026-11-18 ("thêm vào gDesk 1 kiểu bàn phím riêng nhập mã"); đã làm theo các câu trả lời khuyên: tên `KeyboardCode`, iOS `AllCharacters`, bỏ qua khi có marked text, Android `VISIBLE_PASSWORD` (+ `NO_SUGGESTIONS`, `CAP_CHARACTERS`). Báo bàn phím bằng `performSelectorOnMainThread:withObject:waitUntilDone:NO` (lượt kế của run loop). F10 đã bỏ khỏi app. Chưa commit (cả hai repo). Còn kiểm trên máy thật (iPhone 15, Galaxy A17).
+
+### G16 — Bắt panic ở lối vào UI thread và goroutine của gDesk
+- **Lý do:** gDesk không có `recover()` nào (đã grep toàn worktree, trừ test). Một panic trong mã app chạy qua gDesk làm app tắt ngay (Go runtime ghi `crash.log`, `framework/host/logfile.go` `crashOutput`). App đã có `internal/safe` (Call/Value/Run: `ErrPanic` bọc `core.ErrInvalid`, ghi tên + stack, trong test vẫn panic trừ `safe.Expect(name)`) và bọc goroutine của mình; còn hở các chỗ chỉ gDesk bọc được:
+  - hàng đợi UI thread `dispatcher.runPending` (`framework/host/dispatch.go:80-97`, lời gọi `fn()` :94): mọi `App.Enqueue` (`app.go:349`), `Window.Post` (`waker.go:50`), `Invoke` (`app.go:363`), lượt của waker (`waker.go:107`), và `then` của `ui.Go` (giao qua `Post`). Một hàm panic → app dừng; với `Invoke`, nếu panic được bắt thì `close(finished)` (:378-386) không chạy và người đợi treo mãi;
+  - `work` của `ui.Go` chạy trên goroutine riêng (`framework/ui/task.go:88-104`): panic → app dừng, `then` không bao giờ được gọi;
+  - `ui.Tester.runPosted` (`framework/ui/tester.go:264-285`): chạy hàm đã post trong test;
+  - `components.ImageCache.run` (`framework/components/imagecache.go:165`, khởi ở `get` :146): `load` panic → app dừng; nếu chỉ bắt mà không đóng `e.done` thì mọi `Image` đang đợi treo;
+  - `components.Image.start` (`framework/components/image.go:514-519`): goroutine gọi `Load` không bọc (cùng loại với ImageCache, nên bọc luôn).
+  App gọi `ui.Go` 33 chỗ, `Post`/`Enqueue` 4 chỗ, `ImageCache`/`Loader` 10 chỗ (ngoài test).
+- **Vị trí:** `../gdesk-dancefitvn-app`
+  - `foundation/core/panic.go` (mới): `ErrPanic`, `Panic`, `SetPanicHandler`, `Recovered` (API dưới). Handler mặc định: trong test binary (`testing.Testing()`) panic lại để test thấy lỗi như hôm nay; ngoài test ghi `slog.Default().Error("gdesk: panic", "where", …, "value", …, "stack", …)` rồi chạy tiếp. Handler có thể `panic(p)` để chọn tắt app.
+  - `framework/host/dispatch.go`: `runPending` gọi `d.call(fn)` — helper có `defer` + `recover()` → `core.Recovered("host.Enqueue", v)`. `next++` vẫn trước lời gọi nên thứ tự và `runPending` lồng (WaitFor, modal) không đổi; hàm sau trong batch vẫn chạy.
+  - `framework/host/app.go` `Invoke`: hàm bọc dùng `defer close(finished)` và ghi lỗi; `Invoke` trả lỗi bọc `core.ErrPanic` thay vì treo.
+  - `framework/host/doc.go` (hoặc `App.Run`): nếu app chưa đặt handler và có log file (`openLog`), handler mặc định ghi vào logger của app (`App.Logger()`) thay `slog.Default` — câu hỏi 2.
+  - `framework/ui/task.go` `Go`: goroutine bọc `work`; panic → `err` là `*core.Panic` (bọc `ErrPanic`), `val` zero, vẫn giao cho `then`; `deliver` bọc `then` với where `"ui.Go then"` để log rõ nguồn. Nhánh không có Poster (chạy đồng bộ) bọc `work` như vậy, `then` để panic đi lên người gọi (cùng frame).
+  - `framework/ui/tester.go`: `runPosted` gọi từng hàm qua helper có recover khi `RecoverPanics` đã đặt; chưa đặt thì panic đi thẳng (test fail như hôm nay). Panic của `work` trong Tester đi qua sink của Tester (interface nội bộ của host Tester) thay vì handler toàn cục, để test `t.Parallel()` không đụng nhau.
+  - `framework/components/imagecache.go` `run`: `defer` bắt panic của `load` → `err = core.Recovered("components.ImageCache load", v)`, entry bị xoá như lỗi thường, `close(e.done)` luôn chạy. `image.go` `start`: tương tự, ảnh thành `ImageFailed` với lỗi bọc `ErrPanic`.
+  - Test (bảng, `t.Parallel()`, không sleep): host — một hàm panic giữa ba hàm, hai hàm còn lại chạy đúng thứ tự; `Invoke` panic trả `ErrPanic` không treo; `runPending` lồng; `TestDispatcherSteadyStateDoesNotAllocate` giữ 0 và `BenchmarkQueuePushRun` so trước/sau. ui — `Go` work panic → then nhận `ErrPanic`; then panic với `RecoverPanics` → hàm post sau vẫn chạy; không `RecoverPanics` → `assert.Panics`. components — `ImageCache` load panic: mọi người đợi nhận `ErrPanic`, lần sau tải lại; `Image` thành `ImageFailed`. core — `Recovered`/handler/`errors.Is(err, ErrPanic)` và `ErrInvalid` (câu hỏi 1). `goleak` giữ nguyên.
+  - Tài liệu: README `foundation/core`, `framework/ui` (Go, Tester), `framework/components` (Image, ImageCache), doc `framework/host`; `CHANGELOG.md` "Unreleased"; `docs/performance.md` ghi số benchmark dispatcher.
+- **API (phác thảo, như 06 §3):**
+  ```go
+  // foundation/core — panic.go
+  // ErrPanic is a function gDesk ran for the app that panicked and was recovered.
+  var ErrPanic = fmt.Errorf("gdesk: panic: %w", ErrInvalid) // question 1: wrap ErrInvalid or stand alone
+
+  // Panic is a recovered panic: where gDesk ran the function, the value, the stack.
+  type Panic struct {
+      Where string // "host.Enqueue", "ui.Go work", "ui.Go then", "components.ImageCache load", "components.Image load"
+      Value any    // what was passed to panic
+      Stack []byte // debug.Stack() taken in the deferred recover
+  }
+  func (p *Panic) Error() string // "gdesk: panic in <where>: <value>"
+  func (p *Panic) Unwrap() error // ErrPanic
+
+  // SetPanicHandler sets what is done with each panic gDesk recovers, called on the
+  // goroutine that recovered it (the UI thread for queued work); nil restores the default.
+  // The default panics again in a test binary and otherwise logs at Error through
+  // slog.Default, then goes on. A handler may panic(p) to end the app instead.
+  // Safe from any goroutine.
+  func SetPanicHandler(fn func(p *Panic))
+
+  // Recovered reports v, a value recover returned, as a *Panic through the handler and
+  // returns it. For gDesk modules and apps:
+  //   defer func() { if v := recover(); v != nil { err = core.Recovered("where", v) } }()
+  func Recovered(where string, v any) error
+
+  // framework/ui — tester.go
+  // RecoverPanics has the tester recover a panic of each function run on its UI thread
+  // (ui.Go's work and then, Post), hand it to fn and go on, as the app's host does.
+  // Without it a panic fails the test.
+  func (t *Tester) RecoverPanics(fn func(p *core.Panic))
+  ```
+- **Ảnh hưởng:**
+  - API: chỉ thêm (core: 1 biến, 1 kiểu, 2 hàm; ui: 1 phương thức Tester). Không đổi chữ ký nào; hợp lệ với hứa hẹn 1.x (`docs/stability.md`).
+  - Hành vi: app thật — panic trong hàm của hàng đợi UI thread / `then` / `work` / loader ảnh được ghi log (where, value, stack) và app chạy tiếp; `then` nhận `ErrPanic` khi `work` panic; `Invoke` trả `ErrPanic` thay vì treo; ảnh lỗi hiện trạng thái `ImageFailed`. Rủi ro: chạy tiếp sau panic có thể để trạng thái dở (mutex còn khoá, widget nửa cập nhật) — app có thể chọn tắt bằng handler `panic(p)`. Test: mặc định như hôm nay (panic → test fail); `RecoverPanics` cho test muốn thấy app chạy tiếp. Không bọc: callback sự kiện/khung của driver (input, layout, paint) và `View.Dispatch` gọi đồng bộ — panic ở đó vẫn tắt app và vào `crash.log` (câu hỏi 3); goroutine khác của gDesk (`components` command shell, `chart.Waterfall`, `editor.run`) ngoài phạm vi.
+  - Hiệu năng & bộ nhớ: một `defer` open-coded mỗi hàm của hàng đợi (~1–2 ns, 0 cấp phát, đo bằng `BenchmarkQueuePushRun` + `TestDispatcherSteadyStateDoesNotAllocate`); goroutine của `Go`/ImageCache/Image thêm một `defer`, không cấp phát thêm. Chỉ đường có panic cấp phát (`debug.Stack`, `*Panic`).
+  - App: **DanceFITVN** — đặt `core.SetPanicHandler` ở khởi động, nối vào `internal/safe` (log + trong test panic lại trừ `safe.Expect(p.Where)`); thêm test: then/Post panic không chặn việc UI sau (`Tester.RecoverPanics`). **jPlayer Mobile/TV** và app gDesk khác: không đổi mã; khác biệt duy nhất là panic ở các chỗ trên không còn tắt app (log thay `crash.log`) — app nào muốn giữ hành vi cũ đặt handler `panic(p)`.
+  - Câu hỏi cho chủ gDesk: (1) `ErrPanic` bọc `ErrInvalid` (giống `safe.ErrPanic` của app; khuyên) hay là sentinel riêng thứ sáu của core; (2) handler mặc định ghi qua `slog.Default` (khuyên, core không biết App) và `host` nối vào `App.Logger()` khi app có log file — có muốn không; (3) phạm vi: chỉ hàng đợi + `Go` + ảnh (khuyên, như đề bài) hay cả callback sự kiện/khung của driver; (4) handler toàn cục ở core (khuyên, chỗ duy nhất `ui`/`components`/`host` đều thấy) hay option theo App (`host.WithPanicHandler`) + trường `ImageCache.OnPanic`.
+  - Ước lượng **1–1,5 ngày** (core + host + ui + components + test + tài liệu; `make test`, lint, cross vet ios/android).
+- **Dự phòng trong app:** `internal/safe` — goroutine, decoder và loader của app đã bọc (`safe.Run`/`Call`/`Value`); bọc thêm thân `work` của các `ui.Go` có đọc dữ liệu ngoài. Chưa có cách bọc `then`/`Post` ngoài việc bọc từng thân hàm ở app.
+- **Trạng thái:** xong (2026-11-18) — chủ gDesk duyệt trực tiếp trong phiên chính ("2.1 Duyệt", rồi "1. hãy làm như những phần bạn khuyên."): (1) `ErrPanic` bọc `ErrInvalid`; (2) mặc định ghi `slog.Default`, `host` nối `App.Logger()` khi có log file (qua `core.SetPanicLogger`, thêm so với phác thảo), trong test panic lại; (3) phạm vi hàng đợi + `Go` + Tester + ảnh, không callback driver; (4) handler toàn cục ở core. Khác phác thảo: `Panic.Unwrap` trả `[]error` (khớp cả lỗi được truyền vào `panic`); thêm `Tester.Post(fn)` để test app post hàm vào UI thread của Tester; panic trong Tester đặt `RecoverPanics` mang where `"ui.Tester post"`. Kết quả và bằng chứng: mục 1.

@@ -118,7 +118,7 @@ func NewAudio(e *env.Env) nav.Screen {
 	a.title.Wrap = true
 	a.sub = kit.Muted("", aSubSize)
 	a.sub.Name = nameMuted
-	a.chips = newChipsRow(e.T("audio.downloadedTpl"), e.T("audio.streaming"))
+	a.chips = newChipsRow(e.T("audio.downloadedTpl"), e.T("audio.streaming"), e.T("a11y.fileDamaged"))
 
 	a.wave = kit.NewWave(e.T("a11y.position"))
 	// `data-scrub="m"` seeks on the press (index.html:437); K38: the finger drags it
@@ -477,8 +477,9 @@ func (a *Audio) syncOptions() {
 func (a *Audio) syncDownload() {
 	state, _ := a.e.Downloads().State(a.pb.Lesson().ID)
 	on := state == kit.DlDone
-	if on != a.chips.showOkc {
-		a.chips.show(on)
+	bad := on && env.Damaged(a.e.Downloads(), a.pb.Lesson().ID) // K49
+	if on != a.chips.showOkc || bad != a.chips.damaged {
+		a.chips.show(on, bad)
 	}
 	kit.SetHidden(a.top.more, !on)
 }

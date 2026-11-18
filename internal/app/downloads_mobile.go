@@ -85,6 +85,9 @@ type wireDownloads struct {
 	// noAudio holds the lessons the server has no audio for (a download ended in
 	// ErrNoAudio): State reads them as unavailable for the rest of the run.
 	noAudio map[string]struct{}
+	// damaged holds the files on the device the system could not play (localAudio),
+	// as of the last reload (K49).
+	damaged map[string]struct{}
 	total   int64 // the sum of the sizes of items
 	active  int   // the jobs queued or running
 
@@ -120,6 +123,7 @@ type badSHASource struct{ inner download.Source }
 
 var (
 	_ env.DownloadManager = (*wireDownloads)(nil)
+	_ env.DamagedFiles    = (*wireDownloads)(nil)
 	_ http.RoundTripper   = (*dlTransport)(nil)
 	_ download.Source     = badSHASource{}
 )
@@ -130,7 +134,10 @@ var (
 
 // newWireDownloads returns the downloads of w, empty until a user signs in.
 func newWireDownloads(w *mobileWire) *wireDownloads {
-	return &wireDownloads{w: w, itemAt: map[string]int{}, jobAt: map[string]int{}, noAudio: map[string]struct{}{}}
+	d := &wireDownloads{w: w, itemAt: map[string]int{}, jobAt: map[string]int{}, noAudio: map[string]struct{}{}, damaged: map[string]struct{}{}}
+	w.local.wire(w, d)
+
+	return d
 }
 
 // ====================================================================
@@ -152,6 +159,15 @@ func (d *wireDownloads) State(lessonID string) (kit.LessonDownload, float32) {
 	}
 
 	return kit.DlNone, 0
+}
+
+// Damaged tells whether the file of the lesson on the device is one the system could
+// not play: the lesson streams, the file stays until it is deleted (K49). It allocates
+// nothing.
+func (d *wireDownloads) Damaged(lessonID string) bool {
+	_, ok := d.damaged[lessonID]
+
+	return ok
 }
 
 // DoneCount is how many lessons of the user have their audio.
@@ -283,6 +299,7 @@ func (d *wireDownloads) Delete(lessonID string) error {
 		return errDlNoUser
 	}
 	m.Forget(lessonID)
+	d.w.local.forget(lessonID)
 	err := m.Delete(lessonID)
 	d.changed(lessonID)
 	d.RefreshSpace()
@@ -422,13 +439,19 @@ func (d *wireDownloads) reload() {
 	d.items, d.jobs, d.total, d.active = d.items[:0], d.jobs[:0], 0, 0
 	clear(d.itemAt)
 	clear(d.jobAt)
+	clear(d.damaged)
 	if m := d.w.downloads(); m != nil {
 		for _, e := range m.List() {
 			if _, ok := m.Path(e.LessonID); !ok {
 				continue // the index lists a file that is not whole on the disk
 			}
 			d.itemAt[e.LessonID] = len(d.items)
-			d.items = append(d.items, fileItem(e))
+			it := fileItem(e)
+			if d.w.local.damaged(e.LessonID) {
+				d.damaged[e.LessonID] = struct{}{}
+				it.Damaged = true
+			}
+			d.items = append(d.items, it)
 			d.total += e.Size
 		}
 		for _, j := range m.Jobs() {
@@ -502,6 +525,32 @@ func (d *wireDownloads) expired() {
 	d.bgEnd = nil
 	d.w.deps.Logf("dancefitvn: downloads: background time over, %d paused", d.active)
 	d.pauseAll(errDlBackground)
+}
+
+// wire gives l the parts it needs of w: the fingerprint of a file from the
+// manager of the user, the telling of a new verdict to the UI thread and the
+// writing of the verdicts off it (K49).
+func (l *localAudio) wire(w *mobileWire, d *wireDownloads) {
+	l.print = func(lessonID string) string {
+		if m := w.downloads(); m != nil {
+			if e, ok := m.Lookup(lessonID); ok {
+				return entryPrint(e)
+			}
+		}
+
+		return ""
+	}
+	l.changed = func(lessonID string) {
+		w.dispatch(func() { d.changed(lessonID) })
+	}
+	l.save = w.background
+	l.store = func(key string, data []byte) error {
+		if w.prefs == nil {
+			return nil
+		}
+
+		return w.prefs.Save(key, data)
+	}
 }
 
 // reset forgets the list: nobody is signed in.
@@ -661,6 +710,11 @@ func (w *mobileWire) useDownloads(user string) {
 		w.deps.Logf("dancefitvn: downloads: %v", err)
 
 		return
+	}
+	if w.prefs != nil {
+		if raw, err := w.prefs.Load(damagedKey); err == nil {
+			w.local.load(raw) // the verdicts of a run before (K49)
+		}
 	}
 	w.mu.Lock()
 	if w.closed || w.dlUser != user {

@@ -28,6 +28,7 @@ import (
 	"dancefitvn-app/internal/download"
 	"dancefitvn-app/internal/model"
 	"dancefitvn-app/internal/progress"
+	"dancefitvn-app/internal/safe"
 	"dancefitvn-app/internal/store"
 	"dancefitvn-app/internal/sys"
 	"dancefitvn-app/internal/ui/mobile/env"
@@ -165,6 +166,8 @@ type mobileWire struct {
 	covers *coverLoader
 	disk   *store.Images
 	http   *http.Client
+	// local is what is known of the downloaded files handed to the player.
+	local localAudio
 	// ui is the clock of the playback: the view's timers once attached
 	// (uiClock), so that a Tester's Elapse drives the engine and the
 	// saves. UI thread only.
@@ -535,7 +538,9 @@ func (w *mobileWire) Avatar(ctx context.Context, url string) (*scene.Image, erro
 		return nil, err
 	}
 
-	return w.images.Loader(url, func(ctx context.Context) (*scene.Image, error) { return w.fetchImage(ctx, url) })(ctx)
+	return w.images.Loader(url, func(ctx context.Context) (*scene.Image, error) {
+		return safe.Value("app.avatar", func() (*scene.Image, error) { return w.fetchImage(ctx, url) })
+	})(ctx)
 }
 
 // Cover loads the cover of a course at url (K14): the real picture in the
@@ -895,7 +900,7 @@ func (w *mobileWire) fetchImage(ctx context.Context, url string) (*scene.Image, 
 	if err != nil {
 		return nil, err
 	}
-	img, err := components.DecodeImage(data)
+	img, err := decodePicture(data)
 	if err != nil {
 		return nil, fmt.Errorf("app: image: %w", err)
 	}

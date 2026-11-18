@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"dancefitvn-app/internal/safe"
 	"dancefitvn-app/internal/store"
 
 	"github.com/gdeskdev/desk/foundation/core"
@@ -77,8 +78,10 @@ func (l *coverLoader) Load(ctx context.Context, rawURL string) (*scene.Image, er
 		return nil, fmt.Errorf("app: cover: no real cover at this address: %w", core.ErrUnsupported)
 	}
 
+	// The cache runs the load on a goroutine of its own, which nobody
+	// recovers: a panic of the decoder is an error here (the poster stays).
 	return l.images.Loader(coverKeyPrefix+rawURL, func(ctx context.Context) (*scene.Image, error) {
-		return l.read(ctx, rawURL)
+		return safe.Value("app.cover", func() (*scene.Image, error) { return l.read(ctx, rawURL) })
 	})(ctx)
 }
 
@@ -86,29 +89,40 @@ func (l *coverLoader) Load(ctx context.Context, rawURL string) (*scene.Image, er
 // ========================= Helper Functions =========================
 // ====================================================================
 
-// read gets the bytes of the cover, from the disk or the network, and
-// decodes them.
+// read gets the cover, from the disk or the network, and decodes it. Bytes are
+// filed only once they decode, and a filed file that does not decode (cut by a
+// full disk, spoilt) is removed and fetched again: else it would answer an error
+// until it is old enough to be asked for again.
 func (l *coverLoader) read(ctx context.Context, rawURL string) (*scene.Image, error) {
 	key := artKey(rawURL) // a CDN's signature left out, as for the artwork
-	data, saved, ok := l.disk.Get(key)
-	fresh := ok && l.now().Sub(saved) < coverFresh
-	if !fresh {
-		got, err := l.fetch(ctx, rawURL, maxCoverBytes)
+	var stale *scene.Image
+	if data, saved, ok := l.disk.Get(key); ok {
+		img, err := decodeCover(data)
 		switch {
-		case err == nil:
-			// Filing is best effort (a full disk, bytes that are no picture: the
-			// decode below tells): the cover shows either way.
-			_ = l.disk.Put(key, got)
-			data, ok = got, true
-		case !ok:
-			return nil, err
+		case err != nil:
+			l.disk.Remove(key)
+		case l.now().Sub(saved) < coverFresh:
+			return img, nil
 		default: // offline or the server failed: the stale file is better than none
+			stale = img
 		}
 	}
-	if !ok {
-		return nil, fmt.Errorf("app: cover: %w", core.ErrNotFound)
+	got, err := l.fetch(ctx, rawURL, maxCoverBytes)
+	if err != nil {
+		if stale != nil {
+			return stale, nil
+		}
+
+		return nil, err
 	}
-	return decodeCover(data)
+	img, err := decodeCover(got)
+	if err != nil {
+		return nil, err
+	}
+	// Filing is best effort (a full disk): the cover shows either way.
+	_ = l.disk.Put(key, got)
+
+	return img, nil
 }
 
 // decodeCover decodes a cover (a JPEG or a PNG of artMaxSide a side and
@@ -150,4 +164,24 @@ func isMockMedia(m inProcMock, rawURL string) bool {
 	base := m.Media().BaseURL()
 
 	return base != "" && strings.HasPrefix(rawURL, base+"/")
+}
+
+// decodePicture decodes a picture fetched for a screen (an avatar): the
+// header is read first, so that a small file that declares a huge picture
+// (decoded it would fill the memory) is refused before its pixels are made,
+// and a panic of a decoder is an error. Errors wrap core.ErrInvalid. Run it
+// off the UI thread.
+func decodePicture(data []byte) (*scene.Image, error) {
+	return safe.Value("app.picture", func() (*scene.Image, error) {
+		cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("app: picture: %w: %w", core.ErrInvalid, err)
+		}
+		if cfg.Width <= 0 || cfg.Height <= 0 || max(cfg.Width, cfg.Height) > artMaxSide || cfg.Width*cfg.Height > artMaxPixels {
+			return nil, fmt.Errorf("app: picture: %d×%d px, at most %d a side and %d px: %w",
+				cfg.Width, cfg.Height, artMaxSide, artMaxPixels, core.ErrInvalid)
+		}
+
+		return components.DecodeImage(data)
+	})
 }

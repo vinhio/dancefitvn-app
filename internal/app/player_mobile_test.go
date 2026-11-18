@@ -199,6 +199,7 @@ func TestWireAudioFromDevice(t *testing.T) {
 	u, err := res.AudioURL(t.Context(), "l_3503")
 	require.NoError(t, err)
 	assert.Equal(t, path, u, "the file on the device")
+	pr.w.local.played("l_3503") // asking for the address is no play: the file is not under suspicion
 
 	list := env.PlayerLessons(c)
 	pr.player().PlayAudio(list[2], list)

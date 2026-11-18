@@ -19,6 +19,8 @@ import (
 	"net/url"
 	"sync"
 
+	"dancefitvn-app/internal/safe"
+
 	"github.com/gdeskdev/desk/foundation/core"
 )
 
@@ -88,7 +90,7 @@ func loadArtwork(ctx context.Context, c *artCache, rawURL string, fetch artFetch
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("app: artwork: %w", err)
 	}
-	out, err := fitArtwork(b)
+	out, err := safe.Value("app.artwork", func() ([]byte, error) { return fitArtwork(b) })
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +104,7 @@ func loadArtwork(ctx context.Context, c *artCache, rawURL string, fetch artFetch
 
 // fitArtwork returns b as the system's media controls take it: b itself
 // when it is a PNG or a JPEG of artMaxBytes at most and artPassSide pixels
-// a side at most; else b decoded (a JPEG or a PNG of artMaxSide a side and
+// a side at most (it is decoded to be sure it is whole); else b decoded (a JPEG or a PNG of artMaxSide a side and
 // artMaxPixels at most), reduced by an area average to artSide on its
 // longer side and written as a JPEG of quality artQuality, transparent
 // parts over black. A picture that does not decode, or is too large to,
@@ -113,17 +115,18 @@ func fitArtwork(b []byte) ([]byte, error) {
 		return nil, fmt.Errorf("app: artwork: %w: %w", core.ErrInvalid, err)
 	}
 	w, h := cfg.Width, cfg.Height
-	switch {
-	case w <= 0 || h <= 0 || max(w, h) > artMaxSide || w*h > artMaxPixels:
+	if w <= 0 || h <= 0 || max(w, h) > artMaxSide || w*h > artMaxPixels {
 		return nil, fmt.Errorf("app: artwork: %d×%d px, at most %d a side and %d px: %w",
 			w, h, artMaxSide, artMaxPixels, core.ErrInvalid)
-	case len(b) <= artMaxBytes && isPNGOrJPEG(b) && max(w, h) <= artPassSide:
-		return b, nil
-	default:
 	}
+	// Decoded even when it goes on as it is: the header alone says nothing of
+	// bytes that were cut or spoilt, which the system would meet later.
 	src, _, err := image.Decode(bytes.NewReader(b))
 	if err != nil {
 		return nil, fmt.Errorf("app: artwork: %w: %w", core.ErrInvalid, err)
+	}
+	if len(b) <= artMaxBytes && isPNGOrJPEG(b) && max(w, h) <= artPassSide {
+		return b, nil
 	}
 	dw, dh := fitSide(w, h, artSide)
 	dst := image.NewRGBA(image.Rect(0, 0, dw, dh))

@@ -5,7 +5,8 @@
 // (the kit does not import internal/media, internal/archtest), it has Mirror
 // (the flip of 04 sections 2.3 and 3.3, proven in cmd/avspike/video.go), it has
 // no radius, no fallback widget and no Scaled: screen 06's picture is a plain
-// box over the K5 stage, which is what shows until the first frame (Under).
+// box under the loading look (LoadingCover, K47: it replaced the K5 stage), which
+// the screen draws over it until the first frame (HasPicture tells it).
 
 package kit
 
@@ -64,8 +65,8 @@ type VideoSource interface {
 // (FitContain) or over (FitCover) its box, turned upright by the source's
 // Rotation and flipped left to right when Mirror is set. When the engine has no
 // frame (paused after a Free, stalled, reloading, failed) it draws the frame
-// the source kept; with none kept it draws nothing when Under, so that the K5
-// stage under it shows, and black otherwise.
+// the source kept; with none kept it draws nothing when Under, so that what lies under it
+// shows, and black otherwise.
 //
 // Paint is the one place the UI latches a frame (VideoSource.Frame), at the
 // start, with the number of the window's paint (ui.View.FramesDrawn). For an
@@ -86,6 +87,9 @@ type VideoView struct {
 	// Under makes the view paint nothing when it has no picture, so that what
 	// lies under it shows.
 	Under bool
+	// pic is whether the last paint had a picture to draw (the engine's frame
+	// or the kept one).
+	pic bool
 
 	src     VideoSource
 	unwatch func() // from VideoSource.Watch while attached
@@ -112,11 +116,16 @@ var (
 	_ ui.Unmounter = (*VideoView)(nil)
 )
 
-// NewVideoView returns a view of s (nil shows the stage, or black) with the fit.
+// NewVideoView returns a view of s (nil shows what lies under it, or black) with
+// the fit.
 func NewVideoView(s VideoSource, fit Fit) *VideoView {
 	v := &VideoView{Fit: fit, src: s}
 	v.Name = NameVideo
 	v.init()
+	if s != nil {
+		img, _ := s.Kept()
+		v.pic = img != nil
+	}
 
 	return v
 }
@@ -133,12 +142,23 @@ func (v *VideoView) SetSource(s VideoSource) {
 	}
 	v.detach()
 	v.src = s
+	v.pic = false
+	if s != nil {
+		img, _ := s.Kept()
+		v.pic = img != nil // a screen that opens on a kept frame has a picture
+	}
 	v.attach()
 	v.Repaint()
 }
 
 // Source returns the source shown.
 func (v *VideoView) Source() VideoSource { return v.src }
+
+// HasPicture tells whether a picture is on the view: the last paint drew a frame
+// (the engine's, or the kept one); before the first paint, whether the source
+// keeps one. It is false from the Reset of a new media until its first frame.
+// Allocates nothing.
+func (v *VideoView) HasPicture() bool { return v.pic }
 
 // SetMirror flips the picture, or not; the same value changes nothing.
 func (v *VideoView) SetMirror(on bool) {
@@ -211,6 +231,7 @@ func (v *VideoView) Paint(ctx *ui.Context, p *ui.Painter) {
 			img, rot = s.Kept() // the engine has none: the frame kept
 		}
 	}
+	v.pic = img != nil
 	if img == nil {
 		if !v.Under {
 			p.Fill(box, scene.Solid(videoBG), 0)

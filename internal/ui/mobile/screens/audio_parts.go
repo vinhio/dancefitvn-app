@@ -15,6 +15,7 @@ import (
 	"dancefitvn-app/internal/ui/theme"
 
 	"github.com/gdeskdev/desk/bridge/text"
+	"github.com/gdeskdev/desk/foundation/core/color"
 	"github.com/gdeskdev/desk/foundation/core/geom"
 	"github.com/gdeskdev/desk/foundation/platform"
 	"github.com/gdeskdev/desk/framework/ui"
@@ -30,6 +31,9 @@ const (
 	// aSide is `left:20px;right:20px` of the top row and of the block of the
 	// lesson (:433, :435).
 	aSide float32 = 20
+	// aTopGap is the air kept between the course lines and each round button: an
+	// addition of ours (K-ellipsis), see vTopGap.
+	aTopGap float32 = 12
 	// aRowTop is the top row's `top:58px` (:433): the content top (54) and 4.
 	aRowTop float32 = 58
 	// aPosterTop, aPosterSize, aPosterRadius, aPosterTitle are `left:46px;top:
@@ -70,6 +74,9 @@ const (
 	aTagAlpha float32 = .16
 	// aChipIcon, aChipStroke are `ic('dl',13,2.4)` of the downloaded chip.
 	aChipIcon, aChipStroke float32 = 13, 2.4
+	// aDamagedAlpha is the red disc of SH.del, `background:rgba(255,90,95,.16)`
+	// (:517), under the chip of a file the system could not play (K49).
+	aDamagedAlpha float32 = .16
 	// aBgAt, aBgEnd, aBgAlpha are `radial-gradient(circle at 50% 20%,
 	// rgba(255,208,40,.28), transparent 55%)` (:432).
 	aBgAt, aBgEnd, aBgAlpha = .2, .55, .28
@@ -163,6 +170,10 @@ type chipsRow struct {
 	okc     *kit.Chip // downloaded, with its size
 	stream  *kit.Chip // not on the device
 	showOkc bool
+	// damaged is the downloaded chip as the marker of a file that does not play: the
+	// warning icon in --dg on the red of .16 (K49); spoken is what it says.
+	damaged bool
+	spoken  string
 }
 
 // ====================================================================
@@ -174,7 +185,8 @@ func newAudioTop(back, more *kit.RoundButton) *audioTop {
 	t := &audioTop{back: back, more: more}
 	t.eb = kit.Eyebrow("")
 	t.eb.Align = ui.TextAlignCenter
-	t.name = &kit.Label{Size: aNameSize, Weight: 700, Ink: theme.InkText}
+	t.eb.Ellipsis = true
+	t.name = &kit.Label{Size: aNameSize, Weight: 700, Ink: theme.InkText, Ellipsis: true} // a long course name ends in "…"
 	t.block = newInline(t.name)
 	t.Add(back, t.eb, t.block, more)
 
@@ -208,15 +220,16 @@ func newActButton(name string, g icon.Name, text string) *actButton {
 }
 
 // newChipsRow returns the row: the tag chip (rgba(255,208,40,.16) under --pr),
-// then the downloaded chip or the streaming one (--sf2 under --tx2).
-func newChipsRow(downloaded, streaming string) *chipsRow {
-	r := &chipsRow{}
+// then the downloaded chip or the streaming one (--sf2 under --tx2); damaged is
+// what the downloaded chip says when its file does not play (K49).
+func newChipsRow(downloaded, streaming, damaged string) *chipsRow {
+	r := &chipsRow{spoken: damaged}
 	r.tag = kit.NewChip(kit.ChipKindUnknown, "")
 	r.okc = kit.NewChip(kit.ChipOkc, downloaded)
 	r.okc.Icon, r.okc.IconSize, r.okc.IconStroke = icon.Dl, aChipIcon, aChipStroke
 	r.stream = kit.NewChip(kit.ChipKindUnknown, streaming)
 	r.Add(r.tag, r.okc, r.stream)
-	r.show(false)
+	r.show(false, false)
 
 	return r
 }
@@ -234,11 +247,12 @@ func (t *audioTop) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	ms := c.Layout(t.more, ui.Loose(size))
 	c.Place(t.back, geom.Pt(aSide, 0))
 	c.Place(t.more, geom.Pt(size.W-aSide-ms.W, 0))
-	room := ui.Loose(geom.Sz(max(size.W-2*aSide-bs.W-ms.W, 0), ui.Unbounded))
+	free := max(size.W-2*aSide-bs.W-ms.W, 0)
+	room := ui.Loose(geom.Sz(max(free-2*aTopGap, 0), ui.Unbounded)) // never under a button
 	es := c.Layout(t.eb, room)
 	ls := c.Layout(t.block, room)
 	bw, bh := max(es.W, ls.W), es.H+ls.H
-	x := aSide + bs.W + (size.W-2*aSide-bs.W-ms.W-bw)/2
+	x := aSide + bs.W + (free-bw)/2
 	top := (max(bs.H, ms.H) - bh) / 2
 	// `.eb` is a block in the centered div: as wide as the widest line, its text
 	// centered in it (layout.json's `div.eb` is the 104.03 of the course name).
@@ -370,11 +384,28 @@ func (b *actButton) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 
 // show picks the chip of the file: the downloaded one with its size, or the one
 // that says the sound streams.
-func (r *chipsRow) show(downloaded bool) {
+func (r *chipsRow) show(downloaded, damaged bool) {
 	r.showOkc = downloaded
+	r.setDamaged(damaged)
 	kit.SetHidden(r.okc, !downloaded)
 	kit.SetHidden(r.stream, downloaded)
 	r.Relayout()
+}
+
+// setDamaged turns the downloaded chip into the marker of a file that does not
+// play, or back.
+func (r *chipsRow) setDamaged(damaged bool) {
+	if damaged == r.damaged {
+		return
+	}
+	r.damaged = damaged
+	if damaged {
+		r.okc.Icon, r.okc.Spoken = icon.Warn, r.spoken
+	} else {
+		r.okc.Icon, r.okc.Spoken = icon.Dl, ""
+		r.okc.Bg, r.okc.Fg = color.Color{}, color.Color{}
+	}
+	r.okc.Relayout()
 }
 
 // Layout puts the tag chip and the file's chip side by side, 8 apart, and gives
@@ -383,6 +414,9 @@ func (r *chipsRow) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	t := &theme.From(c).T
 	r.tag.Bg, r.tag.Fg = t.Primary.WithAlpha(aTagAlpha), t.Primary
 	r.stream.Bg, r.stream.Fg = t.Surface2, t.Text2
+	if r.damaged {
+		r.okc.Bg, r.okc.Fg = t.Danger.WithAlpha(aDamagedAlpha), t.Danger
+	}
 	loose := ui.Loose(cs.Max)
 	ts := c.Layout(r.tag, loose)
 	c.Place(r.tag, geom.Point{})

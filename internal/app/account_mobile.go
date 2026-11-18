@@ -30,7 +30,6 @@ import (
 	"github.com/gdeskdev/desk/foundation/core"
 	"github.com/gdeskdev/desk/foundation/platform"
 	"github.com/gdeskdev/desk/foundation/scene"
-	"github.com/gdeskdev/desk/framework/components"
 )
 
 // ====================================================================
@@ -414,7 +413,7 @@ func (w *mobileWire) primeImage(ctx context.Context, url string, data []byte) {
 		return
 	}
 	w.images.Forget(url)
-	img, err := components.DecodeImage(data)
+	img, err := decodePicture(data)
 	if err != nil {
 		w.deps.Logf("dancefitvn: avatar: the picture sent: %v", err)
 

@@ -31,7 +31,22 @@ import (
 // seekStep is the 10 of `data-v="-10"` and `data-v="10"` (index.html:430).
 const seekStep = 10
 
-// Video is screen 06: the lesson's video over the K5 stage, with the controls of
+// The loading look of the picture (K47, chủ sản phẩm yêu cầu 2026-11-18): the
+// prototype has none, its `.vstage` (index.html:139-142) being the stand-in K5 kept.
+// The ring and the wordmark are the owner's choice of the TV's (tvkit.VideoPlane),
+// smaller for the phone.
+var (
+	// videoCoverStyle: a ring of 48 with a line of 5 (the TV's 88 and 8 scaled to the
+	// width of a phone) and the wordmark at 32 with the splash's 1 of spacing, 24
+	// above the ring.
+	videoCoverStyle = kit.CoverStyle{Spinner: 48, SpinnerLine: 5, Logo: 32, LogoSpacing: 1, LogoGap: 24}
+	// videoCoverBg is `.scr.vid{background:#000}` (index.html:415): the box the
+	// picture is letterboxed in, so that the cover fades into the same black.
+	videoCoverBg = color.RGB(0, 0, 0)
+)
+
+// Video is screen 06: the lesson's video, under the loading look until its first
+// frame (the course's cover and a ring, K47; it replaced the K5 stage), with the controls of
 // MS.video over it: the top (back, course, lesson, options), the column of side
 // buttons (the audio file's alone since K38: speed, mirror and the A-B loop are in
 // the options sheet), and the panel (the lesson, the eight beats, the position
@@ -55,7 +70,7 @@ type Video struct {
 	// once the finger went sideways past the slop (K38).
 	seek hiddenSeek
 
-	stage *kit.Stage
+	cover *kit.LoadingCover
 	speak *stageButton
 	view  *kit.VideoView
 	ctl   *vControls
@@ -109,13 +124,18 @@ func NewVideo(e *env.Env) nav.Screen {
 	}
 	v := &Video{e: e, pb: pb, quality: qualityRowShown(e)}
 
-	v.stage = kit.NewStage()
-	v.stage.Name = nameStageTap // `data-act="stageTap"` (:416)
 	v.view = kit.NewVideoView(nil, kit.FitContain)
-	v.view.Under = true // the stage shows until the first frame (K5)
 	if s := pb.Video(); s != nil {
 		v.view.SetSource(s)
 	}
+	// K47: until the first frame, and again when the picture is lost, the box is
+	// the course's cover under a scrim with the ring (the wordmark with no cover),
+	// over the view, which is not mirrored with it. It is the box `stageTap` of
+	// the prototype (`data-act="stageTap"`, :416).
+	v.cover = kit.NewLoadingCover(videoCoverStyle, e.T("splash.brand"))
+	v.cover.Name = nameStageTap
+	v.cover.Bg = videoCoverBg
+	v.cover.SetReady(v.view.HasPicture)
 
 	v.speak = &stageButton{v: v}
 	v.ctl = &vControls{v: v}
@@ -149,7 +169,7 @@ func NewVideo(e *env.Env) nav.Screen {
 
 	v.panel = v.newPanel()
 	v.ctl.Add(v.top, v.side, v.panel)
-	v.Add(v.stage, v.view, v.speak, v.ctl)
+	v.Add(v.view, v.cover, v.speak, v.ctl)
 
 	v.syncAll()
 
@@ -219,6 +239,17 @@ func (v *Video) Shown() bool { return v.hide.Shown() }
 // SetQualityRow says whether the options sheet has the row of the video quality
 // (K21: iOS only); NewVideo asks the build.
 func (v *Video) SetQualityRow(on bool) { v.quality = on }
+
+// Covered tells whether the loading look (K47) is what paints over the picture: the
+// first frame is not on it, or is still fading in.
+func (v *Video) Covered() bool { return v.cover.Covered() }
+
+// Fading tells whether the loading look is fading out over the first frame.
+func (v *Video) Fading() bool { return v.cover.Fading() }
+
+// Cover returns the course's cover once it has loaded, nil until then and when it
+// cannot be had.
+func (v *Video) Cover() *scene.Image { return v.cover.Cover() }
 
 // PendingHide tells whether the 3 s of the auto-hide are running.
 func (v *Video) PendingHide() bool { return v.hide.Pending() }
@@ -357,11 +388,11 @@ func (v *Video) MagicTap(*ui.Context) bool {
 	return true
 }
 
-// Layout fills the window: the stage and the picture over all of it, the
+// Layout fills the window: the picture and the loading look over all of it, the
 // controls over them.
 func (v *Video) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	full := ui.Tight(cs.Max)
-	for _, w := range [...]ui.Widget{v.stage, v.view, v.speak, v.ctl} {
+	for _, w := range [...]ui.Widget{v.view, v.cover, v.speak, v.ctl} {
 		c.Layout(w, full)
 		c.Place(w, geom.Point{})
 	}
@@ -370,7 +401,7 @@ func (v *Video) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 }
 
 // Paint fills the page black (`.scr.vid` `background:#000`, index.html:415), then
-// paints the stage, the picture and the controls.
+// paints the picture, the loading look and the controls.
 func (v *Video) Paint(c *ui.Context, p *ui.Painter) {
 	p.Fill(v.Bounds(), scene.Solid(color.RGB(0, 0, 0)), 0)
 	v.Base.Paint(c, p)
@@ -457,9 +488,11 @@ func (v *Video) onChange(ch player.Change) {
 	case player.ChangeLesson:
 		v.syncLesson()
 		v.syncState()
-		v.hide.Reset() // the next lesson starts with the controls shown (`$P:790`)
+		v.cover.Repaint() // the picture of the lesson before is gone
+		v.hide.Reset()    // the next lesson starts with the controls shown (`$P:790`)
 	case player.ChangeState:
 		v.syncState()
+		v.cover.Repaint() // a load that lost the picture shows the cover again
 		v.hide.State(v.pb.State())
 	case player.ChangeTime, player.ChangeSeek:
 		v.syncLive()
@@ -492,6 +525,7 @@ func (v *Video) syncAll() {
 // title, the course line and the numbers of the prev and next buttons.
 func (v *Video) syncLesson() {
 	l := v.pb.Lesson()
+	v.cover.SetCover(v.e.Cover, l.CoverURL) // K47: the course's cover (a lesson has none of its own)
 	if l.ID != v.lesson {
 		v.lesson = l.ID
 		v.top.eb.SetText(l.CourseName)

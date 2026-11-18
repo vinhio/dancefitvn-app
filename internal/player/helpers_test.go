@@ -71,10 +71,15 @@ type resolver struct {
 	n   int
 	// urls, when set, gives the address of the n-th call instead of the default.
 	urls map[int]string
+	// panicAt makes the n-th call panic, as a parser meeting a bad answer can.
+	panicAt map[int]bool
 }
 
 func (r *resolver) answer(id string, def func(string) string) (string, error) {
 	r.n++
+	if r.panicAt[r.n] {
+		panic("resolver: index out of range [0] with length 0")
+	}
 	if err := r.err[r.n]; err != nil {
 		return "", err
 	}
