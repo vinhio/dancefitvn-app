@@ -601,8 +601,7 @@ func videoSteps(playing bool) []stateStep {
 			if pl == nil {
 				return
 			}
-			pl.SetA(demoLoopA)
-			pl.SetB(demoLoopB)
+			pl.SetAB(demoLoopA, demoLoopB) // K38: the exact ends of the prototype's state, which SetB's 30 s least would move
 			if !playing {
 				pl.Pause()
 			}

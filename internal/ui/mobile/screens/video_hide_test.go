@@ -80,7 +80,7 @@ func TestVideoHiddenButtonsTakeNoTouch(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		for _, name := range []string{"togglePlay", "seek:10", "mirror", "nextLes", "back"} {
+		for _, name := range []string{"togglePlay", "seek:10", "dlTap:set35-3", "nextLes", "back"} {
 			r, pb, v := atVideo(t, ph, false)
 			restart(r, pb)
 			r.Tester.Elapse(ms3s + 300*time.Millisecond)
@@ -135,14 +135,12 @@ func TestVideoDeadZonesSwallowTaps(t *testing.T) {
 		r, pb, v := atVideo(t, ph, false)
 		restart(r, pb)
 		pb.ClearCalls()
-		side := named(r.Shell, "mirror", 1).Node().WindowFrame()
 		panel := named(r.Shell, "div.d", 1).Node().WindowFrame()
 		for name, p := range map[string]geom.Point{
-			"top band":             geom.Pt(ph.Size.W/2, 20),
-			"between the top row":  geom.Pt(ph.Size.W/2-100, 110),
-			"between side buttons": geom.Pt(side.X+side.W/2, side.Y-8),
-			"panel title":          geom.Pt(panel.X+50, panel.Y+10),
-			"panel gap":            geom.Pt(30, panel.Y-5),
+			"top band":            geom.Pt(ph.Size.W/2, 20),
+			"between the top row": geom.Pt(ph.Size.W/2-100, 110),
+			"panel title":         geom.Pt(panel.X+50, panel.Y+10),
+			"panel gap":           geom.Pt(30, panel.Y-5),
 		} {
 			r.Tester.ClickAt(p)
 			assert.True(t, v.Shown(), name)
@@ -204,7 +202,7 @@ func TestVideoSheetShowsTheControls(t *testing.T) {
 			r, pb, v := atVideo(t, ph, false)
 			restart(r, pb)
 			r.Tester.Elapse(2 * time.Second)
-			tap(r, named(r.Shell, optionsOpen, 2)) // the speed button of the side column
+			tap(r, named(r.Shell, optionsOpen, 1)) // the "more" button, the only one that opens it (K38)
 			r.Tester.Elapse(300 * time.Millisecond)
 			require.True(t, r.Shell.Nav().Sheet().IsOpen(), closeBy)
 			r.Tester.Elapse(time.Minute)

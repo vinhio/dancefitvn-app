@@ -109,6 +109,7 @@ var (
 	_ media.Session        = (*tvSession)(nil)
 	_ player.Resolver      = tvResolver{}
 	_ player.Saver         = (*tvSaver)(nil)
+	_ player.SeekNoter     = (*tvSaver)(nil)
 	_ progress.Sender      = tvSender{}
 	_ progress.BatchSender = tvSender{}
 	_ tvPicture            = (*avftv.Engine)(nil)
@@ -336,6 +337,14 @@ func (r tvResolver) AudioURL(ctx context.Context, lessonID string) (string, erro
 func (s *tvSaver) Update(lessonID, courseID string, posSec, durSec float64, playing bool) {
 	if t := s.tracker(); t != nil {
 		t.Update(lessonID, courseID, posSec, durSec, playing)
+	}
+}
+
+// Seeked tells the tracker that the user moved the position by hand
+// (player.SeekNoter).
+func (s *tvSaver) Seeked(lessonID string, posSec, durSec float64) {
+	if t := s.tracker(); t != nil {
+		t.Seeked(lessonID, posSec, durSec)
 	}
 }
 

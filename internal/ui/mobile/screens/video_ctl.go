@@ -54,9 +54,16 @@ type autoHide struct {
 	// video tells whether the media is a video (a sound has nothing to hide).
 	video func() bool
 
-	ctx   *ui.Context // the view's, from Mounted: the timers need it
-	hid   bool        // S.m.ctlHid: hidden by a tap or by the 3 s
-	sheet bool        // S.m.sheet: a sheet the screen opened itself is open
+	ctx *ui.Context // the view's, from Mounted: the timers need it
+	hid bool        // S.m.ctlHid: hidden by a tap or by the 3 s
+	// held is a finger on the position bar: the 3 s do not hide the controls
+	// under it (K38); fired is that they ran out meanwhile.
+	held, fired bool
+	// busy, when set, tells that a finger is on a part of the controls that must
+	// not hide while it is there (the B marker of the bar): the 3 s that run out
+	// start again instead of hiding them.
+	busy  func() bool
+	sheet bool // S.m.sheet: a sheet the screen opened itself is open
 	// ext tells whether any sheet is open, the navigator's (F-14): the download
 	// sheet of the side button is opened by the shell, not by the screen; nil:
 	// only the screen's own sheet counts.
@@ -192,6 +199,22 @@ func (a *autoHide) tell() {
 	}
 }
 
+// Hold keeps the controls shown while a finger drags the position bar: the 3 s
+// that run out meanwhile do not hide them (K38). Calling it again changes
+// nothing.
+func (a *autoHide) Hold() { a.held = true }
+
+// Release is the finger leaving the bar. A drag that went anywhere (moved), or
+// one the 3 s ran out in, starts them again from now; a tap leaves the count
+// alone, as the prototype's scrub does (index.html:587, :627).
+func (a *autoHide) Release(moved bool) {
+	fired := a.fired
+	a.held, a.fired = false, false
+	if moved || fired {
+		a.Reset()
+	}
+}
+
 // Pending tells whether the 3 s are running.
 func (a *autoHide) Pending() bool { return a.timer.Pending() }
 
@@ -222,6 +245,16 @@ func (a *autoHide) start(sheetOpen bool) {
 func (a *autoHide) fire() {
 	switch a.pb() {
 	case player.StatePlaying:
+		if a.held {
+			a.fired = true
+
+			return
+		}
+		if a.busy != nil && a.busy() {
+			a.arm()
+
+			return
+		}
 		if a.video() && !a.sheetUp() {
 			a.hid = true
 			a.w.Node().Repaint()

@@ -30,8 +30,9 @@ const optionsOpen = "sheet:options"
 
 // TestVideoBoxesMatchPrototype lays screen 06 out with the iPhone's real text
 // engine and compares every element of M06, M06-playing and M06-hidden with the
-// prototype's within 1 DIP: the back and "more" buttons, the course line, the four
-// side buttons with their icons, the chips, the title, the transport row. The
+// prototype's within 1 DIP: the back and "more" buttons, the course line, the audio
+// file's side button with its icon (the speed, mirror and loop buttons are gone,
+// K38), the chips, the title, the transport row. The
 // picture is the real video (K5) and is not compared; the controls hidden keep
 // their boxes (F-11).
 func TestVideoBoxesMatchPrototype(t *testing.T) {
@@ -40,17 +41,17 @@ func TestVideoBoxesMatchPrototype(t *testing.T) {
 	r, pb, v := atVideo(t, kittest.Phones[0], true)
 	pb.Pause()
 	r.Settle()
-	checkAgainstProto(t, "M06", r.Dump("M06"), 1, nil)
+	checkAgainstProtoWithout(t, "M06", r.Dump("M06"), 1, nil, videoSideDrop...)
 
 	restart(r, pb)
 	r.Tester.Elapse(kittest.Frame)
-	checkAgainstProto(t, "M06-playing", r.Dump("M06-playing"), 1, nil)
+	checkAgainstProtoWithout(t, "M06-playing", r.Dump("M06-playing"), 1, nil, videoSideDrop...)
 	assert.True(t, v.Shown())
 
 	r.Tester.Elapse(ms3s + 300*time.Millisecond)
 	require.False(t, v.Shown(), "hidden")
 	assert.Zero(t, v.Opacity())
-	checkAgainstProto(t, "M06-hidden", r.Dump("M06-hidden"), 1, nil)
+	checkAgainstProtoWithout(t, "M06-hidden", r.Dump("M06-hidden"), 1, nil, videoSideDrop...)
 }
 
 // TestVideoOnTheWiderPhone checks the 412 wide phone against the iPhone's: the top
@@ -65,10 +66,7 @@ func TestVideoOnTheWiderPhone(t *testing.T) {
 	pbA.Pause()
 	a, b := rI.Dump("M06"), rA.Dump("M06")
 	require.Len(t, b.Elements, len(a.Elements))
-	right := map[string]bool{"sheet:options": true, "svg.i#2": true, "sheet:options#2": true, "mirror": true, "loop": true, "dlTap:set35-3": true}
-	for _, k := range []string{"svg.i#3", "svg.i#4", "svg.i#5", "svg.i#6"} {
-		right[k] = true
-	}
+	right := map[string]bool{"sheet:options": true, "svg.i#2": true, "dlTap:set35-3": true, "svg.i#3": true}
 	for i, ea := range a.Elements {
 		eb := b.Elements[i]
 		require.Equal(t, ea.Key, eb.Key)
@@ -76,7 +74,7 @@ func TestVideoOnTheWiderPhone(t *testing.T) {
 		case "div#m", "stageTap", "video":
 			assert.InDelta(t, 412, eb.W, .01, ea.Key)
 			assert.InDelta(t, 892, eb.H, .01, ea.Key)
-		case "span.chip.y", "span.chip.k", "div.d", "div.beats", "scrub", "prevLes", "seek:-10", "svg.i#7", "togglePlay", "seek:10", "svg.i#8", "nextLes":
+		case "span.chip.y", "span.chip.k", "div.d", "div.beats", "scrub", "prevLes", "seek:-10", "svg.i#4", "togglePlay", "seek:10", "svg.i#5", "nextLes":
 			assert.InDelta(t, ea.Y+40, eb.Y, .6, ea.Key+": y sits 40 lower, as far from the bottom")
 		default:
 			assert.InDelta(t, ea.Y, eb.Y, .6, ea.Key+": y")
@@ -105,7 +103,7 @@ func TestVideoLessonLine(t *testing.T) {
 		assert.True(t, r.Tester.Shows("‹ 02"))
 		assert.True(t, r.Tester.Shows("04 ›"))
 		assert.True(t, r.Tester.Shows("Video dọc 9:16"))
-		assert.True(t, r.Tester.Shows("0.75x"))
+		assert.False(t, r.Tester.Shows("0.75x"), "the speed is in the options sheet only (K38)")
 		assert.True(t, r.Tester.Shows("Đã tải"), "the audio file of lesson 3 is on the device")
 
 		require.NoError(t, r.Tester.Click("‹ 02"))

@@ -30,6 +30,12 @@ import (
 // ============================ Contracts =============================
 // ====================================================================
 
+// The text on the repeat button's corner: "1" for the lesson, "A–B" for the loop.
+const (
+	badgeOne = "1"
+	badgeAB  = "A–B"
+)
+
 // Audio is screen 08, "Nghe": the sound file of the lesson. The top row (back,
 // "Đang phát từ" over the course, "more"), the cover, the title, the line "Bài NN
 // · File âm thanh của bài học", the chips (the tag and whether the file is on the
@@ -53,6 +59,7 @@ type Audio struct {
 	sub     *kit.Label
 	chips   *chipsRow
 	wave    *kit.Wave
+	pad     *kit.SeekPad // the wave's 44 DIP touch target (K38)
 	times   *timesRow
 	ctl     *transport
 	acts    *actions
@@ -95,9 +102,15 @@ func NewAudio(e *env.Env) nav.Screen {
 	}}
 
 	back := newLightBack(e)
-	more := kit.NewRoundButton(icon.More, false, e.T("a11y.more")) // `<button class="rb" data-act="toast">` (:433)
+	// K38: "…" (`<button class="rb" data-act="toast">`, :433) is the file's menu: where
+	// the lesson's sound is on the device it opens the sheet that deletes it, as the
+	// Downloads list's "…" does; streaming, it is hidden (syncDownload)
+	more := kit.NewRoundButton(icon.More, false, e.T("a11y.fileOptions"))
 	more.Name = nameAudioMore
-	more.OnPress = func() { e.Act.Toast(e.T("toast.audioMore")) }
+	more.OnPress = func() {
+		l := pb.Lesson()
+		e.Act.AskDelete(l.CourseID, l.ID, l.No)
+	}
 	a.top = newAudioTop(back, more)
 	a.cover = audioPoster()
 
@@ -108,13 +121,16 @@ func NewAudio(e *env.Env) nav.Screen {
 	a.chips = newChipsRow(e.T("audio.downloadedTpl"), e.T("audio.streaming"))
 
 	a.wave = kit.NewWave(e.T("a11y.position"))
-	a.wave.OnSeek = func(share float32) { pb.Seek(float64(share) * pb.Dur()) } // `data-scrub="m"`
+	// `data-scrub="m"` seeks on the press (index.html:437); K38: the finger drags it
+	// to any position, the time label follows it, and the one seek is at the release
+	a.wave.OnDrag, a.wave.OnSeek, a.wave.OnDragEnd = a.waveDrag, a.waveSeek, a.waveEnd
+	a.pad = kit.NewSeekPad(a.wave)
 	a.wave.Reading = func() (float64, float64) { return pb.Pos(), pb.Dur() }
 	a.wave.OnStep = pb.SeekBy // a screen reader's increment and decrement: +-10 s
 	a.times = newTimesRow()
 	a.ctl = a.newTransport()
 	a.acts = a.newActions()
-	a.Add(&a.bg, a.cover, a.top, a.title, a.sub, a.chips, a.wave, a.times, a.ctl, a.acts)
+	a.Add(&a.bg, a.cover, a.top, a.title, a.sub, a.chips, a.wave, a.pad, a.times, a.ctl, a.acts)
 	a.syncAll()
 
 	return a
@@ -124,7 +140,8 @@ func NewAudio(e *env.Env) nav.Screen {
 func (a *Audio) newTransport() *transport {
 	e, pb := a.e, a.pb
 	t := &transport{
-		loop:   kit.NewIconButton(icon.Rep, e.T("video.side.loop")),
+		loop:   kit.NewIconButton(icon.Rep, e.T("audio.repeat")),
+		badge:  &repeatBadge{},
 		back10: seekBtn(nameSeekBack, icon.B10, e.T("a11y.seekBack")),
 		f10:    seekBtn(nameSeekFwd, icon.F10, e.T("a11y.seekFwd")),
 		toggle: kit.NewDiscButton(icon.Play, e.T("a11y.play")),
@@ -132,7 +149,14 @@ func (a *Audio) newTransport() *transport {
 	}
 	t.loop.Name, t.loop.Size = nameLoop, aLoopIcon
 	t.loop.State = platform.ToggledOff
-	t.loop.OnPress = func() { pb.SetLoop(!pb.Loop()) } // jumps to A, and does not loop (03 section 3)
+	// K38: the button (`data-act="loop"`, :439) goes round three modes, off, repeat this
+	// lesson, the A-B loop from the position, and says which in a toast
+	t.loop.OnPress = func() {
+		pb.CycleRepeat()
+		e.Act.Toast(a.repeatToast())
+	}
+	t.badge.Size, t.badge.Weight, t.badge.Ink = aBadgeSize, 800, theme.InkPrimary
+	kit.SetHidden(t.badge, true)
 	t.back10.OnPress = func() { pb.SeekBy(-seekStep) }
 	t.f10.OnPress = func() { pb.SeekBy(seekStep) }
 	t.toggle.Name, t.toggle.Size, t.toggle.Padding = nameTogglePl, aPlayD, aPlayPad
@@ -140,7 +164,7 @@ func (a *Audio) newTransport() *transport {
 	t.speed.label.Size, t.speed.label.Weight = aSpeedSize, 800
 	t.speed.speak = e.T("options.speed") // `$P:507`: the text is the value, "0.75x"
 	t.speed.OnPress = pb.CycleRate
-	t.Add(t.loop, t.back10, t.toggle, t.f10, t.speed)
+	t.Add(t.loop, t.back10, t.toggle, t.f10, t.speed, t.badge)
 
 	return t
 }
@@ -150,7 +174,9 @@ func (a *Audio) newTransport() *transport {
 func (a *Audio) newActions() *actions {
 	e, pb := a.e, a.pb
 	r := &actions{}
-	r.btns[0] = newActButton(nameAudioMore, icon.Timer, e.T("audio.timer")) // `toast` with the message of :440
+	// the timer is the second "toast" of the prototype's capture whether or not the "…"
+	// button, the first, shows (K38 hides it while the sound is streamed)
+	r.btns[0] = newActButton(nameAudioMore+"#2", icon.Timer, e.T("audio.timer")) // `toast` with the message of :440
 	r.btns[0].OnPress = func() { e.Act.Toast(e.T("toast.timer")) }
 	r.btns[1] = newActButton(nameBeat, icon.Music, e.T("audio.beat"))
 	r.btns[1].toggle = true
@@ -175,6 +201,16 @@ func (a *Audio) MagicTap(*ui.Context) bool {
 
 // Tab says the screen has no tab bar.
 func (a *Audio) Tab() int { return -1 }
+
+// RepeatBadge returns the text on the repeat button's corner ("1", "A–B"), empty
+// while no repeat is on.
+func (a *Audio) RepeatBadge() string {
+	if a.ctl.badge.Hidden {
+		return ""
+	}
+
+	return a.ctl.badge.Text
+}
 
 // WaveLit returns how many bars of the waveform are lit (the heard ones).
 func (a *Audio) WaveLit() int { return a.wave.Lit() }
@@ -240,6 +276,7 @@ func (a *Audio) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	place(a.sub, tight, aSubBottom)
 	place(a.chips, loose, aWaveTop)
 	place(a.wave, tight, aTimesTop)
+	a.pad.Place(c)
 	place(a.times, tight, aCtlTop)
 	place(a.ctl, tight, aActsTop)
 	place(a.acts, tight, 0)
@@ -344,8 +381,31 @@ func (a *Audio) syncDuration() {
 	a.syncLive()
 }
 
+// waveDrag is the finger on the waveform, at share: the position's text tells
+// where it is. The sound goes on (or stays paused) under it, and the player is
+// not asked anything before the finger lets go (K38).
+func (a *Audio) waveDrag(share float32) {
+	if dur := a.pb.Dur(); dur > 0 {
+		a.times.pos.SetText(format.Clock(float64(share) * dur))
+	}
+}
+
+// waveSeek is the finger letting go of the waveform: the one seek.
+func (a *Audio) waveSeek(share float32) {
+	if sec, ok := seekTarget(share, a.pb.Dur()); ok {
+		a.pb.Seek(sec)
+	}
+}
+
+// waveEnd is the drag over: the text shows the player's time again.
+func (a *Audio) waveEnd(bool) {
+	a.sec = -1
+	a.syncLive()
+}
+
 // syncLive is the tick (liveM, index.html:630-636): the lit bars and the
-// position's text, each changed only when its value did.
+// position's text, each changed only when its value did; neither moves under a
+// finger that drags the waveform.
 func (a *Audio) syncLive() {
 	pos, dur := a.pb.Pos(), a.pb.Dur()
 	share := float32(0)
@@ -353,7 +413,7 @@ func (a *Audio) syncLive() {
 		share = float32(pos / dur)
 	}
 	a.wave.SetPos(share)
-	if s := int(pos); s != a.sec {
+	if s := int(pos); s != a.sec && !a.wave.Dragging() {
 		a.sec = s
 		a.times.pos.SetText(format.Clock(pos))
 		a.syncDownload()
@@ -370,31 +430,57 @@ func (a *Audio) syncRate() {
 	a.ctl.speed.SetText(txt)
 }
 
-// syncOptions sets the loop's color and the beat button (`--pr` when on).
+// repeatToast is the text the repeat button shows after a press: the mode it
+// changed to (K38).
+func (a *Audio) repeatToast() string {
+	switch a.pb.Repeat() {
+	case player.RepeatOne:
+		return a.e.T("toast.repeatOne")
+	case player.RepeatAB:
+		return a.e.Fill("toast.repeatABTpl", "a", format.Clock(a.pb.A()), "b", format.Clock(a.pb.B()))
+	case player.RepeatUnknown, player.RepeatOff:
+		return a.e.T("toast.repeatOff")
+	default:
+		return a.e.T("toast.repeatOff")
+	}
+}
+
+// syncOptions sets the repeat button (--pr with its badge while a repeat is on, its
+// state for a screen reader) and the beat button (`--pr` when on).
 func (a *Audio) syncOptions() {
-	ink := theme.InkText2
-	if a.pb.Loop() {
-		ink = theme.InkPrimary
+	mode := a.pb.Repeat()
+	ink, text, value := theme.InkText2, "", a.e.T("audio.repeatOff")
+	state := platform.ToggledOff
+	switch mode {
+	case player.RepeatOne:
+		ink, text, value, state = theme.InkPrimary, badgeOne, a.e.T("audio.repeatOne"), platform.ToggledOn
+	case player.RepeatAB:
+		ink, text, state = theme.InkPrimary, badgeAB, platform.ToggledOn
+		value = a.e.Fill("audio.repeatABTpl", "a", format.Clock(a.pb.A()), "b", format.Clock(a.pb.B()))
+	case player.RepeatUnknown, player.RepeatOff:
+	default:
 	}
 	if l := a.ctl.loop; l.Ink != ink {
 		l.Ink = ink
 		l.Relayout()
 	}
-	a.ctl.loop.State, a.ctl.loop.Value = platform.ToggledOff, loopValue(a.pb.Loop(), a.pb.A(), a.pb.B())
-	if a.pb.Loop() {
-		a.ctl.loop.State = platform.ToggledOn
-	}
+	a.ctl.loop.State, a.ctl.loop.Value = state, value
+	a.ctl.badge.SetText(text)
+	kit.SetHidden(a.ctl.badge, text == "")
 	a.acts.btns[1].SetOn(a.pb.Beat())
 	a.syncLive() // turning the loop on seeks to A: the player may say so after
 }
 
-// syncDownload shows the chip of the file: on the device or streamed.
+// syncDownload shows the chip of the file, on the device or streamed, and the "…"
+// button that deletes the file, which only a file on the device has (K38; the row
+// keeps its places, a hidden button is laid out all the same).
 func (a *Audio) syncDownload() {
 	state, _ := a.e.Downloads().State(a.pb.Lesson().ID)
 	on := state == kit.DlDone
 	if on != a.chips.showOkc {
 		a.chips.show(on)
 	}
+	kit.SetHidden(a.top.more, !on)
 }
 
 // newLightBack is `backBtn()` without the dark class (index.html:325): a --sf

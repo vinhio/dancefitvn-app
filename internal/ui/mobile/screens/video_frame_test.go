@@ -80,7 +80,7 @@ func TestVideoMirrorFlipsThePicture(t *testing.T) {
 		assert.Equal(t, color.RGBA{R: 255, G: 0, B: 0, A: 255}, pixelAt(r, right), "mirrored: the right shows the left half")
 		assert.Equal(t, color.RGBA{A: 255}, pixelAt(r, geom.Pt(60, 200)), "contained: a bar of black above the picture")
 
-		tap(r, named(r.Shell, "mirror", 1))
+		pb.SetMirror(false) // the options sheet's switch asks the player this (K38: no side button)
 		r.Tester.Elapse(kittest.Frame)
 		assert.False(t, pb.Mirror())
 		assert.Equal(t, color.RGBA{R: 255, G: 0, B: 0, A: 255}, pixelAt(r, left), "not mirrored: as the engine drew it")

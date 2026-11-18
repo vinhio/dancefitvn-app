@@ -22,7 +22,7 @@ func TestToastStateMatchesPrototype(t *testing.T) {
 	r.Shell.Env().Act.Toast("Đã tải xong bài 03")
 	r.Tester.Elapse(300 * time.Millisecond) // the 200 ms fade in
 	lay := r.Dump("M-toast")
-	checkAgainstProto(t, "M-toast", lay, 1, map[string]bool{"svg.i#14": true})
+	checkAgainstProtoWithout(t, "M-toast", lay, 1, map[string]bool{"svg.i#13": true}, heroDrop...)
 	bubble := element(t, lay, "div.toast")
 	assert.Equal(t, "Đã tải xong bài 03", bubble.Text)
 	r.Tester.Elapse(2000 * time.Millisecond)

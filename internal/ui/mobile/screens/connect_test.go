@@ -86,21 +86,20 @@ func TestConnectTyping(t *testing.T) {
 		r.Tester.Type(" 7k4-m2p ")
 		assert.Equal(t, "7K4M2P", c.Boxes().Value)
 		assert.False(t, c.Link().Disabled)
-		assert.Equal(t, "7K4M2P", c.Boxes().Field().Text(), "the field holds the filtered text")
 	})
 }
 
 // TestConnectWrongCodeCanBeDeletedAndRetyped is the report of a phone: a wrong character
-// could not be deleted. A wrong code is typed, the user taps the boxes (which put the
-// caret inside the invisible field), deletes it all with the keyboard's Backspace and
-// retypes it, and the right code is the one the server gets.
+// could not be deleted. A wrong code is typed, the user taps the boxes (which put a
+// caret inside the invisible field, when it had one), deletes it all with the keyboard's
+// Backspace and retypes it, and the right code is the one the server gets.
 func TestConnectWrongCodeCanBeDeletedAndRetyped(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
 		r, c := atConnect(t, ph, false)
 		tap(r, c.Boxes())
-		require.True(t, c.Boxes().Field().Focused())
+		require.True(t, c.Boxes().Field().Node().Focused())
 		r.Tester.Type("7K4M2x")
 		assert.Equal(t, "7K4M2X", c.Boxes().Value)
 		assert.False(t, c.Link().Disabled)
@@ -108,14 +107,14 @@ func TestConnectWrongCodeCanBeDeletedAndRetyped(t *testing.T) {
 		// a tap on the first box, as the user does to see where the caret is
 		f := c.Boxes().Node().WindowFrame()
 		r.Tester.ClickAt(geom.Pt(f.X+20, f.Center().Y))
-		assert.Equal(t, 6, c.Boxes().Field().Caret(), "the caret stays at the end")
 		require.True(t, r.Tester.Key(keys.KeyBackspace, 0))
 		assert.Equal(t, "7K4M2", c.Boxes().Value, "Backspace takes back the last character")
 		assert.True(t, c.Link().Disabled, "below six again")
 		assert.False(t, r.Tester.Shows("X"))
 
-		// the keyboard's own moves of the caret change nothing either
-		c.Boxes().Field().SelectText(platform.TextRange{})
+		// the keyboard has no caret to move or range to select: the field lends it no text
+		r.Tester.TextSource().SelectText(platform.TextRange{})
+		r.Tester.TextSource().SelectText(platform.TextRange{Start: 0, End: 3})
 		for range 5 {
 			require.True(t, r.Tester.Key(keys.KeyBackspace, 0))
 		}
@@ -144,7 +143,7 @@ func TestConnectTapOnTheRowFocusesTheField(t *testing.T) {
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
 		r, c := atConnect(t, ph, false)
 		tap(r, c.Boxes())
-		assert.True(t, c.Boxes().Field().Focused())
+		assert.True(t, c.Boxes().Field().Node().Focused())
 	})
 }
 
@@ -239,7 +238,7 @@ func TestConnectRefusals(t *testing.T) {
 			assert.False(t, c.Linked())
 			assert.False(t, c.Busy())
 			assert.Equal(t, env.RouteConnect, r.Route())
-			assert.True(t, c.Boxes().Field().Focused(), "the field has the focus back, to correct the code")
+			assert.True(t, c.Boxes().Field().Node().Focused(), "the field has the focus back, to correct the code")
 			require.True(t, r.Tester.Key(keys.KeyBackspace, 0))
 			assert.Equal(t, "ABCDE", c.Boxes().Value)
 		})
@@ -561,22 +560,52 @@ func TestConnectSixthCharacterTakesTheKeyboardDown(t *testing.T) {
 		r, c := atConnect(t, ph, false)
 		typeCode(r, c, "7K4M2")
 		r.Tester.Elapse(kittest.Frame)
-		assert.True(t, c.Boxes().Field().Focused(), "five characters: the keyboard stays")
+		assert.True(t, c.Boxes().Field().Node().Focused(), "five characters: the keyboard stays")
 		r.Tester.Type("P")
 		r.Tester.Elapse(kittest.Frame)
-		assert.False(t, c.Boxes().Field().Focused(), "the sixth takes the keyboard down")
+		assert.False(t, c.Boxes().Field().Node().Focused(), "the sixth takes the keyboard down")
 		assert.False(t, c.Link().Disabled)
 		assert.Equal(t, "7K4M2P", c.Boxes().Value)
 
 		tap(r, c.Boxes())
-		assert.True(t, c.Boxes().Field().Focused(), "a tap on the boxes brings it back")
+		assert.True(t, c.Boxes().Field().Node().Focused(), "a tap on the boxes brings it back")
 		require.True(t, r.Tester.Key(keys.KeyBackspace, 0))
 		r.Tester.Elapse(kittest.Frame)
-		assert.True(t, c.Boxes().Field().Focused(), "five again: the keyboard stays")
+		assert.True(t, c.Boxes().Field().Node().Focused(), "five again: the keyboard stays")
 		r.Tester.Type("x")
 		r.Tester.Elapse(kittest.Frame)
-		assert.False(t, c.Boxes().Field().Focused())
+		assert.False(t, c.Boxes().Field().Node().Focused())
 		assert.Equal(t, "7K4M2X", c.Boxes().Value)
+	})
+}
+
+// TestConnectAsksForTheCodeKeyboard is the device report of an iPhone with the
+// Vietnamese keyboard: the characters in the boxes jumped around from the fourth key
+// on, the keyboard rewriting the letters typed before (kit.CodeBoxes). The field asks
+// the system for gDesk's keyboard of a code (platform.KeyboardCode), which on iOS
+// lends the keyboard no text and has it forget each key, and on Android asks for a
+// visible password without suggestions. The code is typed as the keys read, and the
+// sixth takes the keyboard down.
+func TestConnectAsksForTheCodeKeyboard(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		r, c := atConnect(t, ph, false)
+		tap(r, c.Boxes())
+		in := r.Tester.TextInput()
+		assert.True(t, in.Enabled, "the keyboard is up")
+		assert.Equal(t, platform.KeyboardCode, in.Keyboard)
+		assert.Equal(t, -1, r.Tester.TextSource().TextLength(), "the keyboard is lent no text")
+		for _, ch := range "7as4r" {
+			r.Tester.Type(string(ch))
+			r.Tester.Elapse(kittest.Frame)
+		}
+		require.True(t, r.Tester.Key(keys.KeyBackspace, 0))
+		r.Tester.Elapse(kittest.Frame)
+		r.Tester.Type("rx")
+		r.Tester.Elapse(kittest.Frame)
+		assert.Equal(t, "7AS4RX", c.Boxes().Value)
+		assert.False(t, c.Boxes().Field().Node().Focused(), "the sixth takes the keyboard down")
 	})
 }
 
@@ -598,8 +627,8 @@ func TestConnectComposingKeyboard(t *testing.T) {
 		}
 		assert.Equal(t, "7K4M2P", c.Boxes().Value)
 		r.Tester.Elapse(kittest.Frame)
-		assert.False(t, c.Boxes().Field().Focused(), "the sixth letter takes the keyboard down")
-		assert.Equal(t, "7K4M2P", c.Boxes().Field().Text(), "losing the focus committed the composition")
+		assert.False(t, c.Boxes().Field().Node().Focused(), "the sixth letter takes the keyboard down")
+		assert.Equal(t, "7K4M2P", c.Boxes().Value, "losing the focus committed the composition")
 		assert.Equal(t, 5, c.Boxes().FocusedBox())
 
 		tap(r, c.Link())

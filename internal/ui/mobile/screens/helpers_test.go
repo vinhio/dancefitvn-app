@@ -83,6 +83,32 @@ func checkAgainstProto(t *testing.T, id string, lay layoutdump.Layout, tol float
 	}
 }
 
+// checkAgainstProtoWithout is checkAgainstProto for a screen that has lost elements
+// of the prototype on purpose: drop names their keys in the capture, and the rest
+// is compared under the numbers the app gives them (shelltest.Without).
+func checkAgainstProtoWithout(t *testing.T, id string, lay layoutdump.Layout, tol float64, skip map[string]bool, drop ...string) {
+	t.Helper()
+	want := shelltest.Without(shelltest.ProtoLayout(t, id), drop...)
+	for _, d := range shelltest.Compare(want, lay, skip) {
+		if d.Missing {
+			t.Errorf("%s: %s is missing", id, d.Key)
+
+			continue
+		}
+		assert.LessOrEqualf(t, d.Max(), tol, "%s: %s is off by dx %+.2f dy %+.2f dw %+.2f dh %+.2f", id, d.Key, d.DX, d.DY, d.DW, d.DH)
+	}
+}
+
+// videoSideDrop are the keys of the capture of screen 06 (and of 07, which lies
+// over it) that K38 took away: the speed, mirror and A-B loop buttons of the side
+// column, their icons, and "sheet:options#2", the speed button.
+var videoSideDrop = []string{"sheet:options#2", "mirror", "loop", "svg.i#3", "svg.i#4", "svg.i#5"}
+
+// heroDrop are the keys of the prototype's captures of the course detail (M05, and
+// M09 and M-toast, which lie over it) that the owner took away: the hero's "…" button
+// and its icon (it has no action in the prototype, index.html:398).
+var heroDrop = []string{"button.rb.dk", "svg.i#2"}
+
 // tap taps the middle of w, as a finger does.
 func tap(r *shelltest.Rig, w ui.Widget) {
 	r.Tester.ClickAt(w.Node().WindowFrame().Center())

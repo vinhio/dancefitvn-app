@@ -58,7 +58,7 @@ func TestStartPosition(t *testing.T) {
 	}
 }
 
-func TestPlayVideoSetsAB(t *testing.T) {
+func TestPlayVideoSetsTheFirstThirtySecondsAsAB(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -68,9 +68,10 @@ func TestPlayVideoSetsAB(t *testing.T) {
 		wantB    float64
 		wantKind player.Kind
 	}{
-		{"220 s", 220, 73, 101, player.KindVideo},
-		{"100 s", 100, 33, 61, player.KindVideo},
-		{"half rounds up (150 s)", 150, 50, 78, player.KindVideo}, // 49.5 -> 50 as Math.round
+		{"220 s", 220, 0, 30, player.KindVideo}, // K38: the first 30 s, not the prototype's 73 and 101
+		{"100 s", 100, 0, 30, player.KindVideo},
+		{"exactly 30 s", 30, 0, 30, player.KindVideo},
+		{"12 s: B is the end", 12, 0, 12, player.KindVideo},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -95,8 +96,7 @@ func TestSameLessonKeepsPositionAndAB(t *testing.T) {
 	r := newRig(t, fullLength())
 	r.playVideo(0)
 	r.p.SetRate(1)
-	r.p.SetA(10)
-	r.p.SetB(20)
+	r.p.SetAB(10, 20)
 	r.tick(8) // 2 s
 	require.InDelta(t, 2, r.p.Pos(), 0)
 
@@ -121,8 +121,8 @@ func TestSameLessonKeepsPositionAndAB(t *testing.T) {
 	r.p.PlayVideo(l[2], l)
 	r.settle()
 	assert.Len(t, r.loads(), 2)
-	assert.InDelta(t, 73, r.p.A(), 0)
-	assert.InDelta(t, 101, r.p.B(), 0)
+	assert.InDelta(t, 0, r.p.A(), 0)
+	assert.InDelta(t, 30, r.p.B(), 0)
 	assert.InDelta(t, 0, r.p.Pos(), 0)
 }
 
@@ -203,9 +203,8 @@ func TestPrevNext(t *testing.T) {
 			if !tc.playing {
 				r.p.Pause()
 			}
-			r.p.SetA(10)
-			r.p.SetB(20)
 			r.p.SetLoop(true)
+			r.p.SetAB(10, 20)
 			before := len(r.loads())
 			if tc.next {
 				assert.Equal(t, tc.moved, r.p.HasNext())
@@ -259,8 +258,7 @@ func TestAudioKeepsABOfEarlierLesson(t *testing.T) {
 
 	r := newRig(t, fullLength())
 	r.playVideo(0)
-	r.p.SetA(10)
-	r.p.SetB(20)
+	r.p.SetAB(10, 20)
 	l := course()
 	r.p.PlayAudio(l[1], l)
 	r.settle()
@@ -275,8 +273,8 @@ func TestAudioFirstGetsDefaultAB(t *testing.T) {
 	r := newRig(t, fullLength())
 	r.playAudio(0)
 
-	assert.InDelta(t, 73, r.p.A(), 0)
-	assert.InDelta(t, 101, r.p.B(), 0)
+	assert.InDelta(t, 0, r.p.A(), 0)
+	assert.InDelta(t, 30, r.p.B(), 0)
 }
 
 func TestEngineDurationReplacesAPIDuration(t *testing.T) {
@@ -292,11 +290,11 @@ func TestEngineDurationReplacesAPIDuration(t *testing.T) {
 		wantA     float64
 		wantB     float64
 	}{
-		{"mock: 12 s against 220, resume 72", 12, 72, 12, 1, 0, 4, 12},
-		{"engine agrees", 220, 72, 220, 0, 72, 73, 101},
-		{"engine 70 s, resume 72 beyond", 70, 72, 70, 1, 0, 23, 51},
-		{"engine 100 s, resume 72 fits", 100, 72, 100, 0, 72, 33, 61},
-		{"engine a bit shorter, resume fits", 210, 72, 210, 0, 72, 73, 101},
+		{"mock: 12 s against 220, resume 72", 12, 72, 12, 1, 0, 0, 12},
+		{"engine agrees", 220, 72, 220, 0, 72, 0, 30},
+		{"engine 70 s, resume 72 beyond", 70, 72, 70, 1, 0, 0, 30},
+		{"engine 100 s, resume 72 fits", 100, 72, 100, 0, 72, 0, 30},
+		{"engine a bit shorter, resume fits", 210, 72, 210, 0, 72, 0, 30},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

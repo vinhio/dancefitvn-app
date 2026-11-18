@@ -33,6 +33,10 @@ const (
 	optRowsTop float32 = 10
 	// optDoneTop is `<button class="btn p" style="margin-top:18px">` (:511).
 	optDoneTop float32 = 18
+	// optStepH, optStepPad, optStepGap are the row of the two buttons that move the
+	// loop's end (K38; not in the prototype): 44 tall (the least a finger hits
+	// well), 8 above and below, 12 apart as the `.row`'s `gap:12px` (:113).
+	optStepH, optStepPad, optStepGap float32 = 44, 8, 12
 )
 
 // optionsSheet is the content of SH.options: the header, "Tốc độ phát" over the
@@ -51,6 +55,7 @@ type optionsSheet struct {
 	seg     *kit.Segmented
 	mirror  *kit.Row
 	loop    *kit.Row
+	steps   *loopSteps // the -30 s and +30 s of B, shown while the loop is on (K38)
 	beat    *kit.Row
 	quality *kit.Row // nil where the quality cannot be chosen
 	unsub   func()
@@ -62,6 +67,14 @@ type optionsSheet struct {
 type optItem struct {
 	w      ui.Widget
 	before float32
+}
+
+// loopSteps is the row of the two buttons under "Lặp đoạn A–B" that move the
+// loop's end B back and on by 30 s (K38).
+type loopSteps struct {
+	ui.Base
+
+	minus, plus *kit.Button
 }
 
 var (
@@ -100,6 +113,7 @@ func newOptionsSheet(e *env.Env, pb env.Playback, closeFn func(), quality bool) 
 	s.loop = row("loop", icon.Rep, e.T("options.loop"), "", func() { pb.SetLoop(!pb.Loop()); s.sync() })
 	s.beat = row("beat", icon.Music, e.T("options.beat"), e.T("options.beatSub"), func() { pb.SetBeat(!pb.Beat()); s.sync() })
 
+	s.steps = newLoopSteps(e, pb)
 	done := kit.NewButton(kit.ButtonP, e.T("options.done"), icon.NameUnknown)
 	done.Name, done.OnPress = "closeSheet", closeFn // `data-act="closeSheet"` (:511)
 
@@ -109,6 +123,7 @@ func newOptionsSheet(e *env.Env, pb env.Playback, closeFn func(), quality bool) 
 		{w: s.seg, before: optSegTop},
 		{w: s.mirror, before: optRowsTop},
 		{w: s.loop},
+		{w: s.steps},
 		{w: s.beat},
 	}
 	if quality {
@@ -128,9 +143,42 @@ func newOptionsSheet(e *env.Env, pb env.Playback, closeFn func(), quality bool) 
 	return s
 }
 
+// newLoopSteps returns the row of -30 s and +30 s: each moves B by that many
+// seconds; the player keeps it in [A + 30, the length] (SetB).
+func newLoopSteps(e *env.Env, pb env.Playback) *loopSteps {
+	l := &loopSteps{
+		minus: kit.NewButton(kit.ButtonG, e.T("options.loopBBack"), icon.NameUnknown),
+		plus:  kit.NewButton(kit.ButtonG, e.T("options.loopBFwd"), icon.NameUnknown),
+	}
+	l.minus.Name, l.plus.Name = nameLoopBBack, nameLoopBFwd
+	l.minus.Speak, l.plus.Speak = e.T("a11y.loopBBack"), e.T("a11y.loopBFwd")
+	l.minus.Height, l.plus.Height = optStepH, optStepH
+	l.minus.OnPress = func() { pb.SetB(pb.B() - player.LoopLength) }
+	l.plus.OnPress = func() { pb.SetB(pb.B() + player.LoopLength) }
+	l.Add(l.minus, l.plus)
+
+	return l
+}
+
 // ====================================================================
 // ========================== Main functions ==========================
 // ====================================================================
+
+// Layout puts the two buttons side by side, as wide as the row shares them.
+func (l *loopSteps) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
+	w := cs.Max.W
+	if w >= ui.Unbounded {
+		w = cs.Min.W
+	}
+	bw := max((w-optStepGap)/2, 0)
+	tight := ui.Tight(geom.Sz(bw, optStepH))
+	c.Layout(l.minus, tight)
+	c.Layout(l.plus, tight)
+	c.Place(l.minus, geom.Pt(0, optStepPad))
+	c.Place(l.plus, geom.Pt(bw+optStepGap, optStepPad))
+
+	return cs.Constrain(geom.Sz(w, optStepH+2*optStepPad))
+}
 
 // Mounted follows the player while the sheet is open.
 func (s *optionsSheet) Mounted(*ui.Context) {
@@ -158,6 +206,9 @@ func (s *optionsSheet) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	tight := ui.Constraints{Min: geom.Sz(w, 0), Max: geom.Sz(w, ui.Unbounded)}
 	y := float32(0)
 	for _, it := range s.items {
+		if it.w.Node().Hidden {
+			continue
+		}
 		y += it.before
 		sz := c.Layout(it.w, tight)
 		c.Place(it.w, geom.Pt(0, y))
@@ -193,6 +244,7 @@ func (s *optionsSheet) sync() {
 	s.seg.Select(sel)
 	setSwitch(s.mirror, pb.Mirror())
 	setSwitch(s.loop, pb.Loop())
+	kit.SetHidden(s.steps, !pb.Loop()) // while it is off there is no end to move
 	setSwitch(s.beat, pb.Beat())
 	// `${fmt(p.a)} → ${fmt(p.b)} · lặp liên tục` (:508)
 	sub := s.e.Fill("options.loopSubTpl", "a", format.Clock(pb.A()), "b", format.Clock(pb.B())) + " · " + s.e.T("options.loopContinuous")

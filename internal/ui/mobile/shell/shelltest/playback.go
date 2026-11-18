@@ -46,6 +46,7 @@ type FakePlayback struct {
 	rate     float64
 	mirror   bool
 	loop     bool
+	repeat1  bool // Repeat One (K38)
 	beat     bool
 	a, b     float64
 }
@@ -264,14 +265,34 @@ func (f *FakePlayback) SetMirror(on bool) {
 	f.emit(player.ChangeOptions)
 }
 
-// SetLoop sets the loop; on it seeks A.
+// SetLoop sets the loop; on, it begins at the position: A is the position, B the
+// least of A + 30 and the length (K38).
 func (f *FakePlayback) SetLoop(on bool) {
 	f.noteb("SetLoop", on)
 	f.loop = on
 	if on {
-		f.pos = f.a
+		f.repeat1 = false
+		f.a = f.pos
+		f.b = min(f.a+player.LoopLength, f.dur)
 	}
 	f.emit(player.ChangeOptions)
+}
+
+// SetB moves B as the player does: kept in [A + 30, Dur] (K38), and with the loop on
+// a B at or before the position takes it back to A.
+func (f *FakePlayback) SetB(sec float64) {
+	f.notef("SetB", sec)
+	hi := f.dur
+	b := max(min(f.a+player.LoopLength, hi), min(sec, hi))
+	if b == f.b {
+		return
+	}
+	f.b = b
+	f.emit(player.ChangeOptions)
+	if f.loop && f.pos >= f.b {
+		f.pos = f.a
+		f.emit(player.ChangeSeek)
+	}
 }
 
 // SetBeat sets the beat bar.
@@ -343,6 +364,55 @@ func (f *FakePlayback) Mirror() bool { return f.mirror }
 
 // Loop is the A-B loop option.
 func (f *FakePlayback) Loop() bool { return f.loop }
+
+// Repeat is the mode: the A-B loop, Repeat One or none.
+func (f *FakePlayback) Repeat() player.RepeatMode {
+	switch {
+	case f.loop:
+		return player.RepeatAB
+	case f.repeat1:
+		return player.RepeatOne
+	default:
+		return player.RepeatOff
+	}
+}
+
+// SetRepeat sets the mode, as the player does (RepeatAB begins the loop at the
+// position).
+func (f *FakePlayback) SetRepeat(m player.RepeatMode) {
+	f.note("SetRepeat:" + strconv.Itoa(int(m)))
+	switch m {
+	case player.RepeatAB:
+		f.SetLoop(true)
+
+		return
+	case player.RepeatOne:
+		f.loop, f.repeat1 = false, true
+	case player.RepeatUnknown, player.RepeatOff:
+		f.loop, f.repeat1 = false, false
+	default:
+	}
+	f.emit(player.ChangeOptions)
+}
+
+// CycleRepeat goes off, one, A-B and back to off.
+func (f *FakePlayback) CycleRepeat() {
+	f.note("CycleRepeat")
+	switch f.Repeat() {
+	case player.RepeatOff, player.RepeatUnknown:
+		f.loop, f.repeat1 = false, true
+		f.emit(player.ChangeOptions)
+	case player.RepeatOne:
+		f.SetLoop(true)
+	case player.RepeatAB:
+		f.loop, f.repeat1 = false, false
+		f.emit(player.ChangeOptions)
+	default:
+	}
+}
+
+// Reload records the call: the lesson is loaded again from where it is.
+func (f *FakePlayback) Reload() { f.note("Reload") }
 
 // Beat is the beat bar option.
 func (f *FakePlayback) Beat() bool { return f.beat }
@@ -584,11 +654,7 @@ func (f *FakePlayback) step(delta int, play bool) bool {
 func trimFloat(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
 // defaultAB is A = round(dur*.33), B = A + 28 (index.html:595).
-func defaultAB(dur float64) (a, b float64) {
-	a = math.Round(dur * .33)
-
-	return a, a + 28
-}
+func defaultAB(dur float64) (a, b float64) { return 0, min(player.LoopLength, dur) }
 
 // resumeOf is the position a video of l starts at.
 func resumeOf(l player.Lesson) float64 {

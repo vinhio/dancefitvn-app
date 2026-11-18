@@ -103,24 +103,26 @@ func TestABSetAndClear(t *testing.T) {
 	t.Parallel()
 
 	type step struct {
-		fn string // "A", "B", "clear"
+		fn string // "AB", "B", "A", "clear"
 		v  float64
+		w  float64
 	}
 	tests := []struct {
 		name  string
 		steps []step
 		a, b  float64
 	}{
-		{"default", nil, 73, 101},
-		{"A only", []step{{"A", 50}}, 50, 101},
-		{"A then B", []step{{"A", 50}, {"B", 80}}, 50, 80},
-		{"B before A swaps", []step{{"B", 60}}, 60, 73},
-		{"A after B swaps", []step{{"A", 150}}, 101, 150},
-		{"A below 0 clamps", []step{{"A", -5}}, 0, 101},
-		{"B past the end clamps", []step{{"B", 999}}, 73, 220},
-		{"A past the end clamps", []step{{"A", 999}}, 101, 220},
-		{"clear restores", []step{{"A", 10}, {"B", 20}, {"clear", 0}}, 73, 101},
-		{"equal points", []step{{"A", 30}, {"B", 30}}, 30, 30},
+		{"default is the first 30 s", nil, 0, 30},
+		{"explicit loop, no least length", []step{{"AB", 73, 101}}, 73, 101},
+		{"explicit loop kept in the media", []step{{"AB", -5, 999}}, 0, 220},
+		{"explicit ends given swapped", []step{{"AB", 90, 40}}, 40, 90},
+		{"B below A+30 goes to A+30", []step{{"AB", 50, 60}, {"B", 55, 0}}, 50, 80},
+		{"B within the media", []step{{"AB", 50, 60}, {"B", 120, 0}}, 50, 120},
+		{"B past the end clamps", []step{{"B", 999, 0}}, 0, 220},
+		{"B below 0 clamps to A+30", []step{{"B", -5, 0}}, 0, 30},
+		{"fewer than 30 s after A: B is the end", []step{{"AB", 200, 210}, {"B", 205, 0}}, 200, 220},
+		{"A moves with the swap rule", []step{{"A", 50, 0}}, 30, 50},
+		{"clear restores", []step{{"AB", 10, 20}, {"clear", 0, 0}}, 0, 30},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -130,6 +132,8 @@ func TestABSetAndClear(t *testing.T) {
 			r.playVideo(0)
 			for _, s := range tc.steps {
 				switch s.fn {
+				case "AB":
+					r.p.SetAB(s.v, s.w)
 				case "A":
 					r.p.SetA(s.v)
 				case "B":
@@ -149,14 +153,105 @@ func TestABSetAndClear(t *testing.T) {
 func TestClearABUsesTheEngineLength(t *testing.T) {
 	t.Parallel()
 
-	r := newRig(t, rigOpts{eng: fake.Options{VideoDuration: 30}})
+	r := newRig(t, rigOpts{eng: fake.Options{VideoDuration: 12}})
 	r.playVideo(0)
-	r.p.SetA(2)
-	r.p.SetB(3)
+	r.p.SetAB(2, 3)
 	r.p.ClearAB()
 
-	assert.InDelta(t, 10, r.p.A(), 0)
-	assert.InDelta(t, 30, r.p.B(), 0, "B does not pass the end")
+	assert.InDelta(t, 0, r.p.A(), 0)
+	assert.InDelta(t, 12, r.p.B(), 0, "B does not pass the end")
+}
+
+// TestLoopTurnsOnAtThePosition checks K38 rule 1: the loop begins where the
+// media is, B is 30 s on or the end, and nothing seeks.
+func TestLoopTurnsOnAtThePosition(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		at    float64
+		audio bool
+		a, b  float64
+	}{
+		{"at the start", 0, false, 0, 30},
+		{"in the middle", 72, false, 72, 102},
+		{"30 s from the end", 190, false, 190, 220},
+		{"fewer than 30 s from the end: B is the end", 205, false, 205, 220},
+		{"at the end", 220, false, 220, 220},
+		{"audio the same", 72, true, 72, 102},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := newRig(t, fullLength())
+			if tc.audio {
+				r.playAudio(0)
+			} else {
+				r.playVideo(0)
+			}
+			r.p.Seek(tc.at)
+			seeks := r.count(fake.OpSeek)
+			r.p.SetLoop(true)
+
+			assert.True(t, r.p.Loop())
+			assert.InDelta(t, tc.a, r.p.A(), 0)
+			assert.InDelta(t, tc.b, r.p.B(), 0)
+			assert.Equal(t, seeks, r.count(fake.OpSeek), "turning it on does not seek")
+			assert.InDelta(t, tc.at, r.p.Pos(), 0)
+			r.p.SetLoop(false)
+			assert.InDelta(t, tc.a, r.p.A(), 0, "off keeps the ends")
+		})
+	}
+}
+
+// TestLoopSetBKeepsTheLeastLengthAndJumpsToA checks K38 rules 2 and 3: B moves in
+// [A + 30, end], and a B that falls at or before the position takes the media
+// back to A; a B that stays ahead does not seek.
+func TestLoopSetBKeepsTheLeastLengthAndJumpsToA(t *testing.T) {
+	t.Parallel()
+
+	r := newRig(t, fullLength())
+	r.playVideo(0)
+	r.p.SetRate(1)
+	r.p.Seek(50)
+	r.p.SetLoop(true)
+	require.InDelta(t, 80, r.p.B(), 0)
+	seeks := r.count(fake.OpSeek)
+
+	r.p.SetB(110) // +30 step
+	assert.InDelta(t, 110, r.p.B(), 0)
+	r.p.SetB(80) // -30 step
+	assert.InDelta(t, 80, r.p.B(), 0)
+	r.p.SetB(60) // under A+30
+	assert.InDelta(t, 80, r.p.B(), 0)
+	assert.Equal(t, seeks, r.count(fake.OpSeek), "no seek: the position 50 is before B")
+
+	r.p.SetB(999)
+	assert.InDelta(t, 220, r.p.B(), 0, "the end")
+	r.tick(4 * 40) // 40 s on: 90, past the B of 80 asked next
+	assert.InDelta(t, 90, r.p.Pos(), 0)
+	seeks = r.count(fake.OpSeek)
+	r.p.SetB(120)
+	assert.Equal(t, seeks, r.count(fake.OpSeek), "B 120 is past 90")
+	r.p.SetB(80) // A+30, behind the position 90
+	assert.Equal(t, seeks+1, r.count(fake.OpSeek))
+	assert.InDelta(t, 50, r.p.Pos(), 0, "the position was past B: back to A")
+}
+
+// TestLoopSetBOffTheLoopDoesNotSeek checks that B moves with the loop off and
+// the position past it, with no jump.
+func TestLoopSetBOffTheLoopDoesNotSeek(t *testing.T) {
+	t.Parallel()
+
+	r := newRig(t, fullLength())
+	r.playVideo(0)
+	r.p.Seek(150)
+	seeks := r.count(fake.OpSeek)
+	r.p.SetB(60)
+
+	assert.Equal(t, seeks, r.count(fake.OpSeek))
+	assert.InDelta(t, 150, r.p.Pos(), 0)
 }
 
 func TestLoop(t *testing.T) {
@@ -170,13 +265,13 @@ func TestLoop(t *testing.T) {
 		wantSeeks int
 		wantPos   float64
 	}{
-		{"on: jumps to A at once", false, true, 0, 1, 73},
-		{"on: just before B", false, true, 111, 1, 73 + 111*0.25},
-		{"on: at B back to A", false, true, 112, 2, 73},
-		{"on: second round", false, true, 112 + 56, 2, 73 + 56*0.25},
-		{"off: no jump", false, false, 112, 0, 28},
-		{"on then off: runs past B", false, true, -1, 1, 73 + 112*0.25},
-		{"audio never loops past B", true, true, 112, 1, 101},
+		{"on: no jump at once", false, true, 0, 0, 0},
+		{"on: just before B", false, true, 119, 0, 119 * 0.25},
+		{"on: at B back to A", false, true, 120, 1, 0},
+		{"on: second round", false, true, 120 + 60, 1, 60 * 0.25},
+		{"off: no jump", false, false, 120, 0, 30},
+		{"on then off: runs past B", false, true, -1, 0, 30},
+		{"audio loops too", true, true, 120, 1, 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -195,7 +290,7 @@ func TestLoop(t *testing.T) {
 			ticks := tc.ticks
 			if ticks < 0 { // the loop is turned off before B
 				r.p.SetLoop(false)
-				ticks = 112
+				ticks = 120
 			}
 			r.tick(ticks)
 
@@ -216,7 +311,7 @@ func TestLoopWhilePausedDoesNotSeek(t *testing.T) {
 	r.p.Pause()
 	r.eng.Emit(media.Event{Kind: media.EventTime, Token: r.eng.Token(), Time: 150})
 
-	assert.Equal(t, 1, r.count(fake.OpSeek))
+	assert.Equal(t, 0, r.count(fake.OpSeek))
 }
 
 func TestBeatIndex(t *testing.T) {

@@ -29,6 +29,10 @@ const (
 	vTopRowDown float32 = 4
 	// vSide, vSideTop, vSideGap are `.vside{right:14px;top:300px;gap:16px}` (:157).
 	vSide, vSideTop, vSideGap float32 = 14, 300, 16
+	// vSideAbove is how far the audio file's button stands below the column's top
+	// in the prototype: the three buttons above it (speed, mirror, A-B loop,
+	// 62 and a 16 gap each), which K38 took away. The button stays where it was.
+	vSideAbove = 3 * (kit.SideHeight + vSideGap)
 	// vPanelSide is `.vctrl{padding:0 20px 34px}` (:150): the side padding; the
 	// bottom is max(34, the safe area's bottom) (Q-P2-1).
 	vPanelSide, vPanelBottom float32 = 20, 34
@@ -69,8 +73,11 @@ const (
 const (
 	nameStageTap  = "stageTap"
 	nameSheetOpen = "sheet:options"
-	nameMirror    = "mirror"
 	nameLoop      = "loop"
+	// nameLoopBBack and nameLoopBFwd are the buttons of the options sheet that move
+	// the loop's end (K38).
+	nameLoopBBack = "loopB:-30"
+	nameLoopBFwd  = "loopB:+30"
 	nameTogglePl  = "togglePlay"
 	namePrevLes   = "prevLes"
 	nameNextLes   = "nextLes"
@@ -118,11 +125,12 @@ type vTop struct {
 	scrim scene.Paint
 }
 
-// vSideCol is `.vside`: the four round buttons in a column.
+// vSideCol is `.vside`: the round buttons in a column. Since K38 it holds the
+// audio file's button alone.
 type vSideCol struct {
 	deadZone
 
-	speed, mirror, loop, dl *kit.SideButton
+	dl *kit.SideButton
 }
 
 // vPanel is `.vctrl`: the chips, the title, the course line, the beats, the
@@ -136,6 +144,7 @@ type vPanel struct {
 	course      *kit.Label
 	beats       *kit.Beats
 	scrub       *kit.Scrub
+	pad         *kit.SeekPad
 	mpos, dur   *kit.Label
 	prev, next  *lesButton
 	back10, f10 *kit.IconButton
@@ -271,9 +280,9 @@ func (t *vTop) Paint(c *ui.Context, p *ui.Painter) {
 }
 
 // Layout makes the column as wide as its widest button (46, or a label wider) and
-// as tall as the four buttons and their gaps.
+// as tall as the buttons and their gaps.
 func (s *vSideCol) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
-	btns := [...]*kit.SideButton{s.speed, s.mirror, s.loop, s.dl}
+	btns := [...]*kit.SideButton{s.dl}
 	w := float32(0)
 	for _, b := range btns {
 		if b.Hidden { // the audio file's button of a lesson with none
@@ -332,6 +341,7 @@ func (p *vPanel) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	}
 	ss := c.Layout(p.scrub, tight)
 	c.Place(p.scrub, geom.Pt(vPanelSide, y))
+	p.pad.Place(c) // the touch target, over the bar, which keeps its 18 DIPs (K38)
 	y += ss.H + vTimesTop
 	mp := c.Layout(p.mpos, loose)
 	dr := c.Layout(p.dur, loose)

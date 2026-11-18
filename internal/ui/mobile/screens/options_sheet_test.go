@@ -37,8 +37,8 @@ func TestOptionsSheetBoxesMatchPrototype(t *testing.T) {
 	openOptionsSheet(t, r)
 	lay := r.Dump("M07")
 	skip := map[string]bool{"span.tt#4": true, "b#4": true, "span.val": true}
-	checkAgainstProto(t, "M07", lay, 1, skip)
-	want := shelltest.ProtoLayout(t, "M07")
+	checkAgainstProtoWithout(t, "M07", lay, 1, skip, videoSideDrop...)
+	want := shelltest.Without(shelltest.ProtoLayout(t, "M07"), videoSideDrop...)
 	for key := range skip {
 		w, _ := want.Find(key)
 		g, ok := lay.Find(key)
@@ -68,7 +68,7 @@ func TestOptionsSheetOnTheWiderPhone(t *testing.T) {
 	assert.InDelta(t, 412, pb.W, .01)
 	assert.InDelta(t, 892, pb.Y+pb.H, .01, "on the bottom of the window")
 	assert.InDelta(t, pa.H, pb.H, .6, "as tall as on the iPhone")
-	for _, k := range []string{"div.sh", "div.segc", "mirror#2", "loop#2", "beat", "quality", "closeSheet#3"} {
+	for _, k := range []string{"div.sh", "div.segc", "mirror", "loop", "beat", "quality", "closeSheet#3"} {
 		ea, _ := a.Find(k)
 		eb, _ := b.Find(k)
 		assert.InDelta(t, 353+19, eb.W, .6, k+": spans the margins") // 412 less 2 x 20 is 372

@@ -118,7 +118,7 @@ func TestDecorLeavesTheSubtreeOutOfAReading(t *testing.T) {
 }
 
 // TestPositionBarsReadAsSliders checks the scrub and the wave: a slider named by its
-// label from 0 to the length, at the position, spoken as a clock; an increment
+// label from 0 to the length, at the position, spoken as "elapsed / total"; an increment
 // and a decrement ask OnStep for +10 s and -10 s; nothing else is taken.
 func TestPositionBarsReadAsSliders(t *testing.T) {
 	t.Parallel()
@@ -139,7 +139,7 @@ func TestPositionBarsReadAsSliders(t *testing.T) {
 			assert.InDelta(t, 0, n.Min, 0)
 			assert.InDelta(t, 220, n.Max, 0)
 			assert.InDelta(t, 72, n.Now, 0)
-			assert.Equal(t, "01:12", n.Value)
+			assert.Equal(t, "01:12 / 03:40", n.Value, "elapsed / total")
 			assert.True(t, n.Actions.Has(platform.ActIncrement|platform.ActDecrement))
 			assert.True(t, tt.PerformAction(label, platform.ActIncrement))
 			assert.True(t, tt.PerformAction(label, platform.ActDecrement))

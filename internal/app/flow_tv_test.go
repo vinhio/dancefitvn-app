@@ -368,7 +368,11 @@ func TestTVPictureReadyFollowsTheEngine(t *testing.T) {
 	require.True(t, ok, "the rig plays on the fake engine, not %T", pb.late.sys.eng)
 	tok := eng.Token() + pb.late.offset
 	require.Equal(t, tok, pb.picTok, "the fake engine's first frame of the load")
-	pb.SetLoop(true) // seeks to A, where the engine buffers: the frame stays on the plane
+	pb.SetLoop(true) // K38: the loop begins at the position, 30 s long (or to the end), and seeks nothing
+	assert.InDelta(t, pb.Pos(), pb.A(), 0.5, "A is the position the loop was turned on at")
+	assert.InDelta(t, min(30, pb.Dur()-pb.A()), pb.B()-pb.A(), 0.01, "B is 30 s on, or the end")
+	pb.SetLoop(false)
+	pb.player.SeekBy(10) // a seek, where the engine buffers: the frame stays on the plane
 	eng.Stall()
 	assert.Equal(t, player.StateLoading, pb.State())
 	assert.True(t, pb.PictureReady(), "a seek that buffers keeps the picture")

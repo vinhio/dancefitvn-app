@@ -204,7 +204,8 @@ func (s *Shell) StartDownloads(c model.Course, lessons []model.Lesson) {
 }
 
 // DeleteDownload is `delConfirm` (`$P:604`): the file goes, sheet 14 closes and
-// "Đã xoá file âm thanh" shows. A file that cannot be removed is logged; the
+// "Đã xoá file âm thanh" shows. A sound that plays from the file goes on from the
+// stream (Playback.Reload). A file that cannot be removed is logged; the
 // sheet closes all the same, with no toast (there is no text for it in 03).
 func (s *Shell) DeleteDownload(lessonID string) {
 	err := s.e.Downloader().Delete(lessonID)
@@ -213,6 +214,12 @@ func (s *Shell) DeleteDownload(lessonID string) {
 		log.Printf("dancefitvn: delete download %s: %v", lessonID, err)
 
 		return
+	}
+	// K38: the sound being played came from that file (the player asks for the file
+	// first): it loads again from where it is, from the stream; offline that fails
+	// as any load does (the shell toasts it)
+	if pb := s.e.Playback(); pb != nil && pb.Kind() == player.KindAudio && pb.Lesson().ID == lessonID {
+		pb.Reload()
 	}
 	s.nav.Toast(s.e.T("toast.dlDeleted"))
 }

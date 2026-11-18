@@ -202,43 +202,27 @@ func TestAudioCycleSpeed(t *testing.T) {
 	})
 }
 
-// TestAudioLoopBeatAndToasts checks the loop button (on: jumps to A, no loop),
-// the beat button, and the two toasts with their exact texts, gone after 2200 ms.
-func TestAudioLoopBeatAndToasts(t *testing.T) {
+// TestAudioBeatAndTimerToast checks the beat button and the timer's toast with its exact
+// text, gone after 2200 ms. (The loop button is TestAudioRepeatButtonCyclesThreeModes;
+// the "…" button is TestAudioMoreDeletesTheFile.)
+func TestAudioBeatAndTimerToast(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		r, pb, a := atAudio(t, ph, false)
-		pb.SetAB(40, 68)
-		tapKey(t, r, "loop")
-		assert.Equal(t, []string{"SetLoop:true"}, pb.Calls())
-		assert.InDelta(t, 40, pb.Pos(), .01, "loop on seeks A")
-		assert.True(t, r.Tester.Shows("00:40"))
-		assert.Equal(t, 13, a.WaveLit(), "40 / 220 x 70 = 12.7")
-		pb.Tick(100)
-		assert.InDelta(t, 100, pb.Pos(), .01, "a sound does not loop: the position goes on past B")
-		tapKey(t, r, "loop")
-		assert.True(t, pb.Count("SetLoop") == 2 && !pb.Loop())
-
+		r, pb, _ := atAudio(t, ph, false)
 		require.True(t, pb.Beat())
 		tapKey(t, r, "beat")
 		assert.False(t, pb.Beat())
 		tapKey(t, r, "beat")
 		assert.True(t, pb.Beat())
 
-		tapKey(t, r, "toast")
-		assert.True(t, r.Tester.Shows("Chia sẻ / Hẹn giờ / Xoá file"))
-		r.Tester.Elapse(2100 * time.Millisecond)
-		assert.True(t, r.Tester.Shows("Chia sẻ / Hẹn giờ / Xoá file"), "still there at 2100 ms")
-		r.Tester.Elapse(300 * time.Millisecond)
-		r.Settle()
-		assert.False(t, r.Tester.Shows("Chia sẻ / Hẹn giờ / Xoá file"), "gone after 2200 ms")
-
 		tapKey(t, r, "toast#2")
 		assert.True(t, r.Tester.Shows("Hẹn giờ dừng: 15 / 30 / 45 phút"))
-		r.Tester.Elapse(2300 * time.Millisecond)
+		r.Tester.Elapse(2100 * time.Millisecond)
+		assert.True(t, r.Tester.Shows("Hẹn giờ dừng: 15 / 30 / 45 phút"), "still there at 2100 ms")
+		r.Tester.Elapse(300 * time.Millisecond)
 		r.Settle()
-		assert.False(t, r.Tester.Shows("Hẹn giờ dừng: 15 / 30 / 45 phút"))
+		assert.False(t, r.Tester.Shows("Hẹn giờ dừng: 15 / 30 / 45 phút"), "gone after 2200 ms")
 	})
 }
 

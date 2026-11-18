@@ -102,15 +102,15 @@ func atVideoOver(t *testing.T, ph kittest.Phone, fsys fs.FS) (*shelltest.Rig, *s
 
 // TestVideoAudioButtonOfALessonWithoutAudio checks the side column of 06 for a lesson
 // the course data give no audio file (has_audio false): the button "Âm thanh" is gone
-// (it is the last, so the other three keep their places), and one that finds out in the
-// run (lessons.audio answers not_found) goes as well.
+// (it is the only one of the column, K38; the top button keeps its place), and one that
+// finds out in the run (lessons.audio answers not_found) goes as well.
 func TestVideoAudioButtonOfALessonWithoutAudio(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
 		normal, _, _ := atVideo(t, ph, false)
 		want := map[string]geom.Rect{}
-		for _, n := range []string{"sheet:options", "mirror", "loop"} {
+		for _, n := range []string{"sheet:options"} {
 			want[n] = named(normal.Shell, n, 1).Node().WindowFrame()
 		}
 		require.NotNil(t, named(normal.Shell, "dlTap:set35-3", 1), "a lesson with an audio has the button")

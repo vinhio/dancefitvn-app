@@ -113,9 +113,9 @@ func registerProofStates() {
 	loopOn := func(a, b float64) stateStep {
 		return stateStep{what: "A-B loop on", act: func(_ *shell.Shell, w *mobileWire) {
 			p := w.pb.player
-			p.SetA(a)
-			p.SetB(b)
 			p.SetLoop(true)
+			p.SetAB(a, b) // after the loop is on: it begins at the position, K38
+			p.Seek(a)     // as turning it on once did: the script watches the wrap from A
 			smokeLog(w, "loop on")
 		}}
 	}

@@ -77,6 +77,57 @@ func TestLoadingBoxesMatchPrototype(t *testing.T) {
 	assert.InDelta(t, 84, tabs.H, 0.01)
 }
 
+// TestLoadingMirrorsTheCourseGrid checks K39 in the skeleton: under the sync line, two
+// rows of two placeholder blocks in the grid's columns (20 margins, 12 apart, as wide as
+// the tiles), 12 between the rows; the error variant leaves them out.
+func TestLoadingMirrorsTheCourseGrid(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		r := atHomeLoading(t, ph, false)
+		lay := dumpNow(r, "M03B")
+		colW := (float64(ph.Size.W) - 40 - 12) / 2
+		sync, ok := lay.Find("div.muted")
+		require.True(t, ok)
+		var prevBottom float64
+		for i, key := range []string{"div.card#4", "div.card#5", "div.card#6", "div.card#7"} {
+			e, ok := lay.Find(key)
+			require.True(t, ok, key)
+			assert.InDelta(t, colW, e.W, 0.01, key+": a column wide")
+			assert.InDelta(t, 20+float64(i%2)*(colW+12), e.X, 0.01, key+": x")
+			assert.InDelta(t, 174, e.H, 0.01, key)
+			if i%2 == 0 && i > 0 {
+				assert.InDelta(t, prevBottom+12, e.Y, 0.01, key+": 12 under the row above")
+			}
+			if i == 0 {
+				assert.Greater(t, e.Y, sync.Y+sync.H, "under the sync line")
+			}
+			prevBottom = e.Y + e.H
+		}
+	})
+}
+
+// TestLoadingErrorHidesTheGridPlaceholders checks that the retry variant does not keep
+// the placeholders under the button.
+func TestLoadingErrorHidesTheGridPlaceholders(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		f, err := shelltest.New(shelltest.MockFS(t))
+		require.NoError(t, err)
+		content := screens.NewLoadingContent(env.New(f, locales.MustTexts()))
+		tt := kittest.Mount(t, ph, content)
+		lay := layoutdump.Dump(tt.View().Context(), tt.View().Root(), "x", "mobile", ph.Size, nil)
+		_, ok := lay.Find("div.card#4")
+		assert.True(t, ok, "the placeholders while syncing")
+		content.SetError(func() {})
+		tt.Elapse(kittest.Frame)
+		lay = layoutdump.Dump(tt.View().Context(), tt.View().Root(), "x", "mobile", ph.Size, nil)
+		_, ok = lay.Find("div.card#4")
+		assert.False(t, ok, "none under the retry button")
+	})
+}
+
 // TestHomeShowsLoadingUnderTheHomeTab checks F-8: 03B is Home's loading state, a
 // route of Home with the tab bar and its Home tab current, and no skeleton text but
 // the sync line.

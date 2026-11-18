@@ -196,12 +196,12 @@ func TestA11yReadingOrderIsVisualOrder(t *testing.T) {
 			"Thứ bảy, 14/11 · Chào buổi sáng", "Xin chào, Thảo Vy", "Tài khoản", "Stink and Dutty",
 			"15", "Khoá học", "10", "Bài · Set 35", "5", "Audio offline",
 			"Khoá học của tôi", "Xem tất cả",
-			"DanceFIT Set 35", "DanceFIT Set 34", "DanceFIT Hot Extra", "DanceFIT Set 33", "DanceFIT Set 32", "DanceFIT Set 31",
+			"DanceFIT Set 35", "DanceFIT Set 34", "DanceFIT Hot Extra", "DanceFIT Set 33", "DanceFIT Set 32", "DanceFIT Set 31", "Xem tất cả 15 khoá",
 			"Mới cập nhật", "DanceFIT Set 36",
 			"Trang chủ", "Khoá học", "Tải xuống", "Tài khoản",
 		},
 		"M05": {
-			"Quay lại", "Tuỳ chọn phát", "Khoá học Thường · 10 bài học", "DanceFIT Set 35",
+			"Quay lại", "Khoá học Thường · 10 bài học", "DanceFIT Set 35", // the hero has no "…" (the owner removed it)
 			"“Cùng nhảy cùng hát” · 10 bài · 39 phút", "Đang xem bài 03", "Tải hết", "Bài học · 10", "Giới thiệu",
 			"DanceFIT Warm Up 13", "Đã tải", "Made You Look", "Đã tải", "Stink and Dutty", "Đã tải",
 			"Em Yêu Người Ta", "Đã tải", "Hãy Hát Lên", "Tải xuống", "Nadi Nadi", "Đã tải",
@@ -211,7 +211,7 @@ func TestA11yReadingOrderIsVisualOrder(t *testing.T) {
 		"M06": {
 			"Stink and Dutty", // the picture, `stageTap`
 			"Quay lại", "DanceFIT Set 35", "Bài 03 / 10", "Tuỳ chọn phát",
-			"Tốc độ phát", "Gương", "Lặp A–B", "Đã tải",
+			"Đã tải", // K38: the speed, mirror and loop buttons are not in the column
 			"Bụng", "Video dọc 9:16", "Stink and Dutty", "DanceFIT Set 35 · “Cùng nhảy cùng hát”", "Thanh đếm 8 nhịp",
 			"Vị trí phát", "01:12", "03:40",
 			"Bài trước", "Lùi 10 giây", "Tạm dừng", "Tới 10 giây", "Bài sau",
@@ -255,7 +255,7 @@ func TestA11yVideoControlsAreHushedWhenHidden(t *testing.T) {
 	t.Parallel()
 
 	controls := []string{
-		"Quay lại", "Tuỳ chọn phát", "Tốc độ phát", "Gương", "Lặp A–B", "Đã tải", "Thanh đếm 8 nhịp",
+		"Quay lại", "Tuỳ chọn phát", "Đã tải", "Thanh đếm 8 nhịp",
 		"Vị trí phát", "Bài trước", "Lùi 10 giây", "Tạm dừng", "Tới 10 giây", "Bài sau",
 	}
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
@@ -445,7 +445,7 @@ func TestA11yPositionBarsAreSliders(t *testing.T) {
 				assert.InDelta(t, 0, n.Min, 0)
 				assert.InDelta(t, 220, n.Max, 0)
 				assert.InDelta(t, 72, n.Now, 0)
-				assert.Equal(t, "01:12", n.Value)
+				assert.Equal(t, "01:12 / 03:40", n.Value, "elapsed / total (K38)")
 				assert.True(t, n.Actions.Has(platform.ActIncrement))
 				assert.True(t, n.Actions.Has(platform.ActDecrement))
 				pb.ClearCalls()
@@ -458,33 +458,23 @@ func TestA11yPositionBarsAreSliders(t *testing.T) {
 	})
 }
 
-// TestA11ySpeedAndLoopSayTheirValues checks the side buttons of 06: the speed is
-// named by its prototype string with its text as the value, the mirror and the
-// loop are toggles and the loop speaks its range.
-func TestA11ySpeedAndLoopSayTheirValues(t *testing.T) {
+// TestA11yRemovedSideButtonsAreGone checks K38: the speed, mirror and A-B loop buttons
+// of 06 are not in the tree any more (the options sheet has them); the "Bài trước" button
+// still speaks its number.
+func TestA11yRemovedSideButtonsAreGone(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
 		r, pb, _ := atVideo(t, ph, false)
 		restart(r, pb)
 		sem := r.Tester.Semantics()
-		speed, ok := findNode(sem, "Tốc độ phát", platform.RoleButton)
-		require.True(t, ok)
-		assert.Equal(t, "0.75x", speed.Value)
-		mirror, _ := findNode(sem, "Gương", platform.RoleButton)
-		assert.Equal(t, platform.ToggledOn, mirror.Toggle)
-		loop, _ := findNode(sem, "Lặp A–B", platform.RoleButton)
-		assert.Equal(t, platform.ToggledOff, loop.Toggle)
-		assert.Empty(t, loop.Value)
+		for _, l := range []string{"Tốc độ phát", "Gương", "Lặp A–B"} {
+			_, ok := findNode(sem, l, platform.RoleButton)
+			assert.Falsef(t, ok, "%q is not a button of the screen", l)
+		}
 		prev, ok := findNode(sem, "Bài trước", platform.RoleButton)
 		require.True(t, ok)
 		assert.Equal(t, "02", prev.Value)
-
-		pb.SetLoop(true)
-		r.Settle()
-		loop, _ = findNode(r.Tester.Semantics(), "Lặp A–B", platform.RoleButton)
-		assert.Equal(t, platform.ToggledOn, loop.Toggle)
-		assert.Equal(t, "01:12–01:40", loop.Value, "A to B")
 	})
 }
 

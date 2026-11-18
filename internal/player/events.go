@@ -39,7 +39,7 @@ func (p *Player) onTime(t float64) {
 		return // a late tick after the end must not lower the saved position
 	}
 	p.pos = t
-	if p.loop && p.kind == KindVideo && p.pos >= p.b && p.state == StatePlaying {
+	if p.loop && p.pos >= p.b && p.state == StatePlaying {
 		p.seek(p.a)
 	}
 	p.saveUpdate()
@@ -62,8 +62,7 @@ func (p *Player) onDuration(d float64) {
 		}
 	}
 	if p.a > d || p.b > d {
-		p.a = math.Round(d * loopStart)
-		p.b = min(p.a+loopLength, d)
+		p.a, p.b = defaultAB(d)
 		p.emit(ChangeOptions)
 	}
 	p.emit(ChangeDuration)
@@ -99,7 +98,7 @@ func (p *Player) onState(s media.PlayState) {
 
 // onEnded is the media played to its end: the last position is saved (it is
 // at or over 90 %, so the lesson counts as watched) and the shell hears
-// ChangeEnded. With the A–B loop on, a video wraps to A instead. A video goes to the end-of-lesson screen; a sound stays on 08,
+// ChangeEnded. With the A–B loop on, the media wraps to A instead (a sound too, K38). A video goes to the end-of-lesson screen; a sound stays on 08,
 // stopped at its end ($P:780).
 func (p *Player) onEnded() {
 	if p.checkStart {
@@ -115,7 +114,7 @@ func (p *Player) onEnded() {
 
 		return
 	}
-	if p.loop && p.kind == KindVideo && (p.dur <= 0 || p.a < p.dur) {
+	if p.loop && (p.dur <= 0 || p.a < p.dur) {
 		// The loop is checked before the end ($P:779): a B at the media's
 		// end (the mock's 12 s gives B = 12) wraps to A, it is no ending.
 		// The engine is at its end, so it is asked to play first (an engine
@@ -124,6 +123,22 @@ func (p *Player) onEnded() {
 		p.want = true
 		_ = p.o.Engine.Play()
 		p.seek(p.a)
+		p.saveUpdate()
+
+		return
+	}
+	if p.repeatOne {
+		// Repeat One (K38): the lesson was played to its end, which counts: the
+		// position at the length is saved (watched, once per visit, as for any end).
+		// There is no end of lesson and no next one; the media starts again at 0.
+		if p.dur > 0 {
+			p.pos = p.dur
+		}
+		p.saveUpdate()
+		p.savePause()
+		p.want = true
+		_ = p.o.Engine.Play() // an engine restarts an ended media at 0; asked first, as for the loop
+		p.seek(0)
 		p.saveUpdate()
 
 		return

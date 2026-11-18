@@ -86,7 +86,9 @@ func (p *Player) Seek(sec float64) {
 	if hi <= 0 {
 		hi = sec
 	}
-	p.seek(max(0, min(sec, hi)))
+	t := max(0, min(sec, hi))
+	p.noteSeek(t)
+	p.seek(t)
 }
 
 // SeekBy moves by d seconds, kept in [0, dur - 1] (the ‹10 and 10› buttons,
@@ -100,7 +102,27 @@ func (p *Player) SeekBy(d float64) {
 	if p.dur > 0 {
 		t = min(p.dur-1, t)
 	}
-	p.seek(max(0, t))
+	t = max(0, t)
+	p.noteSeek(t)
+	p.seek(t)
+}
+
+// Reload loads the lesson again from where it is, playing or paused as it was:
+// its source changed under it (the file on the device that it played from was
+// deleted, K38), so the address is asked for again, which is the stream when
+// there is no file; offline that is the failure of any load (StateError, the
+// shell toasts it). It does nothing when no lesson is loaded or one fails already.
+func (p *Player) Reload() {
+	if p.closed || p.lesson.ID == "" || p.state == StateError || p.state == StateIdle {
+		return
+	}
+	p.syncTime()
+	want := p.want
+	if p.loaded {
+		p.loaded = false // the events of the old media are of no interest now
+		_ = p.o.Engine.Pause()
+	}
+	p.reload(want)
 }
 
 // Leave is the shell closing the screen of the lesson: a video pauses, a
@@ -140,6 +162,16 @@ func (p *Player) Background(on bool) {
 // ====================================================================
 // ========================= Helper Functions =========================
 // ====================================================================
+
+// noteSeek tells the Saver that the user is about to move to t (SeekNoter).
+func (p *Player) noteSeek(t float64) {
+	if p.detached || p.lesson.ID == "" {
+		return
+	}
+	if n, ok := p.o.Saver.(SeekNoter); ok {
+		n.Seeked(p.lesson.ID, t, p.dur)
+	}
+}
 
 // seek moves the media to t, which is already kept inside it.
 func (p *Player) seek(t float64) {

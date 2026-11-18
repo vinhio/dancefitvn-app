@@ -6,6 +6,7 @@ import (
 	"dancefitvn-app/internal/ui/kit"
 	"dancefitvn-app/internal/ui/kit/kittest"
 
+	"github.com/gdeskdev/desk/foundation/core/color"
 	"github.com/gdeskdev/desk/foundation/core/geom"
 	"github.com/gdeskdev/desk/foundation/platform"
 	"github.com/stretchr/testify/assert"
@@ -143,4 +144,44 @@ func TestSegmentedNamesAndSelectDoNotAllocate(t *testing.T) { //nolint:parallelt
 		}
 		assert.Zero(t, testing.AllocsPerRun(30, step), ph.Name+": select, layout and frame")
 	}
+}
+
+// TestSegmentedRestylesTheTextOnChange picks another speed twice, by a tap and by
+// Select: the newly chosen button's text turns --on over --pr and the one left
+// turns back to --tx2 over the plate, so neither is unreadable (the text style
+// is chosen in the button's Layout, which the change must run again).
+func TestSegmentedRestylesTheTextOnChange(t *testing.T) {
+	t.Parallel()
+	look := palette()
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		s := kit.NewSegmented("0.5x", "0.75x", "1x", "1.25x", "1.5x")
+		s.Selected = 2
+		tt := mountStage(t, ph, placeAt(s, 20, 100, 353))
+		inks := func(i int, ink color.Color) int {
+			img, r, n := tt.Snapshot(), frameOf(s.Item(i)), 0
+			d := func(a, b uint8) int { return max(int(a)-int(b), int(b)-int(a)) }
+			for y := int(r.Y); y < int(r.Y+r.H); y++ {
+				for x := int(r.X); x < int(r.X+r.W); x++ {
+					got := pixelAt(img, x, y)
+					if d(got.R, ink.R) <= 24 && d(got.G, ink.G) <= 24 && d(got.B, ink.B) <= 24 {
+						n++
+					}
+				}
+			}
+
+			return n
+		}
+		check := func(chosen, left int, how string) {
+			assert.Greater(t, inks(chosen, look.T.OnPrimary), 8, "%s: chosen text in --on", how)
+			assert.Greater(t, inks(left, look.T.Text2), 8, "%s: the button left shows --tx2 text", how)
+		}
+
+		tt.ClickAt(frameOf(s.Item(4)).Center())
+		tt.Elapse(kittest.Frame)
+		check(4, 2, "tap")
+
+		s.Select(1)
+		tt.Elapse(kittest.Frame)
+		check(1, 4, "Select")
+	})
 }

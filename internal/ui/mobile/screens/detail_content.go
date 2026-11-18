@@ -75,7 +75,9 @@ func newDetailFrame(e *env.Env, c model.Course) (*scrFrame, *detailContent) {
 	k := &detailContent{e: e, total: n}
 	k.hero = newCourseHero(e, c,
 		e.Fill("detail.eyebrowTpl", "cat", c.CategoryLabel, "n", itoa(n)),
-		heroSub(e, c, "detail.subTpl", true), true, false)
+		// K37: no "…" button: the prototype draws it with no action (index.html:398);
+		// the owner removed it
+		heroSub(e, c, "detail.subTpl", true), false, false)
 
 	title, btn := e.Fill("detail.startTpl", "no", format.No(1)), e.Fill("detail.watchTpl", "no", format.No(1))
 	if resumed {

@@ -113,6 +113,10 @@ type saver struct {
 	updates []update
 	pauses  int
 	leaves  int
+	// seeked lists the seeks the user made (SeekNoter), and order the calls in
+	// the order they came: "seek" and "update".
+	seeked []update
+	order  []string
 }
 
 type update struct {
@@ -123,6 +127,12 @@ type update struct {
 
 func (s *saver) Update(l, c string, pos, dur float64, playing bool) {
 	s.updates = append(s.updates, update{l, c, pos, dur, playing})
+	s.order = append(s.order, "update")
+}
+
+func (s *saver) Seeked(l string, pos, dur float64) {
+	s.seeked = append(s.seeked, update{lesson: l, pos: pos, dur: dur})
+	s.order = append(s.order, "seek")
 }
 func (s *saver) Pause() { s.pauses++ }
 func (s *saver) Leave() { s.leaves++ }

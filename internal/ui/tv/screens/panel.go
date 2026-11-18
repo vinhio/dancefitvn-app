@@ -85,7 +85,7 @@ func (s *Player) newPanel() *playerPanel {
 	names := [toggleCount]string{e.T("options.mirror"), e.T("options.loop"), e.T("tv.panel.beat")}
 	acts := [toggleCount]func(){
 		func() { pb.SetMirror(!pb.Mirror()) },
-		func() { pb.SetLoop(!pb.Loop()) }, // on seeks to A
+		func() { pb.SetLoop(!pb.Loop()) }, // on, the loop begins at the position, 30 s long (K38); no B to edit on TV
 		func() { pb.SetBeat(!pb.Beat()) },
 	}
 	for i := range p.toggle {

@@ -48,11 +48,12 @@ var waveShare = func() (s [WaveBars]float32) {
 // shares them, each as high as the formula of the prototype says, centered on the
 // row. A bar is --pr once it is heard (`i / 70 <= pos / dur`, `liveM`), --sf2
 // before. A press on it, anywhere, asks for that position through OnSeek, as
-// `data-scrub="m"` does (no drag, as Scrub). Positions are shares, 0 to 1.
+// `data-scrub="m"` does, and a drag follows the finger to any position, as Scrub
+// does (K38): the bars light up to the finger while it drags. Positions are
+// shares, 0 to 1.
 type Wave struct {
 	ui.Base
-	// OnSeek is called with the share of the width the press fell on.
-	OnSeek func(share float32)
+	seekCore
 	// Label names the bar for assistive technologies.
 	Label string
 	// Reading tells a screen reader the position and the length of the media, in
@@ -62,11 +63,12 @@ type Wave struct {
 	// decrements the bar.
 	OnStep func(delta float64)
 
-	pos float32
-	on  int // how many bars are lit
+	pos   float32
+	heard int // how many bars are lit (the player's)
 }
 
 var (
+	_ SeekBar           = (*Wave)(nil)
 	_ ui.PointerHandler = (*Wave)(nil)
 	_ ui.Labeler        = (*Wave)(nil)
 	_ ui.Describer      = (*Wave)(nil)
@@ -75,7 +77,7 @@ var (
 
 // NewWave returns a wave with no bar lit but the first (`0 <= 0`).
 func NewWave(label string) *Wave {
-	w := &Wave{Label: label, on: 1}
+	w := &Wave{Label: label, heard: 1}
 	w.Name = nameWave
 
 	return w
@@ -87,21 +89,58 @@ func NewWave(label string) *Wave {
 
 // SetPos lights the bars up to share of the length: bar i when i / 70 <= share.
 // A position that lights the same bars repaints nothing; nothing allocates.
+// While a finger drags the bar it only remembers the share: the finger's lights
+// the bars.
 func (w *Wave) SetPos(share float32) {
 	share = clamp01(share)
 	n := litBars(share)
 	w.pos = share
-	if n != w.on {
-		w.on = n
+	if n != w.heard {
+		w.heard = n
+		if !w.seekCore.on {
+			w.Repaint()
+		}
+	}
+}
+
+// Pos returns the share the bars were last set to (the player's, not the
+// finger's).
+func (w *Wave) Pos() float32 { return w.pos }
+
+// Lit returns how many bars are lit (the first Lit of them): up to the finger
+// while it drags.
+func (w *Wave) Lit() int {
+	if w.seekCore.on {
+		return litBars(w.share)
+	}
+
+	return w.heard
+}
+
+// SeekBegin starts the drag at share.
+func (w *Wave) SeekBegin(share float32) {
+	w.begin(share)
+	w.Repaint()
+}
+
+// SeekMove follows the finger to share; it repaints when another bar lights.
+func (w *Wave) SeekMove(share float32) {
+	was := w.Lit()
+	if w.move(share) && w.Lit() != was {
 		w.Repaint()
 	}
 }
 
-// Pos returns the share the bars were last set to.
-func (w *Wave) Pos() float32 { return w.pos }
-
-// Lit returns how many bars are lit (the first Lit of them).
-func (w *Wave) Lit() int { return w.on }
+// SeekEnd ends the drag: OnSeek once for commit, and the bars stay where the
+// finger let go until the player tells its position.
+func (w *Wave) SeekEnd(commit bool) {
+	if share, was := w.end(commit); was {
+		if commit {
+			w.pos, w.heard = share, litBars(share)
+		}
+		w.Repaint()
+	}
+}
 
 // AccessibleLabel returns the bar's label.
 func (w *Wave) AccessibleLabel() string { return w.Label }
@@ -114,23 +153,10 @@ func (w *Wave) PerformAction(_ *ui.Context, a platform.SemanticAction) bool {
 	return performSeek(a, w.OnStep)
 }
 
-// HandlePointer asks for a position on a press, takes the press and every event
-// after it, but does not follow the finger.
+// HandlePointer is the press, the drag and the release on the bars themselves (a
+// screen puts a SeekPad over them for the touch target).
 func (w *Wave) HandlePointer(_ *ui.Context, e *ui.PointerEvent) {
-	switch e.Kind {
-	case ui.PointerDown:
-		if e.Button != platform.ButtonPrimary && e.Button != platform.ButtonNone {
-			return
-		}
-		e.Handle()
-		if fw := w.Frame().W; fw > 0 && w.OnSeek != nil {
-			w.OnSeek(clamp01(e.Pos.X / fw))
-		}
-	case ui.PointerUp, ui.PointerMove:
-		e.Handle()
-	case ui.PointerUnknown, ui.PointerEnter, ui.PointerLeave, ui.PointerCancel, ui.PointerScroll:
-	default:
-	}
+	handleSeek(e, w, w.Frame().W)
 }
 
 // Layout is as wide as it is given and 40 tall.
@@ -150,10 +176,11 @@ func (w *Wave) Paint(c *ui.Context, p *ui.Painter) {
 	bar := (r.W - float32(WaveBars-1)*waveGap) / WaveBars // `flex:1`
 	heard, rest := scene.Solid(t.Primary), scene.Solid(t.Surface2)
 	x := float32(0)
+	lit := w.Lit()
 	for i := range WaveBars {
 		h := waveShare[i] * r.H
 		paint := rest
-		if i < w.on {
+		if i < lit {
 			paint = heard
 		}
 		p.Fill(geom.XYWH(x, (r.H-h)/2, bar, h), paint, waveRadius)

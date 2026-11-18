@@ -394,6 +394,98 @@ func TestSheetScrollsInsideAndPullsOnlyAtTop(t *testing.T) {
 	})
 }
 
+// TestSheetContentBouncesOffItsBottomAndTop covers K36 in a sheet taller than 92 %
+// of the screen: the content rubber-bands past its bottom and springs back, a fling
+// that reaches the bottom bounces off it, and the top stays the sheet's (a pull down
+// there closes it) even after the content bounced off it.
+func TestSheetContentBouncesOffItsBottomAndTop(t *testing.T) {
+	t.Parallel()
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		s := kit.NewSheet()
+		tt := kittest.Mount(t, ph, newOverlays(s))
+		kittest.PinMotion(tt)
+		s.Open(newVStack(vitem{w: &block{h: 2000}}), kit.SheetOptions{})
+		tt.Elapse(400 * time.Millisecond)
+		panel := part(t, s, "div.sheet")
+		f := frameOf(panel)
+		grab := part(t, s, "div.grab")
+		top := frameOf(grab).Y
+		x := ph.Size.W / 2
+
+		// to the bottom, then a finger pulls up another 120 DIPs: the content goes on
+		// up, by less than the finger, and the sheet stays
+		tt.Scroll(geom.Pt(x, f.Y+100), 0, 10000)
+		tt.Elapse(kittest.Frame)
+		end := frameOf(grab).Y
+		require.Less(t, float64(end), float64(top))
+		from := geom.Pt(x, f.Y+f.H-100)
+		tt.TouchDown(from)
+		for k := 1; k <= 12; k++ {
+			tt.Elapse(kittest.Frame)
+			tt.TouchMove(geom.Pt(from.X, from.Y-float32(k)*10))
+		}
+		past := end - frameOf(grab).Y
+		assert.Greater(t, float64(past), 20.0, "the content follows past its bottom")
+		assert.Less(t, float64(past), 112.0, "with resistance")
+		assert.InDelta(t, float64(f.Y), float64(frameOf(panel).Y), .01, "the sheet stays")
+		tt.TouchUp(geom.Pt(from.X, from.Y-120))
+		tt.Elapse(time.Second)
+		assert.InDelta(t, float64(end), float64(frameOf(grab).Y), .01, "springs back to its bottom")
+		assert.True(t, s.IsOpen())
+
+		// a fling that reaches the top from below bounces off it ...
+		tt.Scroll(geom.Pt(x, f.Y+100), 0, -10000)
+		tt.Scroll(geom.Pt(x, f.Y+100), 0, 300)
+		tt.Elapse(kittest.Frame)
+		high := frameOf(grab).Y
+		tt.Swipe(geom.Pt(x, f.Y+200), geom.Pt(x, f.Y+300), 32*time.Millisecond)
+		for range 120 {
+			tt.Elapse(kittest.Frame)
+			high = max(high, frameOf(grab).Y)
+		}
+		assert.Greater(t, float64(high), float64(top)+1, "the content went past the top")
+		// ... and the top is still the sheet's: a pull down there closes it
+		require.InDelta(t, float64(top), float64(frameOf(grab).Y), .01, "at the top")
+		require.True(t, s.IsOpen())
+		pullSheet(tt, frameOf(panel), 90, 50*time.Millisecond)
+		assert.False(t, s.IsOpen(), "a pull down at the top closes the sheet")
+	})
+}
+
+// TestSheetContentBounceFrameDoesNotAllocate checks the frames of a sheet's content
+// pulled past its bottom.
+func TestSheetContentBounceFrameDoesNotAllocate(t *testing.T) { //nolint:paralleltest // AllocsPerRun
+	if kittest.Race {
+		t.Skip("allocation counts are not stable under the race detector")
+	}
+	for _, ph := range kittest.Phones {
+		s := kit.NewSheet()
+		tt := kittest.Mount(t, ph, newOverlays(s))
+		kittest.PinMotion(tt)
+		s.Open(newVStack(vitem{w: &block{h: 2000}}), kit.SheetOptions{})
+		tt.Elapse(400 * time.Millisecond)
+		f := frameOf(part(t, s, "div.sheet"))
+		x := ph.Size.W / 2
+		tt.Scroll(geom.Pt(x, f.Y+100), 0, 10000)
+		tt.Elapse(kittest.Frame)
+		y, dir := float32(40), float32(1)
+		at := geom.Pt(x, f.Y+f.H-200)
+		tt.TouchDown(at)
+		drag := func() {
+			if y > 160 || y < 40 {
+				dir = -dir
+			}
+			y += 4 * dir
+			tt.TouchMove(geom.Pt(x, at.Y-y))
+			tt.Elapse(kittest.Frame)
+		}
+		for range 40 {
+			drag()
+		}
+		assert.Zero(t, testing.AllocsPerRun(50, drag), ph.Name)
+	}
+}
+
 // TestSheetKeyboardRaisesTheBottom covers Q-P2-7: with the on-screen keyboard up,
 // the content ends above it.
 func TestSheetKeyboardRaisesTheBottom(t *testing.T) {

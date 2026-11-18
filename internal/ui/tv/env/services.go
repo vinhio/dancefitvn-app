@@ -121,7 +121,7 @@ type Playback interface {
 	Pause()
 	Toggle()
 	// SetRate, SetMirror, SetLoop and SetBeat are the options of the panel;
-	// SetLoop(true) seeks to A.
+	// SetLoop(true) begins the A–B loop at the position, B 30 s on or the end (K38).
 	SetRate(r float64)
 	SetMirror(on bool)
 	SetLoop(on bool)

@@ -66,11 +66,11 @@ func TestDetailBoxesMatchPrototype(t *testing.T) {
 
 	r := atDetail(t, kittest.Phones[0], true, "set-35")
 	lay := r.Dump("M05")
-	skip := map[string]bool{"playVideo:set35-3": true, "div.muted#2": true, "dlAll:set35": true, "svg.i#3": true}
-	checkAgainstProto(t, "M05", lay, 1, skip)
+	skip := map[string]bool{"playVideo:set35-3": true, "div.muted#2": true, "dlAll:set35": true, "svg.i#2": true}
+	checkAgainstProtoWithout(t, "M05", lay, 1, skip, heroDrop...)
 
-	want := shelltest.ProtoLayout(t, "M05")
-	for _, key := range []string{"playVideo:set35-3", "div.muted#2", "dlAll:set35", "svg.i#3"} {
+	want := shelltest.Without(shelltest.ProtoLayout(t, "M05"), heroDrop...)
+	for _, key := range []string{"playVideo:set35-3", "div.muted#2", "dlAll:set35", "svg.i#2"} {
 		w, _ := want.Find(key)
 		g, ok := lay.Find(key)
 		require.True(t, ok, key)
@@ -110,7 +110,7 @@ func TestDetailOnTheWiderPhone(t *testing.T) {
 		require.True(t, ok, key)
 		assert.InDelta(t, w, e.W, 0.01, key+": width")
 	}
-	for _, key := range []string{"button.rb.dk", "dlAll:set35", "dlTap:set35-1", "dlTap:set35-7"} {
+	for _, key := range []string{"dlAll:set35", "dlTap:set35-1", "dlTap:set35-7"} {
 		ea, _ := a.Find(key)
 		eb, _ := b.Find(key)
 		// the chip's text is shaped by each phone's own engine: its width differs by a pixel
@@ -269,9 +269,7 @@ func TestDetailTapsAreActions(t *testing.T) {
 		}
 		d.Scroll().ScrollTo(geom.Point{}, false)
 		r.Tester.Elapse(kittest.Frame)
-		rec.calls = nil
-		tap(r, named(root, "button.rb.dk", 1))
-		assert.Empty(t, rec.calls, "the more button has no action")
+		assert.Nil(t, named(root, "button.rb.dk", 1), "the hero has no \"…\" button: the owner removed it, it had no action")
 	})
 }
 

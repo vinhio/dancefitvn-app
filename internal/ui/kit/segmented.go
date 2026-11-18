@@ -88,7 +88,7 @@ func NewSegmented(options ...string) *Segmented { return &Segmented{Options: opt
 func (s *Segmented) Select(i int) {
 	if i != s.Selected {
 		s.Selected = i
-		s.Relayout()
+		s.restyle()
 	}
 }
 
@@ -155,7 +155,7 @@ func (b *segItem) Activate() {
 		return
 	}
 	b.seg.Selected = b.index
-	b.seg.Relayout()
+	b.seg.restyle()
 	if b.seg.OnSelect != nil {
 		b.seg.OnSelect(b.index)
 	}
@@ -233,4 +233,16 @@ func (s *Segmented) nameOf(i int) string {
 	}
 
 	return s.names[i]
+}
+
+// restyle lays every button out again after the choice changed: a button
+// picks its text's weight and ink in Layout, and the framework keeps a laid-out
+// child whose constraints did not change, so marking the control alone would
+// leave the old button's text in --on over the plate (unreadable) and the new
+// one's in --tx2 over --pr.
+func (s *Segmented) restyle() {
+	for _, b := range s.buttons {
+		b.Relayout()
+	}
+	s.Relayout()
 }

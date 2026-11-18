@@ -11,6 +11,8 @@
 package screens
 
 import (
+	"dancefitvn-app/internal/ui/kit"
+
 	"github.com/gdeskdev/desk/foundation/core/color"
 	"github.com/gdeskdev/desk/foundation/core/geom"
 	"github.com/gdeskdev/desk/foundation/scene"
@@ -74,7 +76,7 @@ func newFrame(content ui.Widget, bottom float32, foot *scrFoot) *scrFrame {
 	f := &scrFrame{foot: foot}
 	f.Name = nameFrame
 	f.scroll.Name = nameScroll
-	f.scroll.Axes, f.scroll.HideBars = ui.ScrollVertical, true
+	kit.PageScroll(&f.scroll)
 	f.body.content, f.body.bottom = content, bottom
 	f.body.Add(content)
 	f.scroll.Add(&f.body)

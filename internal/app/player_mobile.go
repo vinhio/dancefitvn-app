@@ -87,6 +87,7 @@ type wirePrefs struct {
 var (
 	_ player.Resolver      = wireResolver{}
 	_ player.Saver         = (*wireSaver)(nil)
+	_ player.SeekNoter     = (*wireSaver)(nil)
 	_ progress.Sender      = wireSender{}
 	_ progress.BatchSender = wireSender{}
 	_ env.Prefs            = (*wirePrefs)(nil)
@@ -370,6 +371,14 @@ func (r wireResolver) AudioURL(ctx context.Context, lessonID string) (string, er
 func (s *wireSaver) Update(lessonID, courseID string, posSec, durSec float64, playing bool) {
 	if t := s.tracker(); t != nil {
 		t.Update(lessonID, courseID, posSec, durSec, playing)
+	}
+}
+
+// Seeked tells the tracker that the user moved the position by hand
+// (player.SeekNoter).
+func (s *wireSaver) Seeked(lessonID string, posSec, durSec float64) {
+	if t := s.tracker(); t != nil {
+		t.Seeked(lessonID, posSec, durSec)
 	}
 }
 

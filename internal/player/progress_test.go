@@ -205,7 +205,7 @@ func TestTickPastBLoopsBack(t *testing.T) {
 	r, _, _ := tickRig(t, true)
 	r.eng.Emit(media.Event{Kind: media.EventTime, Token: r.eng.Token(), Time: r.p.B()})
 	assert.InDelta(t, r.p.A(), r.p.Pos(), 0)
-	assert.Equal(t, 2, r.count(fake.OpSeek))
+	assert.Equal(t, 1, r.count(fake.OpSeek), "turning the loop on does not seek; the wrap does")
 }
 
 func BenchmarkTick(b *testing.B) {

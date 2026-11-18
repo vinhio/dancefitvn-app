@@ -10,6 +10,8 @@ a11y.current new
 a11y.fileOptions new
 a11y.hidePassword new
 a11y.lessonTpl new
+a11y.loopBBack new
+a11y.loopBFwd new
 a11y.pairCode new
 a11y.pause new
 a11y.play new
@@ -28,6 +30,10 @@ account.versionTpl new
 audio.beat proto
 audio.downloadedTpl proto
 audio.lessonsTpl proto
+audio.repeat new
+audio.repeatABTpl new
+audio.repeatOff new
+audio.repeatOne new
 audio.streaming proto
 audio.subTpl proto
 audio.timer proto
@@ -83,6 +89,7 @@ downloads.itemTpl proto
 downloads.runningTpl proto
 downloads.summaryTpl proto
 home.afternoon new
+home.allCoursesTpl new
 home.continueMetaTpl proto
 home.evening new
 home.eyebrowTpl proto
@@ -129,6 +136,8 @@ options.beatSub proto
 options.loop proto
 options.loopContinuous proto
 options.loopSubTpl proto
+options.loopBBack new
+options.loopBFwd new
 options.mirror proto
 options.mirrorSub proto
 options.q1080 proto
@@ -142,7 +151,6 @@ player.err.load new
 session.expired new
 session.expiredSub new
 toast.audioMissing new
-toast.audioMore proto
 toast.codeExpired new
 toast.dlFailed new
 toast.dlStarted proto
@@ -161,6 +169,9 @@ toast.pwRequired new
 toast.pwSaved new
 toast.pwShort new
 toast.pwWrong new
+toast.repeatABTpl new
+toast.repeatOff new
+toast.repeatOne new
 toast.timer proto
 toast.videoNeedsNetTpl 03s8
 toast.waitWiFi new

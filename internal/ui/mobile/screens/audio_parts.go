@@ -55,6 +55,10 @@ const (
 	// aLoopIcon, aSeekIcon are `ic('rep',24)` and `ic('b10',32)` (:439); aPlayD,
 	// aPlayPad the play button's `width:76px;height:76px;padding:22px`.
 	aLoopIcon, aSeekIcon, aPlayD, aPlayPad float32 = 24, 32, 76, 22
+	// aBadgeSize, aBadgeIn, aBadgeUp are the text on the repeat button's corner
+	// (K38, not in the prototype): 9 DIPs, 800, with this share of its width
+	// inside the button's right edge and this many DIPs above its top.
+	aBadgeSize, aBadgeIn, aBadgeUp float32 = 9, .6, 2
 	// aSpeedSize is the speed button's `font-weight:800;font-size:15px`.
 	aSpeedSize float32 = 15
 	// aActsTop is the last row's `margin-top:34px` (:440); aActGap, aActSize its
@@ -111,7 +115,18 @@ type transport struct {
 	loop, back10, f10 *kit.IconButton
 	toggle            *kit.DiscButton
 	speed             *lesButton
+	// badge is the small text on the corner of the repeat button that says which
+	// repeat it is ("1", "A–B"; K38); hidden while the repeat is off.
+	badge *repeatBadge
 }
+
+// repeatBadge is the label on the repeat button's corner. It takes no touch: a press
+// on it is a press on the button under it.
+type repeatBadge struct {
+	kit.Label
+}
+
+var _ ui.HitTester = (*repeatBadge)(nil)
 
 // actions is the last row: three buttons, an icon over a line of text, spread
 // with space around them (`justify-content:space-around`).
@@ -245,6 +260,9 @@ func (r *timesRow) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	return cs.Constrain(geom.Sz(w, max(ps.H, ds.H)))
 }
 
+// HitTest takes no touch.
+func (*repeatBadge) HitTest(geom.Point) bool { return false }
+
 // Layout spreads the five items over the width with equal gaps, each centered on
 // the row, as tall as the play button.
 func (t *transport) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
@@ -263,6 +281,10 @@ func (t *transport) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 		c.Place(it, geom.Pt(x, (rowH-sizes[i].H)/2))
 		x += sizes[i].W + gap
 	}
+	// the badge sits on the repeat button's upper right corner
+	bs := c.Layout(t.badge, ui.Loose(geom.Sz(w, ui.Unbounded)))
+	lf := t.loop.Frame()
+	c.Place(t.badge, geom.Pt(lf.X+lf.W-bs.W*aBadgeIn, lf.Y-aBadgeUp))
 
 	return cs.Constrain(geom.Sz(w, rowH))
 }

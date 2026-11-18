@@ -88,7 +88,8 @@ Tên hành động giữ đúng `data-act` của prototype (`mobile/actions.go`)
 | Lưu tiến độ | mỗi 10 s khi phát, khi dừng, khi rời màn (`PUT /lessons/{id}/progress`) | `app/config.progress.save_interval_sec` |
 | Đã xem | `position ≥ 0.9 × duration` | `watched_threshold` |
 | Hết bài (video, ở màn 06) | Màn 10 Hết bài, đếm 5 → 0 mỗi giây; về 0 và "Tự phát bài tiếp theo" bật → phát bài sau | vòng 1 s |
-| Lặp A–B | `pos ≥ B` → `pos = A` (chỉ video) | vòng 250 ms |
+| Lặp A–B | bật: A = vị trí lúc bật, B = min(A + 30 s, dur); `pos ≥ B` → `pos = A` (video và audio, K38; prototype: A = round(dur·0,33), B = A + 28, chỉ video) | vòng 250 ms |
+| Tua | kéo thanh vị trí tới mọi điểm (K38): xem trước khi kéo, **một** seek lúc thả, dừng ở `dur − 1 s`; vào phần ≥ 90 % bằng tua tay không tính đã xem cho tới khi phát tới cuối | `kit.Scrub`, `kit.Wave`, `progress.Tracker.Seeked` |
 | 8 nhịp | `floor(pos × 2) mod 8` (K16) | `liveM` |
 | Sóng âm (08) | thanh thứ i "đã nghe" khi `i / n ≤ pos / dur` | `liveM` |
 | Tốc độ áp cho engine | `rate` AVPlayer / `PlaybackParams.speed` MediaPlayer | — |

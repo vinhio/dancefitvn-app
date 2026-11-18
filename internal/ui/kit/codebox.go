@@ -2,10 +2,12 @@ package kit
 
 import (
 	"strings"
+	"unicode"
 
 	"dancefitvn-app/internal/ui/theme"
 
 	"github.com/gdeskdev/desk/foundation/core/geom"
+	"github.com/gdeskdev/desk/foundation/core/keys"
 	"github.com/gdeskdev/desk/foundation/platform"
 	"github.com/gdeskdev/desk/foundation/scene"
 	"github.com/gdeskdev/desk/framework/components/headless"
@@ -50,6 +52,30 @@ const (
 	nameCodeInput = "input"
 )
 
+// The letters a Vietnamese keyboard makes of the keys of a code are read as the
+// key that stands for them in a code (codeKey): a letter with marks is the letter
+// under them, the D with a stroke is D, and the U with a horn is W, the key that
+// types it alone on a Telex keyboard (a W key is how a code gets its W: the
+// keyboard of iOS types U+01AF for it, B-code3). They are the precomposed letters
+// of Unicode's Latin-1 Supplement, Latin Extended-A and B, and of Latin Extended
+// Additional from U+1EA0 on, where each base letter's are one run, upper case on
+// the even code points.
+const (
+	viAFirst, viALast = 0x1EA0, 0x1EB7 // A with a dot below ... A with breve and dot below
+	viEFirst, viELast = 0x1EB8, 0x1EC7 // E with a dot below ... E with circumflex and dot below
+	viIFirst, viILast = 0x1EC8, 0x1ECB // I with a hook above, I with a dot below
+	viOFirst, viOLast = 0x1ECC, 0x1EE3 // O with a dot below ... O with horn and dot below
+	viUFirst, viULast = 0x1EE4, 0x1EE7 // U with a dot below, U with a hook above
+	viWFirst, viWLast = 0x1EE8, 0x1EF1 // U with horn and acute ... U with horn and dot below
+	viYFirst, viYLast = 0x1EF2, 0x1EF9 // Y with grave ... Y with tilde
+	viABreve          = 0x0102         // A with breve
+	viDStroke         = 0x0110         // D with stroke
+	viITilde          = 0x0128         // I with tilde
+	viUTilde          = 0x0168         // U with tilde
+	viOHorn           = 0x01A0         // O with horn
+	viUHorn           = 0x01AF         // U with horn
+)
+
 // ====================================================================
 // ============================= Creation =============================
 // ====================================================================
@@ -58,22 +84,31 @@ const (
 // six 46 x 60 boxes of --sf with a 1 px --bd border and the character in Barlow
 // Condensed 700 30, 8 apart, a 12 x 3 --tx3 dash before the fourth, the row
 // centered. The box the next character goes to (`min(len,5)`) has a 1.8 --pr
-// border. A hidden text field over the row takes the typing: it is upper-cased,
-// only 0-9 and A-Z are kept, and at most six (`oninput`, :570). A tap anywhere on
-// the row focuses it.
+// border. A hidden field over the row takes the typing: it is upper-cased, only
+// 0-9 and A-Z are kept, and at most six (`oninput`, :570). A tap anywhere on the
+// row focuses it.
 //
-// The caret of the hidden field is pinned at the end of the code: the field is
-// invisible and as wide as the row, so a tap or a drag on a box would otherwise
-// put the caret inside the text (or at its start), where the system keyboard's
-// Backspace deletes another character or none, and the wrong last character could
-// not be taken back. Typing, deleting and pasting therefore always work at the end,
-// as they do in `<input id="codeInp">` of a prototype whose caret nobody sees. A
-// composition of an input method (a Telex or predictive keyboard) is part of the
-// code from the moment it is composed, as it is in the boxes: a keyboard that
-// composes every letter it is typed (Vietnamese Telex) commits nothing until a
-// space or a key of another kind, which a code never has, so that waiting for
-// the commit would leave the code empty to the screen (its button off) while six
-// letters show. The composition is committed when the field loses the focus.
+// The field has no caret: a code is typed, deleted and pasted at its end, as in
+// `<input id="codeInp">` of a prototype whose caret nobody sees. A character goes
+// after the last one and Backspace takes the last one back, whatever was tapped.
+//
+// The field asks for gDesk's keyboard of a code (platform.KeyboardCode) and lends
+// the keyboard no text (it is no ui.TextDocument). A keyboard that reads the text
+// it types into rewrites it: the Vietnamese keyboards of iOS select the letters
+// typed before, delete them and type them again with their marks (`a` then `s` is
+// `á`), which a field holding only 0-9 and A-Z cannot follow, so that the boxes
+// lost, doubled and moved their letters from the first such key on (B-code3: `7`,
+// `a`, `s` showed `77`). For a code the system's keyboard is lent no text and,
+// on iOS, told to forget each key on the turn after it; on Android it is asked
+// for a visible password without suggestions. It has nothing to put a mark on,
+// and every key arrives as the key reads.
+//
+// What a keyboard still combines counts as the keys of a code (FilterCode): an
+// input method that composes all the same (an Android keyboard that pays no heed
+// to the input type) shows its composition in the boxes from the moment it is
+// composed, a letter with marks as the letter under them, and the W key the iOS
+// Telex keyboard types alone as `Ư` is W; the composition is committed when the
+// field loses the focus.
 type CodeBoxes struct {
 	ui.Base
 	// Value is the code typed so far, at most six characters, an input method's
@@ -81,7 +116,7 @@ type CodeBoxes struct {
 	Value string
 	// Label names the field for assistive technologies.
 	Label string
-	// OnChange is told the code after every edit the user makes.
+	// OnChange is told the code after every edit of the user that changes it.
 	OnChange func(code string)
 	// Error is the state of a code the server refused: every box has a 1.8 --dg
 	// border (the `.err` of an input, no prototype design: the prototype shows
@@ -111,17 +146,28 @@ type codeDash struct {
 	Decor
 }
 
-// codeField is the `<input id="codeInp">` of the row: a text field that draws
-// nothing (`opacity:0`) over the whole row.
+// codeField is the `<input id="codeInp">` of the row: it takes the keyboard's text
+// and keys over the whole row and draws nothing (`opacity:0`). It holds the code
+// itself, not a text with a caret, and must stay no ui.TextDocument (see
+// CodeBoxes).
 type codeField struct {
-	headless.TextField
+	ui.Base
 
 	row *CodeBoxes
+	// code is the characters entered, as FilterCode leaves them; composing is an
+	// input method's composition, as it sent it.
+	code, composing string
 }
 
 var (
-	_ ui.Labeler = (*codeField)(nil)
-	_ ui.Labeler = (*CodeBoxes)(nil)
+	_ ui.Focuser             = (*codeField)(nil)
+	_ ui.PointerHandler      = (*codeField)(nil)
+	_ ui.KeyHandler          = (*codeField)(nil)
+	_ ui.TextKeyboardHandler = (*codeField)(nil)
+	_ ui.FocusHandler        = (*codeField)(nil)
+	_ ui.Describer           = (*codeField)(nil)
+	_ ui.Labeler             = (*codeField)(nil)
+	_ ui.Labeler             = (*CodeBoxes)(nil)
 )
 
 // ====================================================================
@@ -131,14 +177,14 @@ var (
 // NewCodeBoxes returns an empty row with the label of its field.
 func NewCodeBoxes(label string) *CodeBoxes { return &CodeBoxes{Label: label} }
 
-// SetValue replaces the code, filtered as typing is; OnChange is not told.
+// SetValue replaces the code, filtered as typing is, and ends a composition;
+// OnChange is not told.
 func (c *CodeBoxes) SetValue(s string) {
 	v := FilterCode(s)
-	if v == c.Value && c.field.Text() == v {
+	if v == c.Value && c.field.code == v && c.field.composing == "" {
 		return
 	}
-	c.Value = v
-	c.field.SetText(v)
+	c.Value, c.field.code, c.field.composing = v, v, ""
 	c.Relayout()
 }
 
@@ -150,12 +196,13 @@ func (c *CodeBoxes) SetError(e bool) {
 	}
 }
 
-// Field returns the hidden text field, to focus it or read the caret.
-func (c *CodeBoxes) Field() *headless.TextField { return &c.field.TextField }
+// Field returns the hidden field, to focus it or to ask whether it is focused
+// (Node().Focused()).
+func (c *CodeBoxes) Field() ui.Widget { return &c.field }
 
 // FocusedBox returns the index of the box that shows the focus border:
 // `min(len, 5)`, the characters being those shown, a composition's included.
-func (c *CodeBoxes) FocusedBox() int { return min(len(c.shown()), CodeLength-1) }
+func (c *CodeBoxes) FocusedBox() int { return min(len(c.Value), CodeLength-1) }
 
 // AccessibleLabel returns the field's label.
 func (c *CodeBoxes) AccessibleLabel() string { return c.Label }
@@ -163,83 +210,115 @@ func (c *CodeBoxes) AccessibleLabel() string { return c.Label }
 // AccessibleLabel returns the row's label.
 func (f *codeField) AccessibleLabel() string { return f.row.Label }
 
+// Describe describes the field as a text field valued by the code.
+func (f *codeField) Describe(_ *ui.Context, n *platform.SemanticNode) {
+	n.Role, n.Label, n.Value = platform.RoleTextField, f.row.Label, f.row.Value
+}
+
+// AcceptsFocus lets the field take the focus unless it is disabled or hidden.
+func (f *codeField) AcceptsFocus() bool { return !f.Disabled && !f.Hidden }
+
 // DragExempt tells that a press on the field never starts the drag of a sheet
 // around it.
 func (f *codeField) DragExempt() bool { return true }
 
-// Paint draws nothing: the field is `opacity:0`; the boxes show its text.
+// Layout takes the size of the row.
+func (f *codeField) Layout(_ *ui.Context, cs ui.Constraints) geom.Size {
+	return cs.Constrain(geom.Sz(codeRowW, codeH))
+}
+
+// Paint draws nothing: the field is `opacity:0`; the boxes show the code.
 func (f *codeField) Paint(*ui.Context, *ui.Painter) {}
 
-// HandlePointer focuses the field without placing the caret or selecting: the
-// caret stays at the end of the code (see CodeBoxes).
+// HandlePointer takes a press, which focuses the field: there is no caret to
+// place and nothing to select.
 func (f *codeField) HandlePointer(_ *ui.Context, e *ui.PointerEvent) {
-	if e.Kind != ui.PointerDown || (e.Button != platform.ButtonPrimary && e.Button != platform.ButtonNone) {
-		return // no drag selection, no primary selection, no word or line select
+	if e.Kind == ui.PointerDown && (e.Button == platform.ButtonPrimary || e.Button == platform.ButtonNone) {
+		e.Handle()
+	}
+}
+
+// HandleKey takes the last character back at Backspace and pastes the clipboard
+// after the code at Cmd+V or Ctrl+V. The keys that move a caret, Delete and Enter
+// are taken and do nothing, so that they do not reach the page.
+func (f *codeField) HandleKey(_ *ui.Context, e *ui.KeyEvent) {
+	if !e.Down || f.Disabled {
+		return
+	}
+	switch e.Key {
+	case keys.KeyBackspace:
+		if n := len(f.code); n > 0 {
+			f.code = f.code[:n-1] // the code is ASCII: one byte a character
+		}
+	case keys.KeyV:
+		if !e.Mods.Has(keys.ModSuper) && !e.Mods.Has(keys.ModCtrl) {
+			return
+		}
+		if s, err := headless.ClipboardFor(f.View(), nil).ReadText(); err == nil {
+			f.code = FilterCode(f.code + s)
+		}
+	case keys.KeyLeft, keys.KeyRight, keys.KeyUp, keys.KeyDown, keys.KeyHome, keys.KeyEnd, keys.KeyDelete, keys.KeyEnter:
+	default:
+		return
 	}
 	e.Handle()
-	f.pin()
-	f.row.Relayout()
-}
-
-// HandleKey edits at the end of the code: a key that moves the caret or selects
-// leaves it there, Backspace deletes the last character.
-func (f *codeField) HandleKey(c *ui.Context, e *ui.KeyEvent) {
-	f.pin()
-	f.TextField.HandleKey(c, e)
-	f.pin()
-	f.row.Relayout()
 	f.row.follow()
 }
 
-// HandleText takes typed text and the corrections of an input method at the end
-// of the code (a correction names its own range), and shows a composition in the
-// boxes.
-func (f *codeField) HandleText(c *ui.Context, e *ui.TextEvent) {
-	if !e.Replacing {
-		f.pin()
+// HandleText puts typed text after the code, and shows an input method's
+// composition after it until the text that commits it, or an empty composition
+// that takes it back.
+func (f *codeField) HandleText(_ *ui.Context, e *ui.TextEvent) {
+	if e.Composing {
+		f.composing = e.Text
+	} else {
+		f.composing = ""
+		f.code = FilterCode(f.code + e.Text)
 	}
-	f.TextField.HandleText(c, e)
-	f.pin()
-	f.row.Relayout()
 	f.row.follow()
+}
+
+// TextCaret returns the box the next character goes to, where the keyboard and
+// what it shows beside the text belong, while the field is enabled.
+func (f *codeField) TextCaret() (geom.Rect, bool) {
+	return f.row.boxes[f.row.FocusedBox()].Frame(), !f.Disabled
+}
+
+// TextKeyboard asks for the keyboard of a code (B-code3, see CodeBoxes), its Enter
+// key the system's, on one line.
+func (f *codeField) TextKeyboard() (platform.KeyboardType, platform.EnterAction, bool) {
+	return platform.KeyboardCode, platform.EnterUnknown, false
 }
 
 // FocusChanged commits the composition of an input method when the field loses
-// the focus (a text field drops it): the characters are in the boxes and in
-// Value, and the keyboard going away is what ends them.
-func (f *codeField) FocusChanged(c *ui.Context, focused bool) {
-	if !focused {
-		if s := f.Composing(); s != "" {
-			f.Compose("", 0)
-			f.pin()
-			if f.Type(s) {
-				f.OnChange(f.Text())
-			}
-			f.row.follow()
-		}
+// the focus: its characters are in the boxes and in Value, and the keyboard going
+// away is what ends them.
+func (f *codeField) FocusChanged(_ *ui.Context, focused bool) {
+	if !focused && f.composing != "" {
+		f.code, f.composing = FilterCode(f.code+f.composing), ""
+		f.row.follow()
 	}
-	f.TextField.FocusChanged(c, focused)
 }
-
-// SelectText ignores an input method's move of the caret or selection (the
-// system keyboard follows a tap or a loupe that way): the caret stays at the end.
-func (f *codeField) SelectText(platform.TextRange) { f.pin() }
 
 // FilterCode returns the pairing code s makes: upper-cased, only 0-9 and A-Z
 // kept, at most six characters (`toUpperCase().replace(/[^0-9A-Z]/g,”)
-// .slice(0,6)`, index.html:570).
+// .slice(0,6)`, index.html:570). A letter a Vietnamese keyboard made of the keys
+// of a code counts as its key, where the prototype drops it: a letter with marks
+// is the letter under them, and the U with a horn is W (see viAFirst).
 func FilterCode(s string) string {
 	if cleanCode(s) {
 		return s // the common case, a code typed a character at a time, costs nothing
 	}
 	var b strings.Builder
 	n := 0
-	for _, r := range strings.ToUpper(s) {
-		if (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') {
-			b.WriteRune(r)
-			if n++; n == CodeLength {
-				break
-			}
+	for _, r := range s {
+		k := codeKey(unicode.ToUpper(r))
+		if k == 0 {
+			continue
+		}
+		b.WriteByte(k)
+		if n++; n == CodeLength {
+			break
 		}
 	}
 
@@ -254,8 +333,8 @@ func (c *CodeBoxes) Layout(ctx *ui.Context, cs ui.Constraints) geom.Size {
 		w = codeRowW
 	}
 	size := cs.Constrain(geom.Sz(w, codeH))
-	shown := c.shown()
-	focus := min(len(shown), CodeLength-1)
+	shown := c.Value
+	focus := c.FocusedBox()
 	x := (size.W - codeRowW) / 2
 	for i := range c.boxes {
 		if i == codeDashAt {
@@ -337,42 +416,48 @@ func cleanCode(s string) bool {
 	return true
 }
 
-// shown returns the characters the boxes show: the code, and the composition of
-// an input method after it, filtered as the code is. Without a composition it is
-// the field's text, which costs nothing.
-func (c *CodeBoxes) shown() string {
-	if !c.attached {
-		return c.Value
+// codeKey returns the character of a code the upper-case r stands for: itself for
+// 0-9 and A-Z, the key of a letter a Vietnamese keyboard makes (see viAFirst), and
+// 0 for a character a code never holds.
+func codeKey(r rune) byte {
+	switch {
+	case (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z'):
+		return byte(r)
+	case r < 0xC0:
+		return 0
+	case (r >= 0xC0 && r <= 0xC3) || r == viABreve || (r >= viAFirst && r <= viALast): // À Á Â Ã
+		return 'A'
+	case r == viDStroke:
+		return 'D'
+	case (r >= 0xC8 && r <= 0xCA) || (r >= viEFirst && r <= viELast): // È É Ê
+		return 'E'
+	case r == 0xCC || r == 0xCD || r == viITilde || (r >= viIFirst && r <= viILast): // Ì Í
+		return 'I'
+	case (r >= 0xD2 && r <= 0xD5) || r == viOHorn || (r >= viOFirst && r <= viOLast): // Ò Ó Ô Õ
+		return 'O'
+	case r == 0xD9 || r == 0xDA || r == viUTilde || (r >= viUFirst && r <= viULast): // Ù Ú
+		return 'U'
+	case r == viUHorn || (r >= viWFirst && r <= viWLast):
+		return 'W'
+	case r == 0xDD || (r >= viYFirst && r <= viYLast): // Ý
+		return 'Y'
+	default:
+		return 0
 	}
-	if c.field.Composing() == "" {
-		return FilterCode(c.field.Text())
-	}
-	s, _, _, _ := c.field.Display()
-
-	return FilterCode(s)
 }
 
-// follow makes Value what the boxes show, as a composition changes it, and tells
-// OnChange: a composition is an edit of the user as a typed character is.
+// follow makes Value the code and the composition after it, filtered as the code
+// is, takes back the error and tells OnChange, when that changes Value.
 func (c *CodeBoxes) follow() {
-	if v := c.shown(); v != c.Value {
-		c.Error = false
-		c.Value = v
-		c.Relayout()
-		if c.OnChange != nil {
-			c.OnChange(v)
-		}
-	}
-}
-
-// pin puts the caret at the end of the code and drops any selection, unless an
-// input method composes (its composition sits at the caret and ends first).
-func (f *codeField) pin() {
-	if f.Composing() != "" {
+	v := FilterCode(c.field.code + c.field.composing)
+	if v == c.Value {
 		return
 	}
-	if n := f.Len(); f.Caret() != n || f.HasSelection() {
-		f.Select(n, n)
+	c.Error = false
+	c.Value = v
+	c.Relayout()
+	if c.OnChange != nil {
+		c.OnChange(v)
 	}
 }
 
@@ -385,9 +470,6 @@ func (c *CodeBoxes) init() {
 	c.Name = nameCodeRow
 	c.dash.Name = nameCodeDash
 	c.field.Name, c.field.row = nameCodeInput, c
-	c.field.Keyboard = platform.KeyboardText
-	c.field.OnChange = c.changed
-	c.field.SetText(c.Value)
 	for i := range c.boxes {
 		b := &c.boxes[i]
 		labelStyle{Role: theme.RoleDisplay, Size: codeSize, Weight: 700, Ink: theme.InkText}.apply(&b.label)
@@ -398,18 +480,4 @@ func (c *CodeBoxes) init() {
 		c.Add(b)
 	}
 	c.Add(&c.field)
-}
-
-// changed filters an edit of the user: it keeps only what a code can hold,
-// upper-cased, takes back the error and tells OnChange.
-func (c *CodeBoxes) changed(s string) {
-	c.Error = false
-	if v := FilterCode(s); v != s {
-		c.field.SetText(v)
-	}
-	c.Value = c.shown()
-	c.Relayout()
-	if c.OnChange != nil {
-		c.OnChange(c.Value)
-	}
 }

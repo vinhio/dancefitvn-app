@@ -34,6 +34,11 @@ const (
 	// `ic('ref',16)`, and loadSyncGap the space after the icon (Inter's space at
 	// 16 px).
 	loadSyncTop, loadSyncIcon, loadSyncGap float32 = 30, 16, 4.5
+	// The placeholders of Home's course grid (K39), under the sync line: two rows
+	// of two `.card` blocks, `homeSecTop` below the line, `homeGridGap` apart, each
+	// as tall as a tile of a 393 wide phone (poster 109 + 10 + 17 + 6 + 20 + 12).
+	loadGridRows, loadGridCols         = 2, 2
+	loadTileH                  float32 = 174
 )
 
 // loadingTab is the tab of the loading screen: `tabbar(0)`, Home.
@@ -49,6 +54,7 @@ type LoadingContent struct {
 	col   *ui.Flex
 	sync  *syncLine
 	retry *kit.Button
+	grid  *ui.Flex // the placeholders of the course grid; hidden by an error
 }
 
 // Loading is MS.loading as a screen: LoadingContent in a page with the tab bar
@@ -105,6 +111,16 @@ func NewLoadingContent(e *env.Env) *LoadingContent {
 	l.retry = kit.NewButton(kit.ButtonT, e.T("common.retry"), icon.NameUnknown)
 	l.retry.Name = "retry"
 	l.retry.Hidden = true
+	l.grid = ui.Column(homeGridGap)
+	for range loadGridRows {
+		row := ui.Row(homeGridGap)
+		for range loadGridCols {
+			c := kit.NewCard(nil)
+			c.Height, c.Grow = loadTileH, 1
+			row.Add(c)
+		}
+		l.grid.Add(row)
+	}
 	l.col = ui.Column(0,
 		&ui.Box{Height: skelTop1},
 		&skeleton{w: skelW1, h: skelH1, radius: skelRadius},
@@ -117,6 +133,8 @@ func NewLoadingContent(e *env.Env) *LoadingContent {
 		&ui.Box{Height: loadSyncTop},
 		l.sync,
 		l.retry,
+		&ui.Box{Height: homeSecTop},
+		l.grid,
 	)
 	l.Add(l.col)
 
@@ -143,6 +161,7 @@ func (l *LoadingContent) SetError(onRetry func()) {
 	l.retry.OnPress = onRetry
 	kit.SetHidden(l.retry, onRetry == nil)
 	kit.SetHidden(l.sync, onRetry != nil)
+	kit.SetHidden(l.grid, onRetry != nil)
 	l.col.Relayout() // the column's cached layout does not know the two flags
 }
 

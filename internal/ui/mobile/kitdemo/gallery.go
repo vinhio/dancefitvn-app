@@ -51,7 +51,7 @@ func NewGallery(d *Data, open string) *Gallery {
 		items = append(items, item{w: r})
 	}
 	g.list = ui.NewScroll(newVStack(items...))
-	g.list.HideBars = true
+	kit.PageScroll(g.list)
 	g.Add(g.list)
 	if open != "" {
 		g.Open(open)

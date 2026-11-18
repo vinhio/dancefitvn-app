@@ -57,9 +57,8 @@ func tvPerfVideoSteps() []tvStep {
 		}},
 		tvStep{what: "loop on", act: func(r *tvStateRunner) {
 			p := r.w().pb.player
-			p.SetA(0)
-			p.SetB(p.Dur())
 			p.SetLoop(true)
+			p.SetAB(0, p.Dur()) // after the loop is on: it begins at the position, K38
 			minutes = envCount(perfMinEnv, defaultVideoMin)
 			t0, last = time.Now(), time.Now()
 			r.w().deps.Logf("dfv: perf video min=%d", minutes)

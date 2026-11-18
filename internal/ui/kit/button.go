@@ -81,6 +81,9 @@ type Button struct {
 	Kind ButtonKind
 	// Text is the label.
 	Text string
+	// Speak, when set, is what a screen reader says in place of Text ("Lùi điểm B
+	// 30 giây" for the button that reads "−30s").
+	Speak string
 	// Icon is the symbol before the text; icon.NameUnknown for none.
 	Icon icon.Name
 	// IconSize is the symbol's size; 0 reads as 20.
@@ -189,8 +192,15 @@ func (b *Button) IconRect() geom.Rect {
 	return geom.XYWH(b.iconAt.X, b.iconAt.Y, isz, isz)
 }
 
-// AccessibleLabel returns the button's text.
-func (b *Button) AccessibleLabel() string { return b.Text }
+// AccessibleLabel returns what a screen reader says: Speak when set, else the
+// button's text.
+func (b *Button) AccessibleLabel() string {
+	if b.Speak != "" {
+		return b.Speak
+	}
+
+	return b.Text
+}
 
 // Layout sizes the button to the room it gets (`width:100%`), or around its
 // content without a width limit, and centers the icon and the text.

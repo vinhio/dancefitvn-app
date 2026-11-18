@@ -54,9 +54,11 @@ type Playback interface {
 	SetRate(r float64)
 	CycleRate()
 	// SetMirror, SetLoop and SetBeat are `mirror`, `loop` and `beat`; SetLoop(true)
-	// seeks to A.
+	// begins the loop at the position (K38). SetB moves its end, kept in
+	// [A + 30 s, Dur]: the sheet's -30 s and +30 s and the B marker of the bar.
 	SetMirror(on bool)
 	SetLoop(on bool)
+	SetB(sec float64)
 	SetBeat(on bool)
 	// Prev and Next are `prevLes` and `nextLes`: the lesson before or after, at
 	// 0, A and B kept. AutoAdvance is the end-of-lesson countdown reaching 0: it
@@ -65,6 +67,14 @@ type Playback interface {
 	Prev()
 	Next()
 	AutoAdvance() bool
+	// Reload loads the lesson loaded again from where it is, playing or paused as it
+	// was: the file it played from was deleted (K38), so it comes from the stream.
+	Reload()
+	// Repeat is the mode of the audio screen's button, RepeatOff, RepeatOne or
+	// RepeatAB (Loop is RepeatAB); SetRepeat and CycleRepeat set it (K38).
+	Repeat() player.RepeatMode
+	SetRepeat(m player.RepeatMode)
+	CycleRepeat()
 	// Leave is screen 06 being left: a video pauses, its position is saved.
 	Leave()
 

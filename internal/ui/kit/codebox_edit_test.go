@@ -9,6 +9,7 @@ import (
 	"github.com/gdeskdev/desk/foundation/core/geom"
 	"github.com/gdeskdev/desk/foundation/core/keys"
 	"github.com/gdeskdev/desk/foundation/platform"
+	"github.com/gdeskdev/desk/framework/components/headless"
 	"github.com/gdeskdev/desk/framework/ui"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,18 +23,18 @@ func codeRig(t *testing.T, ph kittest.Phone) (*kit.CodeBoxes, *ui.Tester, *[]str
 	row.OnChange = func(s string) { told = append(told, s) }
 	tt := mountStage(t, ph, placeAt(row, 20, 372, ph.Size.W-40))
 	tt.ClickAt(frameOf(row).Center())
-	assert.True(t, row.Field().Focused())
+	assert.True(t, row.Field().Node().Focused())
 
 	return row, tt, &told
 }
 
 // backspace presses Backspace as the system keyboard's delete key does and
-// checks the caret stays at the end.
+// checks it takes the last character back, or nothing from an empty code.
 func backspace(t *testing.T, row *kit.CodeBoxes, tt *ui.Tester) {
 	t.Helper()
+	was := row.Value
 	assert.True(t, tt.Key(keys.KeyBackspace, 0))
-	assert.Equal(t, len(row.Value), row.Field().Caret(), "the caret is at the end of %q", row.Value)
-	assert.False(t, row.Field().HasSelection())
+	assert.Equal(t, was[:max(len(was)-1, 0)], row.Value, "Backspace takes back the last character of %q", was)
 }
 
 // TestCodeBoxesBackspaceTakesBackTheLastCharacter is the bug report: a wrong
@@ -54,15 +55,12 @@ func TestCodeBoxesBackspaceTakesBackTheLastCharacter(t *testing.T) {
 			row, tt, told := codeRig(t, ph)
 			tt.Type(tc.typed)
 			assert.Equal(t, tc.value, row.Value, tc.name)
-			assert.Equal(t, tc.value, row.Field().Text(), tc.name)
-			assert.Equal(t, len(tc.value), row.Field().Caret(), "%s: the filter leaves the caret at the end", tc.name)
 			if tc.value == "" {
 				continue
 			}
 			n := len(*told)
 			backspace(t, row, tt)
 			assert.Equal(t, tc.value[:len(tc.value)-1], row.Value, tc.name)
-			assert.Equal(t, row.Value, row.Field().Text(), tc.name)
 			assert.Len(t, *told, n+1, "%s: OnChange hears the deletion", tc.name)
 			assert.Equal(t, row.Value, (*told)[n])
 			// the rest goes the same way, and the row takes a new code
@@ -78,88 +76,71 @@ func TestCodeBoxesBackspaceTakesBackTheLastCharacter(t *testing.T) {
 	})
 }
 
-// TestCodeBoxesCaretStaysAtTheEnd is the root cause: the hidden field is as wide
-// as the row, so a tap, a double or triple tap or a drag on a box put the caret
-// inside the text or at its start, and Backspace deleted another character or
-// none. Whatever the user touches or the keyboard asks, the caret stays at the
-// end.
-func TestCodeBoxesCaretStaysAtTheEnd(t *testing.T) {
+// TestCodeBoxesEditsAtTheEnd is the root cause of the first device bug: the
+// hidden field was a text field as wide as the row, so a tap, a double or triple
+// tap or a drag on a box put its caret inside the text or at its start, and
+// Backspace deleted another character or none. The field has no caret: whatever
+// the user touches and whatever key would move one, a character goes after the
+// last one and Backspace takes the last one back.
+func TestCodeBoxesEditsAtTheEnd(t *testing.T) {
 	t.Parallel()
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		row, tt, _ := codeRig(t, ph)
-		tt.Type("7K4M2X")
+		row, tt, told := codeRig(t, ph)
+		tt.Type("7K4M2")
 		f := frameOf(row)
 		y := f.Center().Y
 		for _, dx := range []float32{0, 1, 10, 30, 60, 100, 200, f.W - 1} {
 			tt.ClickAt(geom.Pt(f.X+dx, y))
-			assert.Equalf(t, 6, row.Field().Caret(), "a tap %v from the left", dx)
-			assert.False(t, row.Field().HasSelection())
+			assert.Truef(t, row.Field().Node().Focused(), "a tap %v from the left keeps the focus", dx)
 		}
 		tt.Drag(geom.Pt(f.X+2, y), geom.Pt(f.X+40, y))
-		assert.Equal(t, 6, row.Field().Caret(), "a drag")
-		assert.False(t, row.Field().HasSelection())
 		for range 3 { // double and triple clicks
 			tt.ClickAt(geom.Pt(f.X+10, y))
 		}
-		assert.False(t, row.Field().HasSelection())
-		for _, k := range []keys.Key{keys.KeyLeft, keys.KeyHome, keys.KeyUp, keys.KeyRight, keys.KeyEnd} {
-			tt.Key(k, 0)
-			assert.Equal(t, 6, row.Field().Caret(), "key %v", k)
+		n := len(*told)
+		for _, k := range []keys.Key{keys.KeyLeft, keys.KeyHome, keys.KeyUp, keys.KeyRight, keys.KeyEnd, keys.KeyDown, keys.KeyDelete, keys.KeyEnter} {
+			assert.Truef(t, tt.Key(k, 0), "key %v is taken, so that it does not reach the page", k)
 		}
 		tt.Key(keys.KeyLeft, keys.ModShift)
-		tt.Key(keys.KeyA, keys.ModSuper|keys.ModCtrl)
-		assert.False(t, row.Field().HasSelection())
-		assert.Equal(t, 6, row.Field().Caret())
+		tt.Key(keys.KeyA, keys.ModSuper)
+		tt.Key(keys.KeyA, keys.ModCtrl)
+		assert.Equal(t, "7K4M2", row.Value, "no key that moves a caret or selects changes the code")
+		assert.Len(t, *told, n, "nor tells OnChange")
 
-		// a tap on the first box and Backspace takes back the last character
+		// after a tap on the first box, a character goes after the last one and
+		// Backspace takes the last one back
 		tt.ClickAt(geom.Pt(f.X+10, y))
+		tt.Type("x")
+		assert.Equal(t, "7K4M2X", row.Value)
 		backspace(t, row, tt)
-		assert.Equal(t, "7K4M2", row.Value)
 		tt.Type("p")
 		assert.Equal(t, "7K4M2P", row.Value)
+
+		// a paste from a hardware keyboard goes after the code too, filtered
+		for range 3 {
+			backspace(t, row, tt)
+		}
+		clip := headless.ClipboardFor(tt.View(), nil)
+		assert.NoError(t, clip.WriteText(" m2-p9 "))
+		assert.True(t, tt.Key(keys.KeyV, keys.ModSuper))
+		assert.Equal(t, "7K4M2P", row.Value)
+		assert.False(t, tt.Key(keys.KeyV, 0), "the V key alone is text, not a paste")
 	})
 }
 
-// TestCodeBoxesInputMethod drives the field as the backends do: UIKit's
-// setSelectedTextRange and replaceRange:withText: and Android's compositions reach
-// it as text-source calls and replacing or composing text events.
+// TestCodeBoxesInputMethod drives the field as the backends do for an input method
+// that composes (a Telex or predictive keyboard of Android, marked text on iOS):
+// a composition shows in the boxes after the code and is the code from the moment
+// it is composed, so that the button of the screen follows it; a deletion in it
+// shortens it before the committed code is touched.
 func TestCodeBoxesInputMethod(t *testing.T) {
 	t.Parallel()
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
 		row, tt, told := codeRig(t, ph)
-		tt.Type("ABCDEX")
-		src := tt.TextSource()
-		assert.Equal(t, 6, src.TextLength())
-
-		// the keyboard moves the caret to the start (a tap, a loupe) and selects: ignored
-		src.SelectText(platform.TextRange{Start: 0, End: 0})
-		assert.Equal(t, platform.TextRange{Start: 6, End: 6}, src.TextSelection())
-		src.SelectText(platform.TextRange{Start: 0, End: 6})
-		assert.Equal(t, platform.TextRange{Start: 6, End: 6}, src.TextSelection())
-		backspace(t, row, tt)
-		assert.Equal(t, "ABCDE", row.Value)
-
-		// an autocorrection replacing the last character, as UIKit names the range
-		tt.Replace(platform.TextRange{Start: 4, End: 5}, "f", false, 0)
-		assert.Equal(t, "ABCDF", row.Value, "the replacement is filtered and upper-cased")
-		assert.Equal(t, 5, row.Field().Caret())
-		backspace(t, row, tt)
-		assert.Equal(t, "ABCD", row.Value)
-
-		// a replacement with a character the code never holds
-		tt.Replace(platform.TextRange{Start: 3, End: 4}, "-", false, 0)
-		assert.Equal(t, "ABC", row.Value)
-		assert.Equal(t, 3, row.Field().Caret())
-		backspace(t, row, tt)
-		assert.Equal(t, "AB", row.Value)
-
-		// a composition (Telex, predictive text) shows in the boxes and is the code from
-		// the moment it is composed, so that the button of the screen follows it; a
-		// deletion in it shortens it before the committed code is touched
+		tt.Type("AB")
 		n := len(*told)
 		tt.Compose("k4", 2)
 		assert.Equal(t, "ABK4", row.Value)
-		assert.Equal(t, "AB", row.Field().Text(), "the composition is not in the field's text yet")
 		assert.Equal(t, 4, row.FocusedBox(), "AB and the composition K4 fill four boxes")
 		assert.True(t, tt.Shows("K"))
 		assert.True(t, tt.Shows("4"))
@@ -174,10 +155,22 @@ func TestCodeBoxesInputMethod(t *testing.T) {
 		tt.Compose("k4", 2)
 		tt.Type("k4") // the keyboard commits it
 		assert.Equal(t, "ABK4", row.Value)
-		assert.Equal(t, "ABK4", row.Field().Text())
-		assert.Equal(t, 4, row.Field().Caret())
 		backspace(t, row, tt)
 		assert.Equal(t, "ABK", row.Value)
+
+		// Backspace beside a composition takes back the last character entered, as
+		// Android deletes around a composition, not in it
+		tt.Compose("xy", 2)
+		assert.Equal(t, "ABKXY", row.Value)
+		assert.True(t, tt.Key(keys.KeyBackspace, 0))
+		assert.Equal(t, "ABXY", row.Value)
+		tt.Type("xy")
+		assert.Equal(t, "ABXY", row.Value)
+
+		// a correction that names a range reaches only a field that lends its text;
+		// should one come, it is text typed after the code, never an edit inside it
+		tt.Replace(platform.TextRange{Start: 0, End: 2}, "q", false, 0)
+		assert.Equal(t, "ABXYQ", row.Value)
 	})
 }
 
@@ -199,16 +192,15 @@ func TestCodeBoxesCompositionIsTheCode(t *testing.T) {
 		}
 		assert.Equal(t, "QZ9AB", row.Value)
 		assert.Equal(t, "QZ9AB", (*told)[len(*told)-1])
-		assert.Empty(t, row.Field().Text())
 		tt.Compose(word+"cd", 7)
 		assert.Equal(t, "QZ9ABC", row.Value)
 
 		// the keyboard goes away: the composition is committed, not dropped
+		n := len(*told)
 		tt.View().Focus(nil)
 		assert.Equal(t, "QZ9ABC", row.Value)
-		assert.Equal(t, "QZ9ABC", row.Field().Text())
-		assert.Empty(t, row.Field().Composing())
 		assert.Equal(t, 5, row.FocusedBox())
+		assert.Len(t, *told, n, "committing what the boxes show changes nothing")
 
 		// a tap focuses the field again; Backspace takes the last character back
 		tt.ClickAt(frameOf(row).Center())

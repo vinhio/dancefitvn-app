@@ -98,15 +98,13 @@ func TestCodeBoxesTyping(t *testing.T) {
 		row.OnChange = func(s string) { got = append(got, s) }
 		tt := mountStage(t, ph, placeAt(row, 20, 372, ph.Size.W-40))
 		tt.ClickAt(frameOf(row).Center())
-		assert.True(t, row.Field().Focused(), "a tap anywhere on the row focuses the field")
+		assert.True(t, row.Field().Node().Focused(), "a tap anywhere on the row focuses the field")
 		tt.Type("7k4")
 		assert.Equal(t, "7K4", row.Value)
 		assert.Equal(t, 3, row.FocusedBox())
-		assert.Equal(t, "7K4", row.Field().TextLayout().Text, "the field holds the upper case text")
 		tt.Type("-m 2p9z")
 		assert.Equal(t, "7K4M2P", row.Value, "no more than six, nothing but 0-9 and A-Z")
 		assert.Equal(t, 5, row.FocusedBox())
-		assert.Equal(t, "7K4M2P", row.Field().TextLayout().Text)
 		assert.Equal(t, "7K4M2P", got[len(got)-1])
 		assert.True(t, tt.Shows("K"))
 		assert.NotEmpty(t, got)
@@ -114,8 +112,11 @@ func TestCodeBoxesTyping(t *testing.T) {
 		row.SetValue("ab-12")
 		tt.Elapse(kittest.Frame)
 		assert.Equal(t, "AB12", row.Value)
-		assert.Equal(t, "AB12", row.Field().Text())
 		assert.Equal(t, 4, row.FocusedBox())
+		tt.Type("c")
+		assert.Equal(t, "AB12C", row.Value, "typing goes on after the code SetValue gave")
+		row.SetValue("ab-12")
+		assert.Equal(t, "AB12", row.Value)
 		n := len(got)
 		row.SetValue("")
 		assert.Len(t, got, n, "SetValue does not tell OnChange")
@@ -152,7 +153,10 @@ func TestCodeBoxesError(t *testing.T) {
 	})
 }
 
-// TestFilterCode covers the filter of `oninput` (index.html:570).
+// TestFilterCode covers the filter of `oninput` (index.html:570), and the letters
+// a Vietnamese keyboard makes of the keys of a code, which the prototype drops:
+// a letter with marks is the letter under them, and the U with a horn is W, the
+// key that types it alone (B-code3).
 func TestFilterCode(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ in, want string }{
@@ -161,14 +165,46 @@ func TestFilterCode(t *testing.T) {
 		{"7K4-M2P", "7K4M2P"},
 		{"1234567", "123456"},
 		{" a b c ", "ABC"},
-		{"ôê12", "12"},
 		{"abcdefgh", "ABCDEF"},
 		{"zZ9", "ZZ9"},
 		{"7K4M2P", "7K4M2P"}, // already a code: returned as it is
 		{"7K4M2P9", "7K4M2P"},
 		{"7K4m", "7K4M"},
+		{"ôê12", "OE12"},
+		{"7á4rx", "7A4RX"},
+		{"Việt", "VIET"},
+		{"Đăuw", "DAUW"},
+		{"đỷ", "DY"},
+		{"DDAƯUư", "DDAWUW"},
+		{"ừứửữự", "WWWWW"},
+		{"ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ", "AAAAAA"},
+		{"èéẻẽẹêềếểễệìíỉĩị", "EEEEEE"},
+		{"òóỏõọôồốổỗộơờớởỡợùúủũụỳýỷỹỵ", "OOOOOO"},
+		{"ùúủũụỳýỷỹỵ", "UUUUUY"},
+		{"a\u0301e\u0323\u0302", "AE"}, // marks apart from their letters (NFD) are dropped
+		{"ßñçüÆ日本", ""},
+		{"😀a", "A"},
 	} {
 		assert.Equal(t, tc.want, kit.FilterCode(tc.in), "%q", tc.in)
+	}
+	// every letter of the Vietnamese alphabet, in both cases, is its key
+	for key, letters := range map[string]string{
+		"A": "ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ",
+		"D": "Đ",
+		"E": "ÈÉẺẼẸÊỀẾỂỄỆ",
+		"I": "ÌÍỈĨỊ",
+		"O": "ÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ",
+		"U": "ÙÚỦŨỤ",
+		"W": "ƯỪỨỬỮỰ",
+		"Y": "ỲÝỶỸỴ",
+	} {
+		for _, r := range letters + strings.ToLower(letters) {
+			assert.Equal(t, key, kit.FilterCode(string(r)), "%c (%U)", r, r)
+		}
+	}
+	// and the letters beside them in Unicode are no key
+	for _, r := range "ÄÅÆÇËÎÏÐÑÖ×ØÛÜÞßäåæçëîïðñö÷øûüþÿĀāĒēĪīŌōŪūƮƱẞẟỺỻ" {
+		assert.Empty(t, kit.FilterCode(string(r)), "%c (%U)", r, r)
 	}
 }
 

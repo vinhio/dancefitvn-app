@@ -3,7 +3,6 @@ package player
 import (
 	"context"
 	"dancefitvn-app/internal/media"
-	"math"
 	"slices"
 )
 
@@ -13,7 +12,7 @@ import (
 
 // PlayVideo plays the video of l, whose course is list (03 §3 playVideo).
 // Another lesson starts at its resume position (when it is under 90 % of the
-// length, else at 0) with A = round(dur·0.33) and B = A + 28; the same
+// length, else at 0) with the loop at its first 30 s (K38); the same
 // lesson goes on where it is. The options stay.
 func (p *Player) PlayVideo(l Lesson, list []Lesson) { p.start3(l, list, KindVideo) }
 
@@ -95,11 +94,15 @@ func resumeStart(l Lesson) float64 {
 	return r
 }
 
-// defaultAB is A = round(dur·0.33) and B = A + 28 ($P:595).
+// defaultAB is the loop of a lesson that has none yet: the first LoopLength
+// seconds (K38; the prototype's is A = round(dur·0.33) and B = A + 28, $P:595).
+// Turning the loop on replaces it with the loop from the position then (SetLoop).
 func defaultAB(dur float64) (a, b float64) {
-	a = math.Round(dur * loopStart)
+	if dur > 0 {
+		return 0, min(LoopLength, dur)
+	}
 
-	return a, a + loopLength
+	return 0, LoopLength
 }
 
 // ensureAB gives A and B their default when no lesson has set them.

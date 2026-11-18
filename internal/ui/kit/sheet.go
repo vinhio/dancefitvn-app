@@ -184,7 +184,11 @@ func NewSheet() *Sheet {
 	s.panel.s, s.panel.Name = s, nameSheetPanel
 	s.panel.drag = gesture.SheetDrag()
 	s.panel.kbFn = s.panel.revealFocus
-	s.panel.scroll.Axes, s.panel.scroll.HideBars = ui.ScrollVertical, true
+	PageScroll(&s.panel.scroll)
+	// The pull down at the top of the content is the sheet's (it closes it), so
+	// the content bounces only once it has moved off its top (see sheetPanel).
+	s.panel.scroll.Bounce = false
+	s.panel.scroll.OnScroll = s.panel.scrolled
 	s.panel.scroll.Add(&s.panel.body)
 	s.panel.Add(&s.panel.scroll)
 	s.panel.body.grab.Name = nameSheetGrab
@@ -206,6 +210,7 @@ func (s *Sheet) Open(content ui.Widget, o SheetOptions) *SheetHandle {
 	s.opts = o
 	s.panel.body.setContent(content)
 	s.panel.scroll.ScrollTo(geom.Point{}, false)
+	s.panel.scroll.Bounce = false
 	if !s.isOpen {
 		s.isOpen = true
 		s.Hidden = false
@@ -434,6 +439,10 @@ func (p *sheetPanel) InterceptPointer(c *ui.Context, ev *ui.PointerEvent) bool {
 	switch ev.Kind {
 	case ui.PointerDown:
 		p.armed, p.dragging = false, false
+		// At its top the content does not bounce, so that a finger pulling down
+		// there is the panel's (it follows it down); anywhere else, or while it
+		// still shows past an edge, it does (K36).
+		p.scroll.Bounce = p.scroll.Offset().Y != 0
 		if !p.s.isOpen || (ev.Button != platform.ButtonPrimary && ev.Button != platform.ButtonNone) {
 			return false
 		}
@@ -493,6 +502,15 @@ func (p *sheetPanel) HandlePointer(c *ui.Context, ev *ui.PointerEvent) {
 		p.drag.Cancel()
 	case ui.PointerUnknown, ui.PointerEnter, ui.PointerLeave, ui.PointerScroll:
 	default:
+	}
+}
+
+// scrolled lets the content bounce, at its bottom or at its top again, once it
+// has moved off the top: a fling that scrolls it down and back up bounces off
+// the top as a page does. It is the scroll's OnScroll, made once.
+func (p *sheetPanel) scrolled(off geom.Point) {
+	if off.Y > 0 {
+		p.scroll.Bounce = true
 	}
 }
 

@@ -33,9 +33,11 @@ const seekStep = 10
 
 // Video is screen 06: the lesson's video over the K5 stage, with the controls of
 // MS.video over it: the top (back, course, lesson, options), the column of side
-// buttons (speed, mirror, A-B loop, audio file), and the panel (the lesson, the
-// eight beats, the position bar, the transport row). The controls hide 3 s after
-// the last touch while the video plays and show again on a tap (03 section 5a).
+// buttons (the audio file's alone since K38: speed, mirror and the A-B loop are in
+// the options sheet), and the panel (the lesson, the eight beats, the position
+// bar, the transport row). The controls hide 3 s after the last touch while the
+// video plays and show again on a tap (03 section 5a); a finger dragging the
+// position bar keeps them shown (K38).
 //
 // It is the view of the player (env.Playback): a tap or a button asks it, and the
 // screen follows its Changes while it is mounted, changing a widget only when its
@@ -48,6 +50,10 @@ type Video struct {
 	pb   env.Playback
 	hide *autoHide
 	tap  tapArea
+	// seek is the press the screen carries on the position bar itself, while the
+	// controls are hidden: armed from the press on the bar's touch target, active
+	// once the finger went sideways past the slop (K38).
+	seek hiddenSeek
 
 	stage *kit.Stage
 	speak *stageButton
@@ -63,7 +69,6 @@ type Video struct {
 	dlUnsub func() // the downloads' events, for the audio file's button
 	lesson  string // the id the labels were made for
 	sec     int    // the whole second the clock label shows
-	speeds  map[float64]string
 }
 
 // vControls is the layer of controls over the picture, `.vui`: it holds the top,
@@ -103,10 +108,6 @@ func NewVideo(e *env.Env) nav.Screen {
 		return NewStub(e, env.RouteVideo, -1)
 	}
 	v := &Video{e: e, pb: pb, quality: qualityRowShown(e)}
-	v.speeds = make(map[float64]string, len(player.SheetRates))
-	for _, r := range player.SheetRates {
-		v.speeds[r] = speedText(r)
-	}
 
 	v.stage = kit.NewStage()
 	v.stage.Name = nameStageTap // `data-act="stageTap"` (:416)
@@ -121,6 +122,7 @@ func NewVideo(e *env.Env) nav.Screen {
 	v.ctl.Silent = func() bool { return !v.hide.Shown() }
 	v.ctl.layered = v.ctl.paintChildren
 	v.hide = newAutoHide(v.ctl, pb.State, func() bool { return pb.Kind() == player.KindVideo })
+	v.hide.busy = func() bool { return v.panel.scrub.BDragging() } // a finger on the B marker holds them too
 	// F-14: a sheet the shell opens (the download sheet of the side button) keeps
 	// the controls shown too
 	v.hide.ext = func() bool { return e.Nav != nil && e.Nav.Sheet().IsOpen() }
@@ -136,22 +138,14 @@ func NewVideo(e *env.Env) nav.Screen {
 	// about to go
 	back.OnPress = v.act(e.Act.Back)
 
-	v.side = &vSideCol{
-		speed:  kit.NewSideButton(icon.Speed, ""),
-		mirror: kit.NewSideButton(icon.Mirror, e.T("video.side.mirror")),
-		loop:   kit.NewSideButton(icon.Rep, e.T("video.side.loop")),
-		dl:     kit.NewSideButton(icon.Dl, e.T("video.side.audio")),
-	}
-	v.side.speed.Label = e.T("options.speed") // `$P:507`: the text on the button is its value, "0.75x"
-	v.side.mirror.Toggle, v.side.loop.Toggle = true, true
-	v.side.speed.Name, v.side.speed.OnPress = nameSheetOpen, v.act(v.openOptions)
-	v.side.mirror.Name, v.side.mirror.OnPress = nameMirror, v.act(func() { pb.SetMirror(!pb.Mirror()) })
-	v.side.loop.Name, v.side.loop.OnPress = nameLoop, v.act(func() { pb.SetLoop(!pb.Loop()) })
+	// K38: the column holds the audio file's button alone, at its place of the
+	// prototype (the speed, mirror and loop buttons above it are in SH.options)
+	v.side = &vSideCol{dl: kit.NewSideButton(icon.Dl, e.T("video.side.audio"))}
 	v.side.dl.OnPress = v.act(func() {
 		l := pb.Lesson()
 		e.Act.DlTap(l.CourseID, l.ID, l.No)
 	})
-	v.side.Add(v.side.speed, v.side.mirror, v.side.loop, v.side.dl)
+	v.side.Add(v.side.dl)
 
 	v.panel = v.newPanel()
 	v.ctl.Add(v.top, v.side, v.panel)
@@ -188,7 +182,8 @@ func (v *Video) newPanel() *vPanel {
 	p.toggle.Name = nameTogglePl
 	// `scrub` is the one control that does not reset the count (index.html:587,
 	// :627): it is not a data-act.
-	p.scrub.OnSeek = func(share float32) { pb.Seek(float64(share) * pb.Dur()) }
+	p.scrub.OnDrag, p.scrub.OnSeek, p.scrub.OnDragEnd = v.scrubDrag, v.scrubSeek, v.scrubEnd
+	p.scrub.OnBSet = v.scrubB // K38: the B end of the band is dragged and moves B, with no seek
 	p.scrub.Reading = func() (float64, float64) { return pb.Pos(), pb.Dur() }
 	p.scrub.OnStep = pb.SeekBy          // a screen reader's increment and decrement: +-10 s
 	p.beats.Label = e.T("options.beat") // `#mBeats`: the bar is one element
@@ -205,7 +200,8 @@ func (v *Video) newPanel() *vPanel {
 	p.back10.OnPress = v.act(func() { pb.SeekBy(-seekStep) })
 	p.f10.OnPress = v.act(func() { pb.SeekBy(seekStep) })
 	p.toggle.OnPress = v.act(pb.Toggle)
-	p.Add(p.tag, p.kind, p.title, p.course, p.beats, p.scrub, p.mpos, p.dur, p.prev, p.back10, p.toggle, p.f10, p.next)
+	p.pad = kit.NewSeekPad(p.scrub) // K38: the 44 DIP touch target of the bar
+	p.Add(p.tag, p.kind, p.title, p.course, p.beats, p.scrub, p.pad, p.mpos, p.dur, p.prev, p.back10, p.toggle, p.f10, p.next)
 
 	return p
 }
@@ -259,18 +255,98 @@ func (v *Video) Unmounted(*ui.Context) {
 
 // InterceptPointer takes a press while the controls are hidden: their buttons
 // take no touch then (`.scr.vid.hid .vui{pointer-events:none}`), so the press is a
-// tap on the picture even where a button lies under the finger.
+// tap on the picture even where a button lies under the finger. A press on the
+// position bar's touch target is watched for a drag too (K38).
 func (v *Video) InterceptPointer(_ *ui.Context, e *ui.PointerEvent) bool {
 	if e.Kind != ui.PointerDown || !isPrimary(e) || v.hide.Shown() {
 		return false
 	}
 	v.tap.begin(e.Pos)
+	v.seek.begin(v.panel.pad, v, e.Pos)
 
 	return true
 }
 
-// HandlePointer is the click on the picture, `stageTap` (index.html:785).
-func (v *Video) HandlePointer(_ *ui.Context, e *ui.PointerEvent) { v.tap.handle(e, v.hide.StageTap) }
+// HandlePointer is the click on the picture, `stageTap` (index.html:785), and,
+// for a press that began on the position bar while the controls were hidden, the
+// drag of the bar once the finger goes sideways past the slop (horizontal wins:
+// a finger that went up or down first is no drag), which shows the controls.
+func (v *Video) HandlePointer(_ *ui.Context, e *ui.PointerEvent) {
+	pad := v.panel.pad
+	switch {
+	case v.seek.active:
+		x := e.Pos.X + v.WindowFrame().X - pad.WindowFrame().X
+		switch e.Kind {
+		case ui.PointerMove:
+			e.Handle()
+			pad.Move(x)
+		case ui.PointerUp:
+			e.Handle()
+			v.seek.active = false
+			pad.Move(x) // where the finger lifted
+			pad.End(true)
+		case ui.PointerCancel:
+			v.seek.active = false
+			pad.End(false)
+		case ui.PointerUnknown, ui.PointerDown, ui.PointerEnter, ui.PointerLeave, ui.PointerScroll:
+		default:
+		}
+
+		return
+	case v.seek.armed && v.tap.armed && e.Kind == ui.PointerMove:
+		dx, dy := absf(e.Pos.X-v.tap.down.X), absf(e.Pos.Y-v.tap.down.Y)
+		if dx > tapSlop && dx >= dy {
+			v.seek.armed, v.seek.active, v.tap.armed = false, true, false
+			e.Handle()
+			v.hide.Reset() // the controls come back; the drag holds them
+			pad.Begin(e.Pos.X + v.WindowFrame().X - pad.WindowFrame().X)
+
+			return
+		}
+	case e.Kind == ui.PointerUp || e.Kind == ui.PointerCancel:
+		v.seek.armed = false
+	case e.Kind == ui.PointerUnknown, e.Kind == ui.PointerDown, e.Kind == ui.PointerMove,
+		e.Kind == ui.PointerEnter, e.Kind == ui.PointerLeave, e.Kind == ui.PointerScroll:
+	default:
+	}
+	v.tap.handle(e, v.hide.StageTap)
+}
+
+// scrubDrag is the finger on the position bar, at share: the controls stay shown
+// and the time label tells where it is. The video goes on playing (or stays
+// paused) under it: the player is not asked anything before the finger lets go
+// (jPlayer Mobile's seek bar, np/landscape.go onSeekMove).
+func (v *Video) scrubDrag(share float32) {
+	v.hide.Hold()
+	if dur := v.pb.Dur(); dur > 0 {
+		v.panel.mpos.SetText(format.Clock(float64(share) * dur))
+	}
+}
+
+// scrubSeek is the finger letting go of the bar: the one seek.
+func (v *Video) scrubSeek(share float32) {
+	if sec, ok := seekTarget(share, v.pb.Dur()); ok {
+		v.pb.Seek(sec)
+	}
+}
+
+// scrubB is the finger letting go of the B marker of the A-B band: B moves there
+// (the player keeps it in [A + 30 s, the length]; with the loop on, a B behind the
+// position takes the video back to A). The controls' count starts again.
+func (v *Video) scrubB(share float32) {
+	if dur := v.pb.Dur(); dur > 0 {
+		v.pb.SetB(float64(share) * dur)
+	}
+	v.hide.Reset()
+}
+
+// scrubEnd is the drag over, with a seek or not: the controls' count starts
+// again, the label shows the player's time.
+func (v *Video) scrubEnd(moved bool) {
+	v.hide.Release(moved)
+	v.sec = -1
+	v.syncLive()
+}
 
 // MagicTap is the two-finger double tap of a screen reader: play or pause, as the
 // big button does (the controls show and the 3 s start again).
@@ -317,8 +393,10 @@ func (l *vControls) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	// scrim.
 	ss := c.Layout(v.side, loose)
 	titleTop := size.H - ps.H + v.panel.title.Frame().Y
-	y := min(vSideTop, titleTop-vSideGap-ss.H)
-	c.Place(v.side, geom.Pt(size.W-vSide-ss.W, max(y, vTopH)))
+	// K38: the button stands where it did as the column's last of four: the column
+	// is the button's alone, so its top is the old one lower by vSideAbove
+	y := min(vSideTop+vSideAbove, titleTop-vSideGap-ss.H)
+	c.Place(v.side, geom.Pt(size.W-vSide-ss.W, max(y, vTopH+vSideAbove)))
 
 	return size
 }
@@ -387,8 +465,6 @@ func (v *Video) onChange(ch player.Change) {
 		v.syncLive()
 	case player.ChangeDuration:
 		v.syncDuration()
-	case player.ChangeRate:
-		v.syncRate()
 	case player.ChangeOptions:
 		v.syncOptions()
 	case player.ChangeUnknown, player.ChangeEnded, player.ChangeError:
@@ -409,7 +485,6 @@ func (v *Video) onDownload(ev env.DownloadEvent) {
 func (v *Video) syncAll() {
 	v.syncLesson()
 	v.syncState()
-	v.syncRate()
 	v.syncOptions()
 }
 
@@ -471,7 +546,8 @@ func (v *Video) syncLive() {
 	}
 	p := v.panel
 	p.scrub.SetPos(share)
-	if s := int(pos); s != v.sec {
+	// the finger's time is on the label while it drags (K38)
+	if s := int(pos); s != v.sec && !p.scrub.Dragging() {
 		v.sec = s
 		p.mpos.SetText(format.Clock(pos))
 		v.syncDownload()
@@ -481,25 +557,10 @@ func (v *Video) syncLive() {
 	}
 }
 
-// syncRate sets the speed button: `{s}x`, on when the speed is not 1.
-func (v *Video) syncRate() {
-	r := v.pb.Rate()
-	txt, ok := v.speeds[r]
-	if !ok {
-		txt = speedText(r)
-	}
-	v.side.speed.SetText(txt)
-	v.side.speed.Value = txt
-	v.side.speed.SetOn(r != 1)
-}
-
-// syncOptions sets the mirror, the loop and the beats.
+// syncOptions sets the picture's mirror, the A-B band of the bar and the beats,
+// which the options sheet turns on and off.
 func (v *Video) syncOptions() {
-	mirror := v.pb.Mirror()
-	v.view.SetMirror(mirror)
-	v.side.mirror.SetOn(mirror)
-	v.side.loop.SetOn(v.pb.Loop())
-	v.side.loop.Value = loopValue(v.pb.Loop(), v.pb.A(), v.pb.B())
+	v.view.SetMirror(v.pb.Mirror())
 	beat := v.pb.Beat()
 	if v.panel.beats.Hidden == beat {
 		kit.SetHidden(v.panel.beats, !beat)
@@ -520,6 +581,7 @@ func (v *Video) syncBand() {
 
 		return
 	}
+	v.panel.scrub.SetBMin(float32(min(1, (v.pb.A()+player.LoopLength)/dur)))
 	v.panel.scrub.SetBand(v.pb.Loop(), float32(v.pb.A()/dur), float32(v.pb.B()/dur))
 }
 

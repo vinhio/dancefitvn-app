@@ -19,6 +19,9 @@ import (
 const (
 	DefaultInterval  = 10 * time.Second
 	DefaultThreshold = 0.9
+	// endSlack is how near the end, in seconds, the position is at the end of
+	// the lesson: a tick that is 0.5 s from the length is played to it.
+	endSlack = 0.5
 )
 
 // Sender saves one position; *api.Client implements it.
@@ -67,10 +70,14 @@ type Tracker struct {
 	course   string
 	pos, dur float64
 	watched  bool
-	lastSave time.Time
-	savedPos int // last position handed to a save of this lesson, -1 none
-	sending  bool
-	pending  []snapshot // waiting saves, at most one per lesson, oldest first
+	// held is a jump into the watched part of the lesson (Seeked) that playback
+	// has not yet carried to the end: heldLesson is the lesson it was made in.
+	held       bool
+	heldLesson string
+	lastSave   time.Time
+	savedPos   int // last position handed to a save of this lesson, -1 none
+	sending    bool
+	pending    []snapshot // waiting saves, at most one per lesson, oldest first
 
 	// open counts the saves that are in flight or held, until finish ends
 	// them; idle is closed while open is 0. Guarded by mu; read by Wait from
@@ -121,6 +128,7 @@ func (t *Tracker) Update(lessonID, courseID string, posSec, durSec float64, play
 		t.savedPos = -1
 		t.lastSave = t.opts.Clock.Now()
 	}
+	posSec = t.holdBack(lessonID, posSec, durSec)
 	t.pos, t.dur = posSec, durSec
 	if !t.watched && Watched(posSec, durSec, t.opts.Threshold) {
 		t.watched = true
@@ -134,6 +142,24 @@ func (t *Tracker) Update(lessonID, courseID string, posSec, durSec float64, play
 	if now := t.opts.Clock.Now(); now.Sub(t.lastSave) >= t.opts.Interval {
 		t.save(now)
 	}
+}
+
+// Seeked is the user moving the position by hand to posSec (a drag of the bar,
+// the ±10 s buttons), told before the position is reported. A jump into the
+// watched part of the lesson, from outside it, is not watching it (K38): until
+// playback gets to the end, the lesson is not counted watched and the position
+// saved is the last second before the threshold; at the end, or at a seek back
+// out of the part, the true position is kept again. A jump that stays inside the
+// part, or back out of it, changes nothing it had.
+func (t *Tracker) Seeked(lessonID string, posSec, durSec float64) {
+	if lessonID == "" {
+		return
+	}
+	if lessonID == t.lesson && t.watched {
+		return // counted already, in this visit
+	}
+	t.held = Watched(posSec, durSec, t.opts.Threshold)
+	t.heldLesson = lessonID
 }
 
 // Pause saves the current position now (the player paused or ended).
@@ -153,12 +179,33 @@ func (t *Tracker) Leave() {
 	t.lesson, t.course = "", ""
 	t.pos, t.dur = 0, 0
 	t.savedPos = -1
+	t.held = false
 }
 
 // Watched reports whether pos has reached threshold of dur (198 of 220 at
 // 0.9 is watched). An unknown duration is never watched.
 func Watched(posSec, durSec, threshold float64) bool {
 	return durSec > 0 && posSec >= threshold*durSec
+}
+
+// holdBack is the position a lesson is saved and judged at: posSec, unless a
+// jump into the watched part (Seeked) is held back, then the last second before
+// the threshold. The hold ends when the position is at the end of the lesson,
+// half a second from it or less: playback got there.
+func (t *Tracker) holdBack(lessonID string, posSec, durSec float64) float64 {
+	if !t.held || t.heldLesson != lessonID {
+		return posSec
+	}
+	if durSec <= 0 || posSec >= durSec-endSlack {
+		t.held = false
+
+		return posSec
+	}
+	if limit := t.opts.Threshold*durSec - 1; posSec > limit {
+		return max(limit, 0)
+	}
+
+	return posSec
 }
 
 // Wait blocks until no save is in flight or held (every dispatched finish

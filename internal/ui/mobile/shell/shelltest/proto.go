@@ -68,6 +68,35 @@ func ProtoLayout(tb testing.TB, id string) layoutdump.Layout {
 	return lay
 }
 
+// Without returns the layout less the elements with the keys in drop, the rest
+// numbered again as the capture numbers them (the n-th element of a name is
+// "name#n", from the second): the prototype's capture of a screen from which an
+// element was taken away on purpose (K38: the side buttons of screen 06), so that
+// the elements after it are compared under the names the app gives them.
+func Without(lay layoutdump.Layout, drop ...string) layoutdump.Layout {
+	gone := make(map[string]bool, len(drop))
+	for _, k := range drop {
+		gone[k] = true
+	}
+	out := lay
+	out.Elements = make([]layoutdump.Element, 0, len(lay.Elements))
+	counts := map[string]int{}
+	for _, e := range lay.Elements {
+		if gone[e.Key] {
+			continue
+		}
+		counts[e.Name]++
+		e.Index = counts[e.Name]
+		e.Key = e.Name
+		if e.Index > 1 {
+			e.Key = fmt.Sprintf("%s#%d", e.Name, e.Index)
+		}
+		out.Elements = append(out.Elements, e)
+	}
+
+	return out
+}
+
 // Compare returns, for every element of the prototype's layout, how far the
 // app's is; skip names the keys left out (what the state does not draw, or a
 // documented difference).

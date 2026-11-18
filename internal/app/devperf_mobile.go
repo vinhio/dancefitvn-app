@@ -86,9 +86,8 @@ func perfVideoSteps() []stateStep {
 		smokeUntil("the video plays 0.5 s", player.KindVideo, 0.5),
 		{what: "loop on", act: func(_ *shell.Shell, w *mobileWire) {
 			p := w.pb.player
-			p.SetA(0)
-			p.SetB(p.Dur())
 			p.SetLoop(true)
+			p.SetAB(0, p.Dur()) // after the loop is on: it begins at the position, K38
 			minutes = envCount(perfMinEnv, defaultVideoMin)
 			t0, last = time.Now(), time.Now()
 			w.deps.Logf("dfv: perf video min=%d", minutes)

@@ -69,6 +69,23 @@ const (
 	ChangeError
 )
 
+// RepeatMode is what the player does at the end of what it plays (K38): nothing
+// (the lesson ends and the next may follow), the same lesson again, or the A–B
+// loop. The audio screen's button goes through the three in turn; the options
+// sheet's "Lặp đoạn A–B" switch is between RepeatAB and RepeatOff.
+type RepeatMode uint8
+
+// The modes. RepeatUnknown, the zero, is read as RepeatOff.
+const (
+	RepeatUnknown RepeatMode = iota
+	// RepeatOff plays to the end, which ends the lesson.
+	RepeatOff
+	// RepeatOne starts the lesson again at 0 when it ends: no end, no next lesson.
+	RepeatOne
+	// RepeatAB plays from A to B and goes back to A (Loop).
+	RepeatAB
+)
+
 // Change is what the player tells its listeners.
 type Change struct {
 	Kind ChangeKind
@@ -108,6 +125,15 @@ type Saver interface {
 	Update(lessonID, courseID string, posSec, durSec float64, playing bool)
 	Pause()
 	Leave()
+}
+
+// SeekNoter is a Saver that is told of the seeks the user makes (the bar, the
+// ±10 s buttons, a screen reader's step), before the position they move to is
+// reported: the *progress.Tracker does not take a jump into the last tenth of
+// the lesson for having watched it (K38). A Saver that is not one hears only the
+// positions.
+type SeekNoter interface {
+	Seeked(lessonID string, posSec, durSec float64)
 }
 
 // Options configures New.
@@ -159,8 +185,11 @@ type Player struct {
 	// The options of the prototype's S.pm; they stay across lessons.
 	rate         float64
 	mirror, loop bool
-	beat         bool
-	a, b         float64
+	// repeatOne is the mode Repeat One: the media starts again at its end. It is
+	// never on with loop (the A-B loop): SetRepeat keeps one of them.
+	repeatOne bool
+	beat      bool
+	a, b      float64
 
 	// Load bookkeeping.
 	gen     uint64 // bumped by every load; an answer of an older one is dropped
@@ -201,10 +230,10 @@ const (
 	WatchedRatio = 0.9
 	// SkipSeconds is the step of the ‹10 and 10› buttons.
 	SkipSeconds = 10
-	// loopLength is how far B is from A: B = A + 28.
-	loopLength = 28
-	// loopStart is where A is: round(dur · .33).
-	loopStart = 0.33
+	// LoopLength is how far B is from A when the loop turns on, and the least it
+	// can be (K38; the prototype's A = round(dur · .33) and B = A + 28, $P:595,
+	// is replaced): B = min(A + 30, dur), and B moves in steps of this many seconds.
+	LoopLength = 30
 )
 
 // ====================================================================
@@ -276,6 +305,19 @@ func (p *Player) Mirror() bool { return p.mirror }
 
 // Loop returns whether A–B repeats.
 func (p *Player) Loop() bool { return p.loop }
+
+// Repeat returns the mode: RepeatAB while the A–B loop is on, RepeatOne while the
+// lesson repeats, else RepeatOff.
+func (p *Player) Repeat() RepeatMode {
+	switch {
+	case p.loop:
+		return RepeatAB
+	case p.repeatOne:
+		return RepeatOne
+	default:
+		return RepeatOff
+	}
+}
 
 // Beat returns whether the 8-beat bar shows.
 func (p *Player) Beat() bool { return p.beat }

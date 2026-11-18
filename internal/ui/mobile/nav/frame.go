@@ -130,7 +130,7 @@ func NewPage(content ui.Widget, tab int) *Page {
 	p.kbFn = p.revealFocus
 	p.Name = namePage
 	p.scroll.Name = nameScroll
-	p.scroll.Axes, p.scroll.HideBars = ui.ScrollVertical, true
+	kit.PageScroll(&p.scroll)
 	p.body.content = content
 	p.body.Add(content)
 	p.scroll.Add(&p.body)

@@ -2,17 +2,19 @@
 
 // Pattern from jplayer-mobile/internal/ui/views/alloc_spec_test.go and home_test.go
 // at 49de3c2 (steady: warm up, then AllocsPerRun; a scroll step within what is
-// laid out; the strip dragged by a finger).
+// laid out; the page dragged by a finger).
 
 package screens_test
 
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"dancefitvn-app/internal/model"
+	"dancefitvn-app/internal/ui/kit"
 	"dancefitvn-app/internal/ui/kit/kittest"
 	"dancefitvn-app/internal/ui/mobile/env"
 	"dancefitvn-app/internal/ui/mobile/nav"
@@ -21,6 +23,8 @@ import (
 	"dancefitvn-app/locales"
 
 	"github.com/gdeskdev/desk/foundation/core/geom"
+	"github.com/gdeskdev/desk/foundation/scene"
+	"github.com/gdeskdev/desk/framework/ui"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -142,34 +146,51 @@ func atHomeDirect(t *testing.T, ph kittest.Phone, setups ...setup) (*screens.Hom
 // ========================== Main functions ==========================
 // ====================================================================
 
+// homeGridKeys are the keys of M03 that K39 moves: the six cards of the strip with
+// their posters, titles and quotes, and the update with what is in it (the grid is
+// two columns and the update sits under it and the button). The rest of the capture
+// stays as it is.
+var homeGridKeys = func() map[string]bool {
+	keys := []string{
+		"go.detail:set35", "go.detail:set34", "go.detail:hotextra", "go.detail:set33", "go.detail:set32", "go.detail:set31",
+		"div.sec#2", "span.d#2", "go.detail:set36", "div.poster#8", "div.ttl#7", "s#7", "b#7", "div.muted#10", "span.chip.c-th",
+	}
+	keys = append(keys, "div.ttl", "s", "b") // the first card's title (the continue card's poster has none)
+	for i := 2; i <= 7; i++ {
+		n := "#" + strconv.Itoa(i)
+		keys = append(keys, "div.poster"+n, "div.ttl"+n, "s"+n, "b"+n)
+	}
+	for i := 4; i <= 9; i++ {
+		keys = append(keys, "div.muted#"+strconv.Itoa(i))
+	}
+	m := map[string]bool{}
+	for _, k := range keys {
+		m[k] = true
+	}
+
+	return m
+}()
+
 // TestHomeBoxesMatchPrototype lays Home out with the iPhone's real text engine
-// over the mock's `me.home` and compares every element of M03 with the
-// prototype's within 1 DIP: the greeting, the continue card and what is over it,
-// the three numbers, the section heads, the six cards of the strip with their
-// poster and title, the update, the tab bar. The one exception is a width: the
-// text "MỚI CẬP NHẬT" is 1.24 narrower in Core Text than in Chrome (a shaping
-// difference of the Vietnamese capitals' marks); its position and height hold.
+// over the mock's `me.home` and compares every element of M03 that K39 leaves with
+// the prototype's within 1 DIP: the greeting, the continue card and what is over
+// it, the three numbers, the section head of the courses, the tab bar. The grid, the
+// button under it and the update that K39 moves are checked in
+// TestHomeCourseGridGeometry and TestHomeUpdateFollowsTheGrid. The text "MỚI CẬP
+// NHẬT" is 1.24 narrower in Core Text than in Chrome (a shaping difference of the
+// Vietnamese capitals' marks), checked there.
 func TestHomeBoxesMatchPrototype(t *testing.T) {
 	t.Parallel()
 
 	r := atHome(t, kittest.Phones[0], true)
 	lay := r.Dump("M03")
-	checkAgainstProto(t, "M03", lay, 1, map[string]bool{"span.d#2": true})
-
-	want := shelltest.ProtoLayout(t, "M03")
-	w, _ := want.Find("span.d#2")
-	g, ok := lay.Find("span.d#2")
-	require.True(t, ok)
-	assert.InDelta(t, w.X, g.X, 1)
-	assert.InDelta(t, w.Y, g.Y, 1)
-	assert.InDelta(t, w.H, g.H, 1)
-	assert.InDelta(t, w.W, g.W, 1.5)
+	checkAgainstProto(t, "M03", lay, 1, homeGridKeys)
 }
 
 // TestHomeOnTheWiderPhone checks the 412 wide phone's Home against the iPhone's:
 // the same column from the top (y of every element within 1.5 DIPs), what runs the
 // width 19 wider, the numbers sharing the 372 between them, the avatar and the link
-// moved by the 19, the strip's cards where they were.
+// moved by the 19 (K39: the grid's columns share the 372).
 func TestHomeOnTheWiderPhone(t *testing.T) {
 	t.Parallel()
 
@@ -185,9 +206,12 @@ func TestHomeOnTheWiderPhone(t *testing.T) {
 
 			break
 		}
+		if homeGridKeys[ea.Key] { // K39: the grid is wider, so what is under it moves
+			break
+		}
 		assert.InDelta(t, ea.Y, eb.Y, 1.5, ea.Key+": y")
 	}
-	full := []string{"playVideo:set35-3", "div.poster", "div.sec", "div.sec#2", "go.detail:set36"}
+	full := []string{"playVideo:set35-3", "div.poster", "div.sec", "div.sec#2", "go.detail:set36", "go.courses.all"}
 	for _, key := range full {
 		e, ok := b.Find(key)
 		require.True(t, ok, key)
@@ -204,12 +228,6 @@ func TestHomeOnTheWiderPhone(t *testing.T) {
 		ea, _ := a.Find(key)
 		eb, _ := b.Find(key)
 		assert.InDelta(t, ea.X+dx, eb.X, 0.5, key+": moves with the right edge")
-	}
-	for i, key := range []string{"go.detail:set35", "go.detail:set34", "go.detail:hotextra", "go.detail:set33", "go.detail:set32", "go.detail:set31"} {
-		e, ok := b.Find(key)
-		require.True(t, ok, key)
-		assert.InDelta(t, 20+float64(i)*168, e.X, 0.01, key)
-		assert.InDelta(t, 156, e.W, 0.01, key)
 	}
 	// the continue card's text and disc follow the card's right edge
 	for _, key := range []string{"div.d#2", "div.prog"} {
@@ -235,7 +253,7 @@ func TestHomeRendersTheMockHome(t *testing.T) {
 			"15", "Khoá học", "10", "Bài · Set 35", "5", "Audio offline",
 			"Khoá học của tôi", "Xem tất cả",
 			"Mới cập nhật", "DanceFIT Set 36", "Khoá mới · bạn chưa tham gia", "THƯỜNG · 10 BÀI",
-			"DanceFIT Hot Extra", "“Hot Extra”", "Đặc biệt · 10 BÀI",
+			"DanceFIT Hot Extra", "Đặc biệt · 10 BÀI",
 		} {
 			assert.True(t, r.Tester.Shows(s), s)
 		}
@@ -279,8 +297,9 @@ func TestHomeEyebrowByWeekdayAndHour(t *testing.T) {
 }
 
 // TestHomeTapsAskTheActions checks what every tap on Home asks of the Actions: the
-// continue card plays the lesson, a card of the strip and the update open their
-// course, the link and the avatar go to their tabs as roots.
+// continue card plays the lesson, a card of the grid and the update open their
+// course, the link, the button under the grid and the avatar go to their tabs as
+// roots.
 func TestHomeTapsAskTheActions(t *testing.T) {
 	t.Parallel()
 
@@ -290,8 +309,11 @@ func TestHomeTapsAskTheActions(t *testing.T) {
 		want string
 	}{
 		{"continue card", "playVideo:set35-3", "playVideo set-35 l_3503 3"},
-		{"first card of the strip", "go.detail:set35", "detail set-35"},
+		{"first card of the grid", "go.detail:set35", "detail set-35"},
+		{"second column", "go.detail:set34", "detail set-34"},
 		{"special course", "go.detail:hotextra", "detail hot-extra"},
+		{"last card", "go.detail:set31", "detail set-31"},
+		{"all courses button", "go.courses.all", "go courses true"},
 		{"update (not enrolled)", "go.detail:set36", "detail set-36"},
 		{"see all", "go.courses", "go courses true"},
 		{"avatar", "go.account", "go account true"},
@@ -386,6 +408,8 @@ func TestHomeOfflineBar(t *testing.T) {
 		off := r.Dump("M03-offline")
 		assert.True(t, r.Tester.Shows("Không có mạng · Đang dùng chế độ ngoại tuyến"))
 		assert.True(t, r.Tester.Shows("Xin chào, Thảo Vy"), "the data on show stays")
+		assert.Len(t, homeOf(t, r).Content().Cards(), 6, "the grid stays as it was (cached home)")
+		assert.NotNil(t, homeOf(t, r).Content().AllButton(), "and the button under it")
 		bar, ok := off.Find("div.offbar")
 		require.True(t, ok)
 		assert.InDelta(t, 54, bar.Y, 0.01)
@@ -595,7 +619,7 @@ func TestHomeLeftWhileLoadingShowsNothing(t *testing.T) {
 
 // TestHomeNewUserHidesTheContinueCardAndTheUpdates checks the `new_user` answer:
 // no continue card, no "Mới cập nhật", the numbers 1 / 0 / n, one course in the
-// strip, and the numbers 18 under the header (the header's margin and the numbers'
+// grid and no button under it, and the numbers 18 under the header (the header's margin and the numbers'
 // 16 collapse into the larger).
 func TestHomeNewUserHidesTheContinueCardAndTheUpdates(t *testing.T) {
 	t.Parallel()
@@ -615,56 +639,294 @@ func TestHomeNewUserHidesTheContinueCardAndTheUpdates(t *testing.T) {
 		card, ok := lay.Find("div.card")
 		require.True(t, ok)
 		assert.InDelta(t, eb.Y+14+8+28+18, card.Y, 0.01, "the numbers follow the header at 18")
-		strip, ok := lay.Find("go.detail:intro")
+		tile, ok := lay.Find("go.detail:intro")
 		require.True(t, ok)
-		assert.InDelta(t, 20, strip.X, 0.01)
+		assert.InDelta(t, 20, tile.X, 0.01)
+		assert.InDelta(t, (float64(ph.Size.W)-40-12)/2, tile.W, 0.01, "one column wide, the other empty")
 		_, more := lay.Find("go.detail:set35")
 		assert.False(t, more)
+		_, button := lay.Find("go.courses.all")
+		assert.False(t, button, "1 course of 1: nothing more to see")
+		assert.Nil(t, homeOf(t, r).Content().AllButton())
 	})
 }
 
-// TestHomeStripScrollsSideways checks the strip: a finger across it moves it
-// sideways and not the page, a press in the left edge strip scrolls it too (Home is
-// a root: no swipe back can start there, R-P2-9), the last card ends 20 from the
-// right edge, and a tap on the part of a card that peeks in from the right (over the
-// 20 of the margin) opens that card.
-func TestHomeStripScrollsSideways(t *testing.T) {
+// TestHomeCourseGridGeometry checks K39 on both phones: the courses of me.home, six at
+// most, in two columns of equal width inside the 20 DIP margins with 12 between
+// columns and rows, each tile's poster as wide as the tile at the 156:100 aspect,
+// the tiles of a row as tall as each other, and the reading order across the rows.
+func TestHomeCourseGridGeometry(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		r := atHome(t, ph, true)
+		cards := homeOf(t, r).Content().Cards()
+		require.Len(t, cards, 6, "six courses at most")
+		colW := (float64(ph.Size.W) - 40 - 12) / 2
+		head, ok := r.Dump("M03").Find("div.sec")
+		require.True(t, ok)
+		wantKeys := []string{"go.detail:set35", "go.detail:set34", "go.detail:hotextra", "go.detail:set33", "go.detail:set32", "go.detail:set31"}
+		var rowTop, rowH float64
+		for i, cc := range cards {
+			f := cc.Node().WindowFrame()
+			assert.Equal(t, wantKeys[i], cc.Node().Name, "reading order, row by row")
+			assert.InDelta(t, colW, f.W, 0.01, wantKeys[i]+": column width")
+			col, row := i%2, i/2
+			assert.InDelta(t, 20+float64(col)*(colW+12), f.X, 0.01, wantKeys[i]+": x")
+			if col == 0 {
+				if row == 0 {
+					rowTop = float64(head.Y+head.H) + 12
+				} else {
+					rowTop += rowH + 12
+				}
+				rowH = float64(f.H)
+			}
+			assert.InDelta(t, rowTop, f.Y, 0.01, wantKeys[i]+": y")
+			assert.InDelta(t, rowH, f.H, 0.01, wantKeys[i]+": the row is as tall as its first tile")
+			po := cc.Poster.Node().WindowFrame()
+			assert.InDelta(t, colW, po.W, 0.01, wantKeys[i]+": poster as wide as the tile")
+			assert.InDelta(t, colW*100/156, po.H, 0.01, wantKeys[i]+": poster 156:100")
+			assert.InDelta(t, f.X, po.X, 0.01)
+			assert.InDelta(t, f.Y, po.Y, 0.01)
+			assert.LessOrEqual(t, float64(f.X+f.W), float64(ph.Size.W)-20+0.01, "inside the right margin")
+		}
+		last := cards[5].Node().WindowFrame()
+		assert.InDelta(t, float64(ph.Size.W)-20, last.X+last.W, 0.01, "the right column ends at the margin")
+	})
+}
+
+// TestHomeCourseTilesTextAndColors checks the text of a tile: the name and the
+// category line with its number of lessons, in the mock's order; the tagline is
+// left out (K39).
+func TestHomeCourseTilesTextAndColors(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		r := atHome(t, ph, false)
+		cards := homeOf(t, r).Content().Cards()
+		assert.Equal(t, "DanceFIT Set 35", cards[0].Name)
+		assert.Equal(t, "Thường · 10 BÀI", cards[0].Tag)
+		assert.Equal(t, "DanceFIT Hot Extra", cards[2].Name)
+		assert.False(t, r.Tester.Shows("“Cùng nhảy cùng hát”"), "no tagline in the grid")
+	})
+}
+
+// TestHomeAllCoursesButton checks K39's button under the grid: it reads "Xem tất cả
+// 15 khoá" (the courses_total of the answer), is as wide as the column and 12
+// under the last row, takes the update's section 22 under it, and a tap goes to the
+// Courses tab as a root.
+func TestHomeAllCoursesButton(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		h, _, rec, r := atHomeDirect(t, ph)
+		btn := h.Content().AllButton()
+		require.NotNil(t, btn)
+		assert.Equal(t, "Xem tất cả 15 khoá", btn.Text)
+		assert.Equal(t, kit.ButtonS, btn.Kind)
+		cards := h.Content().Cards()
+		lastRow := cards[len(cards)-1].Node().WindowFrame()
+		bf := btn.Node().WindowFrame()
+		assert.InDelta(t, 20, bf.X, 0.01)
+		assert.InDelta(t, float64(ph.Size.W)-40, bf.W, 0.01)
+		assert.InDelta(t, 54, bf.H, 0.01)
+		assert.InDelta(t, lastRow.Y+lastRow.H+12, bf.Y, 0.01, "12 under the last row")
+		upd, ok := r.Dump("M03").Find("div.sec#2")
+		require.True(t, ok)
+		assert.InDelta(t, bf.Y+bf.H+22, upd.Y, 0.5, "the update's head, 22 under the button")
+
+		reveal(r, h, "go.courses.all")
+		require.NoError(t, r.Tester.Click("go.courses.all"))
+		assert.Equal(t, []string{"go courses true"}, rec.calls)
+	})
+}
+
+// TestHomeAllCoursesButtonFollowsTheTotal checks that the button is there when the
+// member has more courses than the grid shows and not when the total is what is
+// shown, from the answer of the route.
+func TestHomeAllCoursesButtonFollowsTheTotal(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		total int
+		my    int
+		want  string
+	}{
+		{"more than shown", 15, 6, "Xem tất cả 15 khoá"},
+		{"seven of six shown", 7, 6, "Xem tất cả 7 khoá"},
+		{"all shown (six)", 6, 6, ""},
+		{"fewer than the grid takes", 3, 3, ""},
+		{"none", 0, 0, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+				f, err := shelltest.New(shelltest.MockFS(t))
+				require.NoError(t, err)
+				e := env.New(f, locales.MustTexts())
+				e.Act = &recorder{}
+				h := model.Home{MyCourses: make([]model.Course, tc.my)}
+				h.Stats.CoursesTotal = tc.total
+				for i := range h.MyCourses {
+					h.MyCourses[i] = model.Course{ID: "set-" + strconv.Itoa(30+i), Name: "DanceFIT Set " + strconv.Itoa(30+i), LessonCount: 10}
+				}
+				k := screens.NewHomeContentForTest(e, h)
+				tt := kittest.MountReal(t, ph, k)
+				tt.RunUntilIdle()
+				assert.Len(t, k.Cards(), min(tc.my, 6))
+				if tc.want == "" {
+					assert.Nil(t, k.AllButton(), "no button")
+
+					return
+				}
+				require.NotNil(t, k.AllButton())
+				assert.Equal(t, tc.want, k.AllButton().Text)
+			})
+		})
+	}
+}
+
+// TestHomeGridTilesAreButtonsNamedByTheCourse checks the accessibility tree: each
+// tile is a button named by its course, valued by its category line.
+func TestHomeGridTilesAreButtonsNamedByTheCourse(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		r := atHome(t, ph, false)
+		for _, cc := range homeOf(t, r).Content().Cards() {
+			assert.Equal(t, cc.Name, cc.AccessibleLabel())
+			assert.NotEmpty(t, cc.Tag)
+		}
+	})
+}
+
+// TestHomeUpdateFollowsTheGrid checks that "Mới cập nhật" stays below the button, as
+// wide as the column (K39), and that its head is the 1.24 narrower shaping of
+// Core Text, no more.
+func TestHomeUpdateFollowsTheGrid(t *testing.T) {
+	t.Parallel()
+
+	r := atHome(t, kittest.Phones[0], true)
+	lay := r.Dump("M03")
+	want := shelltest.ProtoLayout(t, "M03")
+	w, _ := want.Find("span.d#2")
+	g, ok := lay.Find("span.d#2")
+	require.True(t, ok)
+	assert.InDelta(t, w.X, g.X, 1)
+	assert.InDelta(t, w.H, g.H, 1)
+	assert.InDelta(t, w.W, g.W, 1.5)
+	btn, ok := lay.Find("go.courses.all")
+	require.True(t, ok)
+	sec, _ := lay.Find("div.sec#2")
+	upd, _ := lay.Find("go.detail:set36")
+	assert.InDelta(t, btn.Y+btn.H+22, sec.Y, 0.5)
+	assert.InDelta(t, sec.Y+sec.H+12, upd.Y, 0.5)
+	assert.InDelta(t, 96, upd.H, 0.5)
+}
+
+// TestHomeGridPostersLoadTheirCovers checks A2.11 in the grid: every tile's poster asks
+// for the cover of its course, and a loaded cover covers the whole poster, scaled to
+// the column (K39).
+func TestHomeGridPostersLoadTheirCovers(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		img, err := scene.NewImage(8, 8)
+		require.NoError(t, err)
+		for i := 0; i < len(img.Pix); i += 4 {
+			img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = 0, 255, 0, 255
+		}
+		r := atHome(t, ph, false)
+		r.Settle()
+		var url string
+		for _, id := range []string{"set-35", "set-34", "hot-extra", "set-33", "set-32", "set-31"} {
+			found := ""
+			for _, c := range r.Fake.CoverCalls() {
+				if strings.HasSuffix(c, "/covers/"+id+".jpg") {
+					found = c
+				}
+			}
+			assert.NotEmpty(t, found, id+": the tile asked for its cover")
+			if id == "set-35" {
+				url = found
+			}
+		}
+		r.Fake.SetCover(url, img)
+		r.Shell.Go(nav.Route{Screen: env.RouteCourses}, true) // leave, and come back: Home is built again
+		r.Settle()
+		r.Shell.Go(nav.Route{Screen: env.RouteHome}, true)
+		r.WaitFor(func() bool { return homeOf(t, r).Content() != nil }, "Home with its data")
+		r.Settle()
+		r.Tester.Elapse(kittest.Frame)
+		po := homeOf(t, r).Content().Cards()[0].Poster.Node().WindowFrame()
+		px := r.Tester.Snapshot().RGBAAt(int(po.X+po.W/2), int(po.Y+po.H/2))
+		assert.Equal(t, uint8(255), px.G, "the loaded cover covers the poster")
+		assert.Zero(t, px.R)
+		px = r.Tester.Snapshot().RGBAAt(int(po.X+po.W/2), int(po.Y+po.H-3))
+		assert.Equal(t, uint8(255), px.G, "and reaches its bottom edge")
+		assert.Zero(t, px.R)
+	})
+}
+
+// TestHomeGridLongNameTakesTwoLinesAndRowsStayEven checks a name too long for one
+// line: two lines with "…", the tile taller by a line and its neighbour in the row as
+// tall, the category line under the name.
+func TestHomeGridLongNameTakesTwoLinesAndRowsStayEven(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		f, err := shelltest.New(shelltest.MockFS(t))
+		require.NoError(t, err)
+		e := env.New(f, locales.MustTexts())
+		e.Act = &recorder{}
+		h := model.Home{MyCourses: []model.Course{
+			{ID: "set-35", Name: "DanceFIT Set 35", LessonCount: 10},
+			{ID: "set-34", Name: "DanceFIT Set 34 Một Tên Khoá Học Rất Dài Không Thể Vừa Trong Một Dòng Hay Hai Dòng Của Cột", LessonCount: 10},
+		}}
+		h.Stats.CoursesTotal = 2
+		k := screens.NewHomeContentForTest(e, h)
+		tt := kittest.MountReal(t, ph, k)
+		tt.RunUntilIdle()
+		short, long := k.Cards()[0].Node().WindowFrame(), k.Cards()[1].Node().WindowFrame()
+		assert.InDelta(t, long.H, short.H, 0.01, "the row is as tall as its taller tile")
+		assert.Greater(t, long.H, float32(109.0+10+17+6+20+12-0.5))
+		assert.LessOrEqual(t, long.H, float32(109.4+10+34+6+20+12+0.5+6), "two lines of the name at most")
+		assert.Nil(t, k.AllButton())
+	})
+}
+
+// TestHomeHasNoHorizontalScroll checks that K39 took the strip away: Home's page is the
+// only scroll, and a swipe across the courses scrolls it, not a strip.
+func TestHomeHasNoHorizontalScroll(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
 		r := atHome(t, ph, false)
 		h := homeOf(t, r)
-		strip := h.Content().Strip()
-		lay := r.Dump("M03")
-		card, _ := lay.Find("go.detail:set35")
-		y := float32(card.Y) + 60
-		w := ph.Size.W
-
-		r.Tester.Swipe(geom.Pt(w-40, y), geom.Pt(40, y), 200*time.Millisecond)
+		tile := h.Content().Cards()[0].Node().WindowFrame()
+		y := tile.Y + 40
+		r.Tester.Swipe(geom.Pt(ph.Size.W-40, y), geom.Pt(40, y), 200*time.Millisecond)
 		r.Tester.Elapse(2 * time.Second)
-		assert.Greater(t, strip.Offset().X, float32(200), "the strip moved")
-		assert.InDelta(t, 0, h.Scroll().Offset().Y, 0.01, "the page did not")
+		assert.Equal(t, ui.ScrollVertical, h.Scroll().Axes)
+		assert.InDelta(t, 0, h.Scroll().Offset().X, 0.01)
+		assert.Equal(t, "home", r.Route(), "a sideways swipe over the grid does nothing")
+	})
+}
 
-		r.Tester.Swipe(geom.Pt(w-40, y), geom.Pt(40, y), 200*time.Millisecond)
-		r.Tester.Elapse(2 * time.Second)
-		maxX := strip.MaxOffset().X
-		assert.InDelta(t, maxX, strip.Offset().X, 0.5, "the end of the strip")
-		assert.InDelta(t, 6*156+5*12+40-float64(w), float64(maxX), 0.01, "six cards, five gaps, 20 padding each side")
+// TestHomeCardTapOpensTheCourse runs a tap on a tile of each column through the Shell.
+func TestHomeCardTapOpensTheCourse(t *testing.T) {
+	t.Parallel()
 
-		back := strip.Offset().X
-		r.Tester.Swipe(geom.Pt(8, y), geom.Pt(w-60, y), 200*time.Millisecond)
-		r.Tester.Elapse(2 * time.Second)
-		assert.Less(t, strip.Offset().X, back, "a press at the left edge scrolls the strip")
-		assert.Equal(t, "home", r.Route(), "and goes nowhere")
-		assert.Equal(t, 0, r.Shell.Nav().Depth())
-		assert.False(t, r.Shell.Nav().EdgeArmed(r.Tester.View().Context()), "Home has nothing to go back to")
-
-		strip.ScrollTo(geom.Pt(0, 0), false)
-		r.Tester.Elapse(kittest.Frame)
-		r.Tester.ClickAt(geom.Pt(w-8, y)) // over the third card's visible part, in the right margin
-		r.Settle()
-		assert.Equal(t, "detail", r.Route())
-		assert.Equal(t, "hot-extra", r.Shell.Nav().Current().Params)
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		for _, tc := range []struct{ key, id string }{{"go.detail:set35", "set-35"}, {"go.detail:set34", "set-34"}} {
+			r := atHome(t, ph, false)
+			require.NoError(t, r.Tester.Click(tc.key))
+			r.Settle()
+			assert.Equal(t, "detail", r.Route())
+			assert.Equal(t, tc.id, r.Shell.Nav().Current().Params)
+		}
 	})
 }
 
@@ -713,28 +975,16 @@ func TestHomeSteadyFrameDoesNotAllocate(t *testing.T) { //nolint:paralleltest //
 	}
 }
 
-// TestHomeStripScrollFrameDoesNotAllocate checks that a frame of the strip moving a
-// DIP, and one of the page moving, allocate nothing.
-func TestHomeStripScrollFrameDoesNotAllocate(t *testing.T) { //nolint:paralleltest // AllocsPerRun needs the process to itself
+// TestHomePageScrollFrameDoesNotAllocate checks that a frame of the page moving,
+// with the grid and the button in it, allocates nothing.
+func TestHomePageScrollFrameDoesNotAllocate(t *testing.T) { //nolint:paralleltest // AllocsPerRun needs the process to itself
 	if kittest.Race {
 		t.Skip("allocation counts are not stable under the race detector")
 	}
 	for _, ph := range kittest.Phones {
 		r := atHome(t, ph, false)
 		h := homeOf(t, r)
-		strip := h.Content().Strip()
 		warm(r)
-		d := float32(1)
-		step := func() {
-			d = -d
-			strip.ScrollBy(geom.Pt(d, 0))
-			r.Tester.Frame()
-		}
-		for range 16 {
-			step()
-		}
-		assert.Zero(t, testing.AllocsPerRun(50, step), ph.Name+": the strip")
-
 		sc := h.Scroll()
 		y := float32(0)
 		for ; y < 200; y += 7 { // the whole page is laid out and shaped once
@@ -753,7 +1003,7 @@ func TestHomeStripScrollFrameDoesNotAllocate(t *testing.T) { //nolint:parallelte
 		for range 16 {
 			page()
 		}
-		assert.Zero(t, testing.AllocsPerRun(50, page), ph.Name+": the page")
+		assert.Zero(t, testing.AllocsPerRun(50, page), ph.Name+": the page (grid and button)")
 	}
 }
 
@@ -767,33 +1017,18 @@ func BenchmarkHomeSteadyFrame(b *testing.B) {
 	}
 }
 
-// BenchmarkHomeStripScrollFrame is a frame of the strip moving a DIP.
-func BenchmarkHomeStripScrollFrame(b *testing.B) {
-	r := atHome(b, kittest.Phones[0], false)
-	strip := homeOf(b, r).Content().Strip()
-	warm(r)
-	d := float32(1)
-	b.ReportAllocs()
-	for b.Loop() {
-		d = -d
-		strip.ScrollBy(geom.Pt(d, 0))
-		r.Tester.Frame()
-	}
-}
-
 // ====================================================================
 // ========================= Helper Functions =========================
 // ====================================================================
 
 // reveal scrolls Home so that the widget named key shows whole above the tab bar:
-// the strip to the left for a card of it, the page to its end for the update.
+// the page to its end for what is under the fold (the last row, the button, the
+// update).
 func reveal(r *shelltest.Rig, h *screens.Home, key string) {
 	switch key {
-	case "go.detail:hotextra":
-		h.Content().Strip().ScrollTo(geom.Pt(200, 0), false)
-	case "go.detail:set36":
+	case "go.detail:hotextra", "go.detail:set33", "go.detail:set32", "go.detail:set31", "go.courses.all", "go.detail:set36":
 		h.Scroll().ScrollTo(h.Scroll().MaxOffset(), false)
-	default: // other cards are already whole
+	default: // the first row is whole
 	}
 	r.Tester.Elapse(kittest.Frame)
 }

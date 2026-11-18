@@ -559,13 +559,13 @@ func TestEndedWithLoop(t *testing.T) {
 		name      string
 		audio     bool
 		loop      bool
-		b         float64 // 0 keeps the default B (A+28 within 12 s = 12)
+		b         float64 // 0 keeps the B the loop begins with (A+30 within 12 s = 12)
 		wantEnded bool
 	}{
 		{"video loop on, B at the end", false, true, 0, false},
 		{"video loop on, B within a tick of the end", false, true, 11.8, false},
 		{"video loop off", false, false, 0, true},
-		{"audio loop on is no loop", true, true, 0, true},
+		{"audio loop on loops too (K38)", true, true, 0, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -615,8 +615,7 @@ func TestLoopBelowTheEndStillWrapsOnce(t *testing.T) {
 	r := newRig(t, rigOpts{eng: fake.Options{VideoDuration: 12}})
 	r.playVideo(1)
 	r.p.SetLoop(true)
-	r.p.SetA(2)
-	r.p.SetB(6)
+	r.p.SetAB(2, 6)
 	r.tick(40) // 10 s: past B twice, never at the end
 	assert.False(t, r.has(player.ChangeEnded))
 	assert.True(t, r.p.Playing())

@@ -272,7 +272,7 @@ func (s *Connect) typed(code string) {
 
 // dismissKeyboard takes the keyboard down once the sixth character is in.
 func (s *Connect) dismissKeyboard() {
-	if len(s.boxes.Value) >= kit.CodeLength && s.boxes.Field().Focused() {
+	if len(s.boxes.Value) >= kit.CodeLength && s.boxes.Field().Node().Focused() {
 		s.blur()
 	}
 }

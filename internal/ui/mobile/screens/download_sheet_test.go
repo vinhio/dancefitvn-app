@@ -89,9 +89,9 @@ func TestDownloadSheetBoxesMatchPrototype(t *testing.T) {
 
 	r := openDownloadSheet(t, kittest.Phones[0], true)
 	lay := r.Dump("M09")
-	skip := map[string]bool{"playVideo:set35-3": true, "div.muted#2": true, "dlAll:set35": true, "svg.i#3": true, "span.d": true, "svg.i#17": true}
-	checkAgainstProto(t, "M09", lay, 1, skip)
-	want := shelltest.ProtoLayout(t, "M09")
+	skip := map[string]bool{"playVideo:set35-3": true, "div.muted#2": true, "dlAll:set35": true, "svg.i#2": true, "span.d": true, "svg.i#16": true}
+	checkAgainstProtoWithout(t, "M09", lay, 1, skip, heroDrop...)
+	want := shelltest.Without(shelltest.ProtoLayout(t, "M09"), heroDrop...)
 	for key := range skip {
 		w, _ := want.Find(key)
 		g, ok := lay.Find(key)
