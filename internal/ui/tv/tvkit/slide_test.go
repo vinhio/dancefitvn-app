@@ -151,6 +151,23 @@ func TestSlideOffsetsOfTV05(t *testing.T) {
 	assert.Equal(t, float32(100), sl.Offset())
 }
 
+// TestSlideSpanKeepsMoreThanTheItem: with Span the offset keeps the span in
+// view in place of the item's own height (K45): a span of 396 (tile 304 and the
+// two lines under it) puts row 1 at 446 - (730 - 396 - 80) = 192; the bleed
+// widens the clip without moving the box.
+func TestSlideSpanKeepsMoreThanTheItem(t *testing.T) {
+	t.Parallel()
+	sl, g, tt := gridRig(t)
+	sl.Span = func(ui.Widget) float32 { return 396 }
+	sl.BleedLeft, sl.BleedTop = 24, 20
+	box := sl.WindowFrame()
+	tt.View().Focus(g.cells[3])
+	assert.Equal(t, float32(192), sl.Offset())
+	tt.View().Focus(g.cells[0])
+	assert.Zero(t, sl.Offset())
+	assert.Equal(t, box, sl.WindowFrame(), "the bleed is the clip's, not the box's")
+}
+
 // TestSlideOffsetsOfTV06: the rows of the lesson list at 55 + 8 + 100 i give
 // 61 for dl8 and 161 for dl9, relative to a clip 970 tall (F-10).
 func TestSlideOffsetsOfTV06(t *testing.T) {

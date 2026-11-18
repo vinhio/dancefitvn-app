@@ -194,8 +194,10 @@ func TestBarsAreOneElementEach(t *testing.T) {
 	require.Len(t, sem.Nodes, 5, "the window, the beats, the two bars, the medal: %v", sem.Nodes)
 	b := node(t, sem, "Thanh đếm nhịp")
 	assert.Equal(t, platform.RoleText, b.Role)
-	// a role the tvOS bridge gives a trait: RoleProgress has none (P8.3d)
-	assert.Equal(t, platform.RoleText, sem.Nodes[2].Role)
+	// a role the tvOS bridge gives a trait: RoleProgress has none (P8.3d); the
+	// scrub is a control since K43, so an adjustable slider
+	assert.Equal(t, platform.RoleSlider, sem.Nodes[2].Role)
+	assert.True(t, sem.Nodes[2].Actions.Has(platform.ActIncrement|platform.ActDecrement))
 	assert.InDelta(t, .25, sem.Nodes[2].Now, 1e-6)
 	assert.Equal(t, "Vị trí phát", sem.Nodes[2].Label)
 	assert.Equal(t, "01:12 / 03:40", sem.Nodes[2].Value, "the reading the screen made")

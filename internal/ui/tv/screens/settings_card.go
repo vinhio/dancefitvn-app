@@ -70,9 +70,8 @@ type settingsCard struct {
 	mail   *kit.Label
 	badges *kit.Label
 	medals []*tvkit.Medal
+	row    *tvkit.MedalRow // the medals, in pages when they are many
 	hint   *kit.Label
-
-	widths []float32 // the medals' widths while laying out, reused
 }
 
 // ====================================================================
@@ -104,8 +103,9 @@ func newSettingsCard(u model.User, since, badgesTitle, hint string, badges []mod
 	for _, b := range badges {
 		m := tvkit.NewMedal(b.Name, accentOf(b.Code), medalSub(b.Code))
 		c.medals = append(c.medals, m)
-		c.Add(m)
 	}
+	c.row = tvkit.NewMedalRow(c.medals)
+	c.Add(c.row)
 	c.Add(c.hint) // after the medals: the order of a reading is the order of the card
 
 	return c
@@ -115,8 +115,11 @@ func newSettingsCard(u model.User, since, badgesTitle, hint string, badges []mod
 // ========================== Main functions ==========================
 // ====================================================================
 
-// Medals returns the badges shown.
+// Medals returns the badges, all of them, whatever page shows.
 func (c *settingsCard) Medals() []*tvkit.Medal { return c.medals }
+
+// Row returns the row of the badges.
+func (c *settingsCard) Row() *tvkit.MedalRow { return c.row }
 
 // Layout flows the card as CSS does.
 func (c *settingsCard) Layout(ctx *ui.Context, cs ui.Constraints) geom.Size {
@@ -147,36 +150,12 @@ func (c *settingsCard) Layout(ctx *ui.Context, cs ui.Constraints) geom.Size {
 	ctx.Place(c.badges, geom.Pt(cardBadgesX, y))
 	y += bs.H + cardBadgesBottom
 
-	// the medals, `justify-content:space-around` in the row's padding
-	var widths float32
-	row := float32(0)
-	c.widths = c.widths[:0]
-	// Each medal gets an equal share of the row's room. The prototype draws three
-	// (140 DIPs each); with more than the row holds at that size the medals are drawn
-	// smaller, in proportion, so that the row never runs out of the card, and a
-	// long name wraps in the share instead of widening the row.
-	share := float32(ui.Unbounded)
-	if n := len(c.medals); n > 0 {
-		share = (size.W - 2*cardMedalsPad) / float32(n)
-		scale := min(share/tvkit.MedalSize, 1)
-		for _, m := range c.medals {
-			m.SetScale(scale)
-		}
-	}
-	for _, m := range c.medals {
-		s := ctx.Layout(m, ui.Loose(geom.Sz(share, ui.Unbounded)))
-		c.widths = append(c.widths, s.W)
-		widths += s.W
-		row = max(row, s.H)
-	}
-	if n := float32(len(c.medals)); n > 0 {
-		space := max(size.W-2*cardMedalsPad-widths, 0) / n
-		x := cardMedalsPad + space/2
-		for i, m := range c.medals {
-			ctx.Place(m, geom.Pt(x, y))
-			x += c.widths[i] + space
-		}
-	}
+	// the medals, `justify-content:space-around` in the row's padding; more than the
+	// prototype's three take turns in the room of three (K44)
+	rw := size.W - 2*cardMedalsPad
+	rs := ctx.Layout(c.row, ui.Constraints{Min: geom.Sz(rw, 0), Max: geom.Sz(rw, ui.Unbounded)})
+	ctx.Place(c.row, geom.Pt(cardMedalsPad, y))
+	row := rs.H
 	y += row + cardHintTop
 	hs := ctx.Layout(c.hint, ui.Constraints{Min: geom.Sz(size.W, 0), Max: geom.Sz(size.W, ui.Unbounded)})
 	// the hint stays on the card, whatever the badges took (`overflow:hidden`)

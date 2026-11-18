@@ -91,7 +91,7 @@ go run ./cmd/contractcheck -mock mock/dancefitvn-mock-api -base https://staging.
 | Ảnh (bìa, avatar, huy hiệu) | `framework/components` imagecache | |
 | File âm thanh | `<data>/audio/<lesson_id>.mp3` + `index.json` (lesson, course, size, sha256, ngày tải) | iOS: `Application Support`, loại trừ iCloud backup; Android: bộ nhớ riêng của app; giữ khi đăng xuất (prototype: "File âm thanh đã tải vẫn được giữ trên máy") nhưng chỉ phát được khi đăng nhập lại đúng tài khoản |
 | Tiến độ chờ gửi | `<data>/progress-queue.json` | gửi bằng `POST /progress/batch` khi có mạng |
-| Prefs | `<data>/state/prefs.json` | `wifi_only`, `auto_next`, `quality`, `scenarios` (mock) |
+| Prefs | `<data>/state/prefs.json` | `wifi_only`, `auto_next`, `quality`, `speed`, `mirror`, `beat` (K41: tuỳ chọn video cuối cùng; mặc định 1, false, false), `scenarios` (mock) |
 
 ## 7. Ghi chú pháp lý (không phải tư vấn pháp lý)
 

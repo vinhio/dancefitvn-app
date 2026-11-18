@@ -50,6 +50,9 @@ type Shell struct {
 	prefer  string // the key the focus is asked for, "" for the default rule
 
 	stops []func()
+	// keyGen counts the hooks OnKey gave out, so that a stale remove leaves the
+	// newer hook alone.
+	keyGen int
 }
 
 var (
@@ -226,6 +229,20 @@ func (s *Shell) ClosePanel(focusKey string) {
 
 // OnPlayPause adds a Play/Pause handler to the chain.
 func (s *Shell) OnPlayPause(fn func()) (remove func()) { return s.m.OnPlayPause(fn) }
+
+// OnKey sets the Pre hook of the focus Manager; the remove it returns clears the
+// hook only while it is still this one.
+func (s *Shell) OnKey(fn func(b focus.Button) bool) (remove func()) {
+	s.keyGen++
+	gen := s.keyGen
+	s.m.SetPre(fn)
+
+	return func() {
+		if s.keyGen == gen {
+			s.m.SetPre(nil)
+		}
+	}
+}
 
 // ====================================================================
 // ========================= Helper Functions =========================

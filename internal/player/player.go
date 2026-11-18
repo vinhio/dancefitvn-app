@@ -224,8 +224,9 @@ var (
 
 // Numbers of the prototype ($P:595-596) and of 03 §5.
 const (
-	// InitialRate is the speed of a fresh app: S.pm of $P:280 (Q-P4-1).
-	InitialRate = 0.75
+	// InitialRate is the speed of a fresh app: 1x (K41; the prototype's S.pm of
+	// $P:280 was 0.75).
+	InitialRate = 1.0
 	// WatchedRatio is the share of a lesson that makes it watched.
 	WatchedRatio = 0.9
 	// SkipSeconds is the step of the ‹10 and 10› buttons.
@@ -240,10 +241,10 @@ const (
 // ============================= Creation =============================
 // ====================================================================
 
-// New returns a Player with the options of a fresh app: speed 0.75, mirror
-// on, beat on, loop off, A and B of the first lesson (Q-P4-1). Close ends it.
+// New returns a Player with the options of a fresh app: speed 1x, mirror
+// off, beat off (K41), loop off, A and B of the first lesson (Q-P4-1). Close ends it.
 func New(o Options) *Player {
-	p := &Player{o: o, state: StateIdle, rate: InitialRate, mirror: true, beat: true}
+	p := &Player{o: o, state: StateIdle, rate: InitialRate}
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 	p.reader, _ = o.Engine.(media.TimeReader)
 	p.eventFn = p.onEvent

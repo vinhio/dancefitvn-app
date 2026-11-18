@@ -291,7 +291,7 @@ func TestPlayerOfflinePausesAndShowsTheError(t *testing.T) {
 }
 
 // TestPlayerPlaneFollowsTheScreen: the plane is at 656,0, 608 by 1080 while TV07
-// shows, hidden when it goes; until the first frame the stage covers the hole, and
+// shows, hidden when it goes; until the first frame the loading look covers the hole (K47), and
 // once the picture is on the plane the hole is transparent, with #0B0B0C at both
 // sides of it (K5, R-P7-3).
 func TestPlayerPlaneFollowsTheScreen(t *testing.T) {
@@ -316,7 +316,7 @@ func TestPlayerPlaneFollowsTheScreen(t *testing.T) {
 		return img.Pix[o+3], img.Pix[o], img.Pix[o+1], img.Pix[o+2]
 	}
 	a, _, _, _ := px(960, 540)
-	assert.Equal(t, uint8(255), a, "the K5 stage covers the hole until the first frame")
+	assert.Equal(t, uint8(255), a, "the loading look covers the hole until the first frame")
 
 	pb.Picture = true
 	pb.Publish(player.ChangeState)
@@ -325,7 +325,7 @@ func TestPlayerPlaneFollowsTheScreen(t *testing.T) {
 	assert.Zero(t, a, "the picture is on the plane: nothing is painted over it")
 	a, rr, g, b := px(300, 50)
 	assert.Equal(t, [4]uint8{255, 0x0b, 0x0b, 0x0c}, [4]uint8{a, rr, g, b}, "left of the hole")
-	a, rr, g, b = px(1600, 1070)
+	a, rr, g, b = px(1600, 30) // the list reaches the bottom edge now (K46)
 	assert.Equal(t, [4]uint8{255, 0x0b, 0x0b, 0x0c}, [4]uint8{a, rr, g, b}, "right of the hole")
 
 	require.True(t, r.press(keys.KeyEscape))
@@ -355,17 +355,19 @@ func TestPlayerReadsTheCourseWhenNobodyDid(t *testing.T) {
 	r := openAt(t, svc, nav.Route{Screen: env.RoutePlayer}, false)
 	r.settle()
 	p := r.player()
-	assert.Len(t, p.Rows(), 4)
+	assert.Len(t, p.Rows(), 10, "all the lessons of the course (K46)")
 	_, ok := r.sh.Env().CachedCourse("set-35")
 	assert.True(t, ok, "the course is kept for the screens that follow")
 	assert.Equal(t, "p1", r.key())
 
-	// the last lessons of the course have fewer than four
+	// the last lessons of the course have the same list, with fewer after them
 	svc2 := tvtest.NewPlayerServices(t)
 	svc2.PB = tvtest.NewLessonPlayback(svc2.CourseData, 9)
 	r2 := openAt(t, svc2, nav.Route{Screen: env.RoutePlayer}, false)
 	r2.settle()
-	assert.Len(t, r2.player().Rows(), 1)
+	assert.Len(t, r2.player().Rows(), 10)
+	assert.NotNil(t, r2.player().Item("pn0"), "one lesson after")
+	assert.Nil(t, r2.player().Item("pn1"))
 }
 
 // TestPlayerTickDoesNotAllocate: a tick of the player while it plays (the clock,

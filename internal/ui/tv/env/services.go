@@ -126,6 +126,9 @@ type Playback interface {
 	SetMirror(on bool)
 	SetLoop(on bool)
 	SetBeat(on bool)
+	// Seek moves to sec in [0, Dur] (the scrub of the position bar, K43); the
+	// progress tracker hears of it as a seek by hand.
+	Seek(sec float64)
 	// Prev, Next and Leave: the lesson before and after, at 0; the player
 	// being left.
 	Prev()
@@ -161,7 +164,7 @@ type Playback interface {
 	// Place puts the video's plane at r in the window; an empty r hides it.
 	Place(r geom.Rect)
 	// PictureReady tells that the first frame of the video is on the plane: the
-	// stage of K5 goes away.
+	// cover and the loading ring of K47 fade out.
 	PictureReady() bool
 }
 

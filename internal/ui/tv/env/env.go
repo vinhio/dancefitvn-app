@@ -8,6 +8,7 @@ import (
 	"dancefitvn-app/internal/format"
 	"dancefitvn-app/internal/model"
 	"dancefitvn-app/internal/store"
+	"dancefitvn-app/internal/ui/tv/focus"
 	"dancefitvn-app/internal/ui/tv/nav"
 
 	"github.com/gdeskdev/desk/foundation/core/geom"
@@ -74,6 +75,12 @@ type Actions interface {
 	// screens; remove it when the screen is left. Without one the key is left to
 	// the system.
 	OnPlayPause(fn func()) (remove func())
+	// OnKey sets the hook that sees every remote button before the focus does
+	// (the focus Manager's Pre): returning true takes the button, which then does
+	// nothing else. One screen has it at a time (the player, for its controls that
+	// hide, K46); remove it when the screen is left, which does not take away a
+	// hook a later screen set.
+	OnKey(fn func(b focus.Button) bool) (remove func())
 }
 
 // PanelHost is a screen with a panel (the player's `.tpanel`): the Shell tells

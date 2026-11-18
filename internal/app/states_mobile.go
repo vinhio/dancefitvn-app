@@ -601,6 +601,9 @@ func videoSteps(playing bool) []stateStep {
 			if pl == nil {
 				return
 			}
+			pl.SetRate(.75) // the prototype's S.pm (K41: not the app's default)
+			pl.SetMirror(true)
+			pl.SetBeat(true)
 			pl.SetAB(demoLoopA, demoLoopB) // K38: the exact ends of the prototype's state, which SetB's 30 s least would move
 			if !playing {
 				pl.Pause()
@@ -619,6 +622,9 @@ func audioSteps() []stateStep {
 		routeIs(env.RouteAudio), loaded(),
 		stateStep{what: "seek and pause", act: func(sh *shell.Shell, _ *mobileWire) {
 			pb := sh.Env().Playback()
+			pb.SetRate(.75) // the prototype's S.pm (K41: not the app's default)
+			pb.SetMirror(true)
+			pb.SetBeat(true)
 			pb.Seek(demoLoopA) // a sound starts at 0 (the video's resume is Q-P4-13's): 01:12
 			pb.Pause()
 		}})

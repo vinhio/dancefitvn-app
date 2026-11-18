@@ -4,6 +4,7 @@ package screens_test
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -124,8 +125,10 @@ func TestCoursesWaitsWithTheNavBarOnly(t *testing.T) {
 }
 
 // TestCoursesGridScrollOffsets: Down from `cf0` goes into the grid, and each row
-// down moves the grid to the offset `scrollTV` computes: 0, 100, 536, 972, 1408
-// (index.html:729); Up goes back, the offset following.
+// down moves the grid to the offset `scrollTV` computes with the whole cell (tile,
+// name, category line) kept in view (K45): 0, 192, 628, 1064, 1500 (the
+// prototype's, index.html:729, with the tile alone: 0, 100, 536, 972, 1408); Up
+// goes back, the offset following.
 func TestCoursesGridScrollOffsets(t *testing.T) {
 	t.Parallel()
 	r := openFast(t, tvtest.NewSignedServices(t), env.RouteCourses, true)
@@ -138,7 +141,7 @@ func TestCoursesGridScrollOffsets(t *testing.T) {
 		key    string
 		offset float32
 	}{
-		{"cg0", 0}, {"cg3", 100}, {"cg6", 536}, {"cg9", 972}, {"cg12", 1408},
+		{"cg0", 0}, {"cg3", 192}, {"cg6", 628}, {"cg9", 1064}, {"cg12", 1500},
 	}
 	for _, st := range steps {
 		require.True(t, r.press(keys.KeyDown))
@@ -193,7 +196,7 @@ func TestCoursesFilterSelect(t *testing.T) {
 			// scroll the grid one row, then come back to the chips
 			r.press(keys.KeyDown)
 			r.press(keys.KeyDown)
-			require.Equal(t, float32(100), c.Slide().Offset())
+			require.Equal(t, float32(192), c.Slide().Offset())
 			r.press(keys.KeyUp)
 			r.press(keys.KeyUp)
 			require.Equal(t, "cf", r.key()[:2])
@@ -333,4 +336,71 @@ func TestCoursesGridFocusDoesNotAllocate(t *testing.T) { //nolint:paralleltest /
 		step()
 	}
 	assert.Zero(t, testing.AllocsPerRun(10, step))
+}
+
+// TestCoursesFocusedTileIsWhollyVisible: with the focus on each of the fifteen
+// tiles (a snake walk through the grid), the tile at its focus scale with its 6 DIP
+// ring, its name and its category line lie inside the grid's clip, below the chips
+// and the nav bar and above the bottom margin of the title-safe area (K45). The
+// prototype's clip cut the ring of the first column and of the first row, and the
+// category line of every focused row but the first.
+func TestCoursesFocusedTileIsWhollyVisible(t *testing.T) {
+	t.Parallel()
+	const safeBottom = 1080 - 60 // the title-safe area's bottom margin
+	const ring = float64(tvkit.RingWidth)
+	r := openFast(t, tvtest.NewSignedServices(t), env.RouteCourses, true)
+	r.settle()
+	c := r.courses()
+	sl := c.Slide()
+	require.NotNil(t, sl)
+
+	require.True(t, r.press(keys.KeyDown))
+	// every tile, by Right along the row, Down, and Left back to the start of the next
+	var walk []keys.Key
+	for range 5 {
+		walk = append(walk, keys.KeyRight, keys.KeyRight, keys.KeyDown, keys.KeyLeft, keys.KeyLeft)
+	}
+	seen := map[string]bool{}
+	for step := 0; step <= len(walk); step++ {
+		key := r.key()
+		require.NotEmpty(t, key)
+		i, err := strconv.Atoi(key[2:])
+		require.NoError(t, err)
+		seen[key] = true
+		lay := r.layout()
+		tile, ok := lay.Find(key)
+		require.True(t, ok, key)
+		suffix := ""
+		if i > 0 {
+			suffix = "#" + strconv.Itoa(i+1)
+		}
+		capt, ok := lay.Find("tv.courses.caption" + suffix)
+		require.True(t, ok, key)
+		meta, ok := lay.Find("tv.courses.meta" + suffix)
+		require.True(t, ok, key)
+
+		// the clip, as painted: the Slide's box and its bleed
+		clip := sl.WindowFrame()
+		left, top := clip.X-sl.BleedLeft, clip.Y-sl.BleedTop
+		bottom, right := clip.Y+clip.H, clip.X+clip.W
+		ringed := [4]float64{tile.X - ring, tile.Y - ring, tile.X + tile.W + ring, tile.Y + tile.H + ring}
+		assert.GreaterOrEqual(t, ringed[0], float64(left), "%s: the ring is cut at the left", key)
+		assert.GreaterOrEqual(t, ringed[1], float64(top), "%s: the ring is cut at the top", key)
+		assert.LessOrEqual(t, ringed[2], float64(right), "%s: the ring is cut at the right", key)
+		assert.LessOrEqual(t, ringed[3], float64(bottom), "%s: the ring is cut at the bottom", key)
+		assert.LessOrEqual(t, capt.Y+capt.H, float64(bottom), "%s: the name is cut", key)
+		assert.LessOrEqual(t, meta.Y+meta.H, float64(safeBottom), "%s: the category line is cut or too low", key)
+		assert.GreaterOrEqual(t, meta.Y, float64(top), "%s: the category line is above the clip", key)
+
+		// clear of the chips (their bottom, focused and ringed) and of the nav bar
+		chips, _ := lay.Find("cf0")
+		nv, _ := lay.Find("nav1")
+		assert.GreaterOrEqual(t, float64(top), chips.Y+chips.H+ring, "%s: the clip reaches the chips", key)
+		assert.Greater(t, ringed[1], nv.Y+nv.H, "%s: the tile is under the nav bar", key)
+
+		if step < len(walk) {
+			r.press(walk[step])
+		}
+	}
+	assert.Len(t, seen, 15, "every tile had the focus")
 }

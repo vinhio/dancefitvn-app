@@ -103,7 +103,7 @@ Tên hành động giữ đúng `data-act` của prototype (`mobile/actions.go`)
 - Chạm vùng video (`stageTap`): đang phát → đổi ẩn/hiện và đặt lại đồng hồ; đang dừng → hiện.
 - Chạm bất kỳ nút nào khi đang hiện: đặt lại đồng hồ 3 s. Chạm thanh tua (`data-scrub`) tua tới vị trí nhưng **không** đặt lại đồng hồ.
 - Dừng phát hoặc mở sheet → luôn hiện, không đếm.
-- TV07 không tự ẩn (prototype TV không đổi).
+- TV07: prototype không tự ẩn, nhưng chủ sản phẩm yêu cầu 2026-11-18 (K46): cùng luật (chỉ khi đang phát video, 3000 ms từ nút cuối, 250 ms `ease`), ẩn mọi thứ trừ video; nút đầu tiên khi đang ẩn chỉ hiện lại và bị nuốt (Phát/Tạm dừng thì hiện lại và chạy tiếp); tua đang chờ (K43) và bảng Tuỳ chọn giữ điều khiển hiện. Chi tiết ở 01 §3 K46.
 
 ## 6. Ảnh đại diện
 
@@ -121,6 +121,7 @@ Tên hành động giữ đúng `data-act` của prototype (`mobile/actions.go`)
 | Select (`KeyEnter`) | Enter | `tvActivate` phần tử đang focus |
 | Menu (`KeyEscape`) | Escape / Backspace | Panel mở → đóng panel, focus `p2`; còn stack → `tvBack`; stack rỗng → để hệ thống về Home (gDesk tự chuyển khi app không dùng phím) |
 | Play/Pause (`KeyMediaPlayPause`) | Space | Ở màn phát video / nhạc: phát/dừng |
+| Trái/Phải/vuốt khi focus ở thanh vị trí `ps` (TV07) | — (K43) | Lùi/tiến 10 s xem trước; tua một lần sau 700 ms không bấm thêm, hoặc khi Select / focus rời thanh |
 
 ### 7.2 Điều hướng
 

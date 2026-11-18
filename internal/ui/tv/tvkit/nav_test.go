@@ -3,6 +3,7 @@
 package tvkit_test
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -11,8 +12,10 @@ import (
 	"dancefitvn-app/internal/ui/tv/tvkit"
 	"dancefitvn-app/internal/ui/tv/tvtest"
 
+	"github.com/gdeskdev/desk/foundation/core/color"
 	"github.com/gdeskdev/desk/foundation/core/geom"
 	"github.com/gdeskdev/desk/foundation/core/keys"
+	"github.com/gdeskdev/desk/foundation/scene"
 	"github.com/gdeskdev/desk/framework/ui"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,7 +109,7 @@ func TestNavLook(t *testing.T) {
 	assert.Equal(t, "Trang chủ", txt)
 	bg, col, w, _ = style(1)
 	assert.Equal(t, "rgba(0, 0, 0, 0)", bg)
-	assert.Equal(t, "rgb(142, 145, 150)", col)
+	assert.Equal(t, "rgb(244, 244, 242)", col, "--tx, not the prototype's --tx2 (K42)")
 	assert.Equal(t, "500", w)
 
 	tt.View().Focus(nav.Item(1))
@@ -195,4 +198,51 @@ func TestNavSetOnRelays(t *testing.T) {
 	near(t, tvtest.ProtoBox(t, "TV12", "div.tnav"), after, boxTol, "TV12 bar")
 	assert.NotEqual(t, before.W, after.W)
 	nav.SetOn(3) // the same: nothing
+}
+
+// whiteHero paints the page white: the worst hero picture for a pill of white at
+// .06 and gray text.
+type whiteHero struct{ ui.Base }
+
+// Paint fills the page white.
+func (whiteHero) Paint(_ *ui.Context, p *ui.Painter) {
+	p.Fill(geom.XYWH(0, 0, tvtest.Width, tvtest.Height), scene.Solid(color.RGB(255, 255, 255)), 0)
+}
+
+// TestNavIsLegibleOverALightHero: over a white page the pill is a dark scrim with
+// a light ring, and the --tx text of an item has the contrast of 4.5 to it (K42,
+// owner 2026-11-18: the four items sank into a hero of a like colour).
+func TestNavIsLegibleOverALightHero(t *testing.T) {
+	t.Parallel()
+	root := &stage{}
+	root.putSized(&whiteHero{}, 0, 0, tvtest.Width, tvtest.Height)
+	nav := newNav(0)
+	root.putSized(nav, 0, 0, tvtest.Width, tvtest.Height)
+	tt := mount(t, root)
+	bar := element(t, tt, "div.tnav")
+	img := tt.Snapshot()
+	px := func(x, y float32) color.Color {
+		c := img.RGBAAt(int(x), int(y))
+
+		return color.RGB(c.R, c.G, c.B)
+	}
+	lum := func(c color.Color) float64 {
+		f := func(v uint8) float64 {
+			x := float64(v) / 255
+			if x <= .03928 {
+				return x / 12.92
+			}
+
+			return math.Pow((x+.055)/1.055, 2.4)
+		}
+
+		return .2126*f(c.R) + .7152*f(c.G) + .0722*f(c.B)
+	}
+	inside := px(bar.X+bar.W/2, bar.Y+3) // the pill's padding above the items
+	tx := color.RGB(244, 244, 242)
+	hi, lo := max(lum(inside), lum(tx)), min(lum(inside), lum(tx))
+	assert.GreaterOrEqual(t, (hi+.05)/(lo+.05), 4.5, "text on the pill over white: %v", inside)
+	assert.Less(t, lum(inside), lum(px(bar.X-30, bar.Y+bar.H/2)), "darker than the page")
+	ring := px(bar.X+bar.W/2, bar.Y)
+	assert.Greater(t, lum(ring), lum(inside), "the ring is lighter than the pill: %v over %v", ring, inside)
 }

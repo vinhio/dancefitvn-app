@@ -32,6 +32,9 @@ const (
 	nextTitleSize, nextTitleMaxW float32 = 28, 330
 	// nextSubSize is the span's `font-size:22px` (its opacity .7 is the rule's).
 	nextSubSize float32 = 22
+	// nextCurrentTint is the share of --pr in the fill of the lesson that plays,
+	// `.les.cur{background:rgba(255,208,40,.12)}` (index.html:93).
+	nextCurrentTint float32 = .12
 )
 
 // The numbers of the settings row `s*` (index.html:711), written inline over
@@ -49,14 +52,18 @@ const (
 // NextRow is the player's `.f.trow` of the lessons that follow (`pn*`,
 // index.html:688): 110 tall, the number in Barlow 40/800 --pr, the title (28/700
 // on one line, 330 wide at most) over its line of tag and length. The prototype's
-// inline background (--sf) and number color (--pr) beat the focus rule, so a
-// focused row keeps both and only its text turns --on (F-9, PrototypeInlineFocus);
-// it is scaled to 1.02 with the shadow of 0 20 40 .5. A Raise container paints it
+// inline background (--sf) and number color (--pr) beat the focus rule, which left
+// a focused row with --on text on --sf, unreadable over the video (F-9; K26 is
+// accepted for this row, owner 2026-11-18): focused it is --pr with --on text and
+// number, as `.trow.focus`; it is scaled to 1.02 with the shadow of 0 20 40 .5. A Raise container paints it
 // over the next row.
 type NextRow struct {
 	Item
 	// No is the number, "04"; Title the title; Sub the line under it.
 	No, Title, Sub string
+	// Current marks the lesson that is playing (K46): at rest it is tinted and its
+	// line is --pr, as the phone's `.les.cur` (index.html:93, :99).
+	Current bool
 
 	num   kit.Label
 	texts nextTexts
@@ -136,6 +143,15 @@ func NewSettingRow(key string, icn icon.Name, title, value string) *SettingRow {
 // ========================== Main functions ==========================
 // ====================================================================
 
+// SetCurrent marks or unmarks the row as the lesson that is playing; the same
+// value changes nothing.
+func (r *NextRow) SetCurrent(on bool) {
+	if on != r.Current {
+		r.Current = on
+		r.Repaint()
+	}
+}
+
 // SetSub changes the line under the title; the same text changes nothing.
 func (r *NextRow) SetSub(s string) {
 	if s != r.Sub {
@@ -178,7 +194,7 @@ func (r *NextRow) Paint(c *ui.Context, p *ui.Painter) {
 func (r *NextRow) LayoutStyle(c *ui.Context) (kit.CSS, string) {
 	look := theme.From(c)
 
-	return kit.CSS{Background: kit.CSSColor(look.T.Surface), Radius: "22px", Color: kit.CSSColor(r.ink().Of(look))},
+	return kit.CSS{Background: kit.CSSColor(r.fill(look)), Radius: "22px", Color: kit.CSSColor(r.ink().Of(look))},
 		r.No + "\n" + r.Title + "\n" + r.Sub
 }
 
@@ -274,20 +290,32 @@ func (r *NextRow) paintBody(c *ui.Context, p *ui.Painter) {
 	look := theme.From(c)
 	b := r.Bounds()
 	rowShadow(p, b, r.Blend())
-	fill := look.T.Surface // `background:#1F2125` inline, which is --sf
-	if r.IsFocused() && !PrototypeInlineFocus {
-		fill = look.T.Primary
-	}
-	p.Fill(b, scene.Solid(fill), rowRadius)
+	p.Fill(b, scene.Solid(r.fill(look)), rowRadius)
 	ink := r.ink()
 	r.texts.title.Ink = ink
 	r.texts.sub.Color = ink.Of(look).WithAlpha(rowSubOpacity) // `.tt span{opacity:.7}`
-	if r.IsFocused() && !PrototypeInlineFocus {
-		r.num.Ink = theme.InkOnPrimary
+	if r.Current && !r.IsFocused() {
+		r.texts.sub.Color = look.T.Primary.WithAlpha(rowSubOpacity) // `.les.cur .tt span{color:var(--pr)}`
+	}
+	if r.IsFocused() {
+		r.num.Ink = theme.InkOnPrimary // --pr on --pr would vanish
 	} else {
 		r.num.Ink = theme.InkPrimary // `color:var(--pr)` inline
 	}
 	r.Base.Paint(c, p)
+}
+
+// fill is `background:#1F2125` inline, which is --sf, at rest; focused it is --pr
+// (K26 accepted for `pn*`: the inline --sf left the --on text sunk in it).
+func (r *NextRow) fill(look *theme.Look) color.Color {
+	switch {
+	case r.IsFocused():
+		return look.T.Primary
+	case r.Current:
+		return look.T.Surface.Mix(look.T.Primary, nextCurrentTint) // `.les.cur{background:rgba(255,208,40,.12)}`
+	default:
+		return look.T.Surface
+	}
 }
 
 // ink is the text's color: --on focused, --tx at rest.

@@ -56,6 +56,7 @@ type tvPlayback struct {
 	player *player.Player
 	saver  *tvSaver
 	prefs  *tvPrefs
+	opts   *optionsKeeper
 	awake  *keepAwake
 	np     *nowPlaying
 
@@ -155,7 +156,8 @@ func newTVPlayback(w *tvWire) *tvPlayback {
 	if p.np != nil {
 		p.np.follow(p.player)
 	}
-	p.mirror = p.player.Mirror() // on at first, as the prototype's S.pm
+	p.mirror = p.player.Mirror() // off at first (K41); prefsOpened puts the stored one
+	p.opts = newOptionsKeeper(p.player, w.prefStore.Load, w.background, w.deps.Logf)
 	p.awake = newKeepAwake(w.deps.Awake, p.player, w.deps.Logf)
 	p.unsubs[0] = p.player.Changes().Subscribe(p.onChange)
 	p.unsubs[1] = p.late.Events().Subscribe(p.onEngine)
@@ -181,6 +183,9 @@ func (p *tvPlayback) PlayAudio(l player.Lesson, list []player.Lesson, at float64
 		p.player.Seek(at)
 	}
 }
+
+// Seek moves to sec (the scrub of the position bar); the player tells the saver.
+func (p *tvPlayback) Seek(sec float64) { p.player.Seek(sec) }
 
 // Play plays.
 func (p *tvPlayback) Play() { p.player.Play() }
@@ -467,14 +472,17 @@ func (p *tvPlayback) onChange(c player.Change) {
 	switch c.Kind {
 	case player.ChangeLesson:
 		p.picture = false
+	case player.ChangeRate:
+		p.opts.changed()
 	case player.ChangeOptions:
+		p.opts.changed()
 		if m := p.player.Mirror(); m != p.mirror {
 			p.mirror = m
 			if p.pic != nil {
 				p.pic.SetMirror(m)
 			}
 		}
-	case player.ChangeUnknown, player.ChangeState, player.ChangeTime, player.ChangeDuration, player.ChangeRate,
+	case player.ChangeUnknown, player.ChangeState, player.ChangeTime, player.ChangeDuration,
 		player.ChangeSeek, player.ChangeEnded, player.ChangeError:
 	default:
 	}
@@ -575,6 +583,7 @@ func (p *tvPlayback) prefsOpened() {
 		return
 	}
 	p.applyQuality(p.prefs.cur().Quality)
+	p.opts.opened()
 	p.devPrefs()
 }
 

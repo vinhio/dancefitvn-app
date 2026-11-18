@@ -149,18 +149,18 @@ func TestInitialAndPersistentOptions(t *testing.T) {
 	t.Parallel()
 
 	r := newRig(t, fullLength())
-	assert.InDelta(t, 0.75, r.p.Rate(), 0)
-	assert.True(t, r.p.Mirror())
-	assert.True(t, r.p.Beat())
+	assert.InDelta(t, 1, r.p.Rate(), 0, "K41: 1x, mirror and beat off")
+	assert.False(t, r.p.Mirror())
+	assert.False(t, r.p.Beat())
 	assert.False(t, r.p.Loop())
 	requireState(t, r.p, player.StateIdle)
 
 	r.playVideo(0)
-	assert.InDelta(t, 0.75, r.eng.Rate(), 0, "the engine gets the speed after the load")
+	assert.InDelta(t, 1, r.eng.Rate(), 0, "the engine gets the speed after the load")
 
 	r.p.SetRate(1.25)
-	r.p.SetMirror(false)
-	r.p.SetBeat(false)
+	r.p.SetMirror(true)
+	r.p.SetBeat(true)
 	r.p.SetLoop(true)
 	l := course()
 	r.p.PlayVideo(l[3], l)
@@ -168,8 +168,8 @@ func TestInitialAndPersistentOptions(t *testing.T) {
 
 	assert.InDelta(t, 1.25, r.p.Rate(), 0)
 	assert.InDelta(t, 1.25, r.eng.Rate(), 0)
-	assert.False(t, r.p.Mirror())
-	assert.False(t, r.p.Beat())
+	assert.True(t, r.p.Mirror())
+	assert.True(t, r.p.Beat())
 	assert.True(t, r.p.Loop())
 	assert.Equal(t, "l_4", r.p.Lesson().ID)
 }

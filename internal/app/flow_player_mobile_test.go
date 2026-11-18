@@ -248,7 +248,7 @@ func TestFlowPlayToTheEnd(t *testing.T) {
 			assert.InDelta(t, 0, pb.Pos(), 1, "resume 72 is past 12 s: it starts at 0")
 			assert.Equal(t, 1, pf.seeksTo(0), "the one seek to 0")
 
-			pf.tt.Elapse(14 * time.Second) // 12 s at .75 is 16 s
+			pf.tt.Elapse(10 * time.Second) // 12 s at 1x is 12 s
 			assert.Equal(t, env.RouteVideo, pf.route())
 			pf.until(env.RouteDone)
 			pf.shows("Xong bài 03!")

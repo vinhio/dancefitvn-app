@@ -72,10 +72,10 @@ var (
 // ====================================================================
 
 // NewFakePlayback returns a player in the state of a fresh app (player.New): idle,
-// speed 0.75, mirror on, beat on, loop off. prefs says whether AutoAdvance
+// speed 1x, mirror off, beat off, loop off. prefs says whether AutoAdvance
 // goes on; nil is on.
 func NewFakePlayback(prefs env.Prefs) *FakePlayback {
-	return &FakePlayback{state: player.StateIdle, rate: player.InitialRate, mirror: true, beat: true, prefs: prefs}
+	return &FakePlayback{state: player.StateIdle, rate: player.InitialRate, prefs: prefs}
 }
 
 // NewFakePrefs returns the preferences of a first launch: auto next on, quality auto.
@@ -236,6 +236,14 @@ func (f *FakePlayback) SeekBy(d float64) {
 	f.notef("SeekBy", d)
 	f.pos = max(0, min(f.dur-1, f.pos+d))
 	f.emit(player.ChangeSeek)
+}
+
+// PrototypeLook puts the options of the prototype's first state (S.pm of
+// $P:280: speed .75, mirror on, beat on), which the screen tests compare to the
+// prototype's boxes; the app itself starts at 1x with both off (K41). It notes
+// no call.
+func (f *FakePlayback) PrototypeLook() {
+	f.rate, f.mirror, f.beat = 0.75, true, true
 }
 
 // SetRate sets the speed.

@@ -44,6 +44,7 @@ type playback struct {
 	player *player.Player
 	saver  *wireSaver
 	prefs  *wirePrefs
+	opts   *optionsKeeper
 	awake  *keepAwake
 	np     *nowPlaying
 	unsub  func() // stops onChange
@@ -142,6 +143,7 @@ func newPlayback(w *mobileWire) *playback {
 	if p.np != nil {
 		p.np.follow(p.player)
 	}
+	p.opts = newOptionsKeeper(p.player, w.prefStore.Load, w.background, w.deps.Logf)
 	p.awake = newKeepAwake(w.deps.Awake, p.player, w.deps.Logf)
 	p.unsub = p.player.Changes().Subscribe(p.onChange)
 
@@ -508,6 +510,8 @@ func (p *wirePrefs) SetAutoNext(on bool) {
 // UI thread.
 func (p *playback) onChange(c player.Change) {
 	switch c.Kind {
+	case player.ChangeRate, player.ChangeOptions:
+		p.opts.changed()
 	case player.ChangeLesson:
 		if s := p.surface(); s != nil {
 			s.Unkeep()
@@ -519,8 +523,8 @@ func (p *playback) onChange(c player.Change) {
 		case player.StateUnknown, player.StateIdle, player.StateLoading, player.StatePlaying:
 		default:
 		}
-	case player.ChangeUnknown, player.ChangeTime, player.ChangeDuration, player.ChangeRate,
-		player.ChangeOptions, player.ChangeSeek, player.ChangeEnded, player.ChangeError:
+	case player.ChangeUnknown, player.ChangeTime, player.ChangeDuration,
+		player.ChangeSeek, player.ChangeEnded, player.ChangeError:
 	default:
 	}
 }
@@ -614,6 +618,7 @@ func (p *playback) prefsOpened() {
 		return
 	}
 	p.applyQuality(p.prefs.cur().Quality)
+	p.opts.opened()
 }
 
 // openPrefs opens the preferences and the progress queue on the state

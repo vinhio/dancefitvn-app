@@ -25,7 +25,7 @@ func TestPrefsDefaults(t *testing.T) {
 			t.Parallel()
 
 			s := store.OpenPrefs(store.NewMemory(), tt.wifiOnly)
-			assert.Equal(t, store.Prefs{WiFiOnly: tt.wifiOnly, AutoNext: true, Quality: store.QualityAuto}, s.Get())
+			assert.Equal(t, store.Prefs{WiFiOnly: tt.wifiOnly, AutoNext: true, Quality: store.QualityAuto, Speed: 1}, s.Get())
 			assert.NoError(t, s.LoadErr())
 		})
 	}
@@ -40,6 +40,7 @@ func TestPrefsPersistAcrossOpen(t *testing.T) {
 		p.WiFiOnly = false
 		p.AutoNext = false
 		p.Quality = store.QualityP720
+		p.Speed, p.Mirror, p.Beat = 1.25, true, true
 		p.Scenarios = map[string]string{"me.get": "token_expired"}
 	}))
 
@@ -47,6 +48,7 @@ func TestPrefsPersistAcrossOpen(t *testing.T) {
 	require.NoError(t, again.LoadErr())
 	assert.Equal(t, store.Prefs{
 		WiFiOnly: false, AutoNext: false, Quality: store.QualityP720,
+		Speed: 1.25, Mirror: true, Beat: true,
 		Scenarios: map[string]string{"me.get": "token_expired"},
 	}, again.Get(), "the stored wifi_only wins over the config default")
 }
@@ -59,7 +61,7 @@ func TestPrefsFileFormat(t *testing.T) {
 	require.NoError(t, s.Update(func(p *store.Prefs) { p.Quality = store.QualityP480 }))
 	raw, err := b.Load("prefs")
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"wifi_only":true,"auto_next":true,"quality":"480p"}`, string(raw))
+	assert.JSONEq(t, `{"wifi_only":true,"auto_next":true,"quality":"480p","speed":1,"mirror":false,"beat":false}`, string(raw))
 }
 
 func TestPrefsMissingFieldsKeepDefaults(t *testing.T) {
@@ -71,6 +73,34 @@ func TestPrefsMissingFieldsKeepDefaults(t *testing.T) {
 	assert.True(t, p.WiFiOnly)
 	assert.True(t, p.AutoNext)
 	assert.Equal(t, store.QualityP1080, p.Quality)
+	assert.InDelta(t, 1, p.Speed, 0, "K41: no speed stored is 1x")
+	assert.False(t, p.Mirror)
+	assert.False(t, p.Beat)
+}
+
+func TestPrefsSpeedOutOfRangeIsDefault(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		raw  string
+		want float64
+	}{
+		{"kept", `{"speed":0.5}`, 0.5},
+		{"top kept", `{"speed":1.5}`, 1.5},
+		{"zero", `{"speed":0}`, 1},
+		{"negative", `{"speed":-2}`, 1},
+		{"too fast", `{"speed":9}`, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			b := store.NewMemory()
+			b.Put("prefs", []byte(tt.raw))
+			assert.InDelta(t, tt.want, store.OpenPrefs(b, true).Get().Speed, 0)
+		})
+	}
 }
 
 func TestPrefsBadRecord(t *testing.T) {

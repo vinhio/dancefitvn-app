@@ -56,6 +56,20 @@ const (
 // barBg is `.tnav{background:rgba(255,255,255,.06)}` (:183).
 var barBg = color.RGBA(255, 255, 255, .06)
 
+// barScrim is the dark backdrop under barBg (K42, owner 2026-11-18): the prototype's
+// pill is white at .06, which a hero picture of a like colour swallows, items
+// and all. At .6 over white the pill is still a mid gray (102) that --tx text
+// holds 5:1 on.
+var barScrim = color.RGBA(0, 0, 0, .6)
+
+// barRing is the thin light ring of the pill, white at .3, 1 DIP inside it, as
+// the video's round buttons have (K35, kit.RoundButton.Ring), so that its edge
+// shows over a picture as dark as the scrim.
+var barRing = color.RGBA(255, 255, 255, .3)
+
+// barRingWidth is the ring's width.
+const barRingWidth float32 = 1
+
 // Nav is the navigation of the four root screens: `.tlogo`, `.tnav` and `.tav`
 // of tnav(a) (index.html:643). It takes all the room its parent gives and
 // places the three parts as the prototype's absolute positions do, the bar in
@@ -202,7 +216,10 @@ func (b *navBar) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 
 // Paint draws the pill, then the items; the focused one is painted last.
 func (b *navBar) Paint(c *ui.Context, p *ui.Painter) {
-	p.Fill(b.Bounds(), scene.Solid(barBg), barRadius)
+	r := b.Bounds()
+	p.Fill(r, scene.Solid(barScrim), barRadius) // K42
+	p.Fill(r, scene.Solid(barBg), barRadius)
+	p.Border(r, geom.Uniform(barRingWidth), barRing, barRadius) // K42
 	PaintRaised(c, p, &b.Base)
 }
 
@@ -296,15 +313,14 @@ func (it *NavItem) fill(look *theme.Look) color.Color {
 	}
 }
 
-// ink is the text color: --on focused, --tx for the item that is on, --tx2
-// otherwise.
+// ink is the text color: --on focused, --tx otherwise. The prototype has --tx2
+// for the items that are not on (`.tnav .f`, :184); it is gray on gray over a
+// hero picture of a like colour, so they are --tx like the one that is on (K42),
+// which the --sf2 fill and the bold still tell apart.
 func (it *NavItem) ink() theme.Ink {
-	switch {
-	case it.IsFocused():
+	if it.IsFocused() {
 		return theme.InkOnPrimary
-	case it.IsOn():
-		return theme.InkText
-	default:
-		return theme.InkText2
 	}
+
+	return theme.InkText
 }

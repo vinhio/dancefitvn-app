@@ -104,8 +104,8 @@ func TestSayPerfVideo(t *testing.T) {
 		pos, tick float64
 		suffix    string
 	}{
-		{"ticks stopped, phone", true, "amp", 7.5, 1.5, " media=amp"},
-		{"ticks stopped, TV", true, "", 7.5, 1.5, ""},
+		{"ticks stopped, phone", true, "amp", 9.75, 1.75, " media=amp"},
+		{"ticks stopped, TV", true, "", 9.75, 1.75, ""},
 		{"nothing loaded", false, "amp", 0, 0, " media=amp"},
 	}
 	for _, tc := range tests {
@@ -124,12 +124,12 @@ func TestSayPerfVideo(t *testing.T) {
 			if tc.play {
 				l := player.Lesson{ID: "l_1", CourseID: "c", DurationSec: 12}
 				p.PlayVideo(l, []player.Lesson{l})
-				tt.Elapse(2 * time.Second) // 1.5 s of media at the fresh 0.75
+				tt.Elapse(2 * time.Second) // 2 s of media at the fresh 1x
 				require.Equal(t, player.StatePlaying, p.State())
-				require.InDelta(t, 1.5, p.Pos(), 0.2)
+				require.InDelta(t, 1.75, p.Pos(), 0.2)
 				eng.SetBackground(true) // the engine plays on and tells no time
 				tt.Elapse(8 * time.Second)
-				require.InDelta(t, 1.5, p.Pos(), 0.2, "no tick moved it")
+				require.InDelta(t, 1.75, p.Pos(), 0.2, "no tick moved it")
 			}
 			l := &testLog{}
 			sayPerfVideo(l.add, p, "at", tc.media, time.UnixMilli(1_234))

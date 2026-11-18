@@ -68,8 +68,8 @@ const (
 // at the right the check of the current speed (34, stroke 3) or a value in 26
 // at .75. Focused it is --pr with --on text, with no shadow and no scale
 // (`#tv .topt.focus`, :198). `oc` has `background:var(--sf2)` inline, which
-// the focus rule does not beat (F-9, PrototypeInlineFocus): it stays --sf2 and
-// the text turns --on.
+// which beats the focus rule (F-9): it stayed --sf2 under --on text, unreadable
+// (K26 is accepted for this row, owner 2026-11-18); focused it is --pr with --on.
 //
 // Set Key to the `data-fid` (it is also the Name layout.json knows the row by)
 // and OnSelect to the `data-tact`.
@@ -278,8 +278,8 @@ func (o *Opt) paintBody(c *ui.Context, p *ui.Painter) {
 // fill at rest (the panel's --sf shows).
 func (o *Opt) fill(look *theme.Look) color.Color {
 	switch {
-	case o.Kind == OptClose && (!o.IsFocused() || PrototypeInlineFocus):
-		return look.T.Surface2
+	case o.Kind == OptClose && !o.IsFocused():
+		return look.T.Surface2 // K26 (accepted for `oc`): focused it is --pr, as the other rows
 	case o.IsFocused():
 		return look.T.Primary
 	default:

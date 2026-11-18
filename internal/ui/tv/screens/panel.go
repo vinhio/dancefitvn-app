@@ -190,5 +190,6 @@ func (s *Player) dropPanel() {
 		s.Remove(s.panel.Panel)
 		s.panel = nil
 		s.Relayout()
+		s.touch() // K46: the 3 s of the chrome begin when the panel is gone
 	}
 }

@@ -30,6 +30,9 @@ type Playback struct {
 	Prev_, Next_          bool
 	Picture               bool
 
+	// Seeks are the positions Seek was asked for, in order.
+	Seeks []float64
+
 	// Calls counts the calls by name ("PlayVideo", "Pause", ...); Placed is the
 	// last rectangle of Place; OnPlace, when set, is told of each Place (the
 	// plane of AttachPlane).
@@ -96,6 +99,16 @@ func (p *Playback) SetLoop(on bool) { p.call("SetLoop"); p.LoopV = on }
 
 // SetBeat records the call and sets the option.
 func (p *Playback) SetBeat(on bool) { p.call("SetBeat"); p.BeatV = on }
+
+// Seek records the call and the position asked for, moves there and tells the
+// listeners.
+func (p *Playback) Seek(sec float64) {
+	p.call("Seek")
+	p.Seeks = append(p.Seeks, sec)
+	p.PosV = sec
+	p.Publish(player.ChangeTime) // as the player: the time of the jump, then the jump
+	p.Publish(player.ChangeSeek)
+}
 
 // Prev records the call.
 func (p *Playback) Prev() { p.call("Prev") }

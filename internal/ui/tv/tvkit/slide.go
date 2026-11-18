@@ -47,14 +47,26 @@ const (
 type Slide struct {
 	ui.Base
 
+	// BleedLeft and BleedTop widen the clip, beyond the Slide's box, to the left
+	// and to the top by that many DIPs: room for the scaled, ringed focused item
+	// of the first column and of the first row (K45). The box, the placement and
+	// the scroll arithmetic are not changed. Zero is the prototype's clip.
+	BleedLeft, BleedTop float32
+	// Span, when set, returns the height from the top of the focused item f that
+	// scrollTV keeps inside the clip, in place of f's own height: the item plus
+	// the lines under it (K45). Nil is `el.offsetHeight`.
+	Span func(f ui.Widget) float32
+
 	head    ui.Widget
 	content ui.Widget
 
-	off    ui.Animated[float32] // the offset the content is shown at; it glides to target
-	target float32              // the offset the content is placed at, 0 or more
-	fresh  bool                 // the next layout sets the offset without a glide
-	headH  float32              // the heading's height, where the content starts
-	stop   func()
+	off            ui.Animated[float32] // the offset the content is shown at; it glides to target
+	target         float32              // the offset the content is placed at, 0 or more
+	fresh          bool                 // the next layout sets the offset without a glide
+	want           bool                 // Reveal asked: the next layout puts the item at wantTop in view
+	wantTop, wantH float32              // the item Reveal asked for, relative to the content
+	headH          float32              // the heading's height, where the content starts
+	stop           func()
 
 	// inner, drawContent, c and p paint the clip's content: made once, so that
 	// a frame allocates nothing.
@@ -123,6 +135,15 @@ func (s *Slide) SetContent(w ui.Widget) {
 	s.Relayout()
 }
 
+// Reveal asks for the item whose box is top..top+h in the content (unshifted) to be
+// in view at the next layout, with no glide, by the rule scrollTV applies to a
+// focused item (a list that opens on a lesson that is not the first, K46). Later
+// focus changes inside the content scroll from there as always.
+func (s *Slide) Reveal(top, h float32) {
+	s.want, s.wantTop, s.wantH = true, top, h
+	s.Relayout()
+}
+
 // Mounted starts following the focus.
 func (s *Slide) Mounted(*ui.Context) {
 	if v := s.View(); v != nil && s.stop == nil {
@@ -161,6 +182,11 @@ func (s *Slide) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 		}
 		s.off.Set(s.target)
 	}
+	if s.want {
+		s.want = false
+		s.target = max(0, s.headH+s.wantTop-(size.H-s.wantH-SlideMargin))
+		s.off.Set(s.target)
+	}
 	c.Place(s.content, geom.Pt(0, s.headH-s.target))
 
 	return size
@@ -170,7 +196,9 @@ func (s *Slide) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 // content moved by what is left of the glide.
 func (s *Slide) Paint(c *ui.Context, p *ui.Painter) {
 	s.c, s.p = c, p
-	p.Clip(s.Bounds(), 0, s.inner)
+	b := s.Bounds()
+	b.X, b.Y, b.W, b.H = b.X-s.BleedLeft, b.Y-s.BleedTop, b.W+s.BleedLeft, b.H+s.BleedTop
+	p.Clip(b, 0, s.inner)
 	s.c, s.p = nil, nil
 }
 
@@ -220,7 +248,11 @@ func (s *Slide) focusChanged(_, now ui.Widget) {
 // clipH less f's and 80.
 func (s *Slide) targetFor(f ui.Widget, clipH float32) float32 {
 	top := f.Node().WindowFrame().Y - s.WindowFrame().Y + s.target
-	lim := clipH - f.Node().Frame().H - SlideMargin
+	h := f.Node().Frame().H
+	if s.Span != nil {
+		h = s.Span(f)
+	}
+	lim := clipH - h - SlideMargin
 
 	return max(0, top-lim)
 }

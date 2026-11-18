@@ -52,6 +52,17 @@ const (
 	coursesMetaTop, coursesMetaSize, coursesMetaSpacing float32 = 8, 22, 1.5
 )
 
+// The room the grid's clip gives the focused tile (K45), in DIPs: the ring (6) and
+// the scale (1.06 of 540 x 304 grows 16.2 x 9.1 on a side) of a first-column and
+// of a first-row tile, with a margin for the anti-aliasing of the ring.
+const (
+	// coursesBleedLeft is how far the clip reaches left of `left:90px`.
+	coursesBleedLeft float32 = 24
+	// coursesBleedTop is how far the clip reaches above `top:350px`; the chips end
+	// at 306 and, focused, at 314, so 330 is clear of them.
+	coursesBleedTop float32 = 20
+)
+
 // The filters, `['Tất cả','Thường','Đặc biệt','Giới thiệu']` (:673).
 const coursesFilters = 4
 
@@ -280,8 +291,32 @@ func (g *courseGrid) Layout(c *ui.Context, cs ui.Constraints) geom.Size {
 	return cs.Constrain(geom.Sz(cs.Max.W, y))
 }
 
-// Paint draws the cells, the focused tile last.
-func (g *courseGrid) Paint(c *ui.Context, p *ui.Painter) { tvkit.PaintRaised(c, p, &g.Base) }
+// Paint draws the cells, the focused tile last and then its own name and
+// category line: the tile's drop shadow (0 26 50 .6) falls on them and dimmed them
+// to grey, where the prototype's z-index leaves them under it (K45).
+func (g *courseGrid) Paint(c *ui.Context, p *ui.Painter) {
+	var top *courseCell
+	for _, cell := range g.cells {
+		if cell.tile.IsFocused() {
+			top = cell
+
+			break
+		}
+	}
+	if top == nil {
+		g.Base.Paint(c, p)
+
+		return
+	}
+	for w := range g.Children() {
+		if w != ui.Widget(top.tile) && w != ui.Widget(top.caption) && w != ui.Widget(top.meta) {
+			p.Child(c, w)
+		}
+	}
+	p.Child(c, top.tile)
+	p.Child(c, top.caption)
+	p.Child(c, top.meta)
+}
 
 // ====================================================================
 // ========================= Helper Functions =========================
@@ -327,6 +362,8 @@ func (s *Courses) show(c *ui.Context, page model.CoursePage) {
 	}
 	b.slide = tvkit.NewSlide(nil, s.newGrid())
 	b.slide.Name = nameCoursesGrid
+	b.slide.BleedLeft, b.slide.BleedTop = coursesBleedLeft, coursesBleedTop
+	b.slide.Span = cellSpan
 	b.Add(b.slide)
 	b.Relayout()
 	if s.anchor != nil {
@@ -424,6 +461,26 @@ func (s *Courses) newCell(i int, course model.Course) *courseCell {
 	meta.Name = nameCoursesMeta
 
 	return &courseCell{tile: tile, caption: capLabel, meta: meta, cat: course.Category}
+}
+
+// cellSpan is the height scrollTV keeps in view for the focused tile f: the tile,
+// the name and the category line under it, where the prototype's `el.offsetHeight`
+// is the tile alone and the category line of a focused row ends up 12 below the
+// bottom edge, cut off (K45).
+func cellSpan(f ui.Widget) float32 {
+	for w := f; w != nil; w = w.Node().Parent() {
+		if g, ok := w.(*courseGrid); ok {
+			for _, cell := range g.cells {
+				if ui.Widget(cell.tile) == f {
+					return cell.meta.Frame().Max().Y - cell.tile.Frame().Y
+				}
+			}
+
+			break
+		}
+	}
+
+	return f.Node().Frame().H
 }
 
 // layout places the cell at (x, y) and returns its height: the poster, 24, the

@@ -162,8 +162,18 @@ func (r *rig) boxes(t *testing.T, id string) {
 // boxesLoose is boxes with a wider tolerance for the keys of loose.
 func (r *rig) boxesLoose(t *testing.T, id string, loose map[string]float32) {
 	t.Helper()
+	r.boxesSkip(t, id, loose, nil)
+}
+
+// boxesSkip is boxesLoose leaving out the keys skip is true for (the parts that a
+// K row changes, which the test checks on its own).
+func (r *rig) boxesSkip(t *testing.T, id string, loose map[string]float32, skip func(key string) bool) {
+	t.Helper()
 	lay := r.layout()
 	for _, key := range tvtest.ProtoKeys(t, id) {
+		if skip != nil && skip(key) {
+			continue
+		}
 		e, ok := lay.Find(key)
 		if !assert.True(t, ok, "%s has no element %q", id, key) {
 			continue

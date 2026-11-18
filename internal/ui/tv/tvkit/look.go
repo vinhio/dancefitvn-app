@@ -33,10 +33,12 @@ const (
 	DropY, DropBlur, DropAlpha float32 = 26, 50, .6
 )
 
-// PrototypeInlineFocus reproduces the five places where the prototype's inline
-// styles beat the focus CSS (F-9 of local/plans/P7.md, K26 proposed): a row
-// that keeps its inline fill or ink while focused. true is the prototype; the
-// user may flip it to focus fill and ink everywhere (Q-P7-3).
+// PrototypeInlineFocus reproduces the places where the prototype's inline
+// styles beat the focus CSS (F-9 of local/plans/P7.md, K26): a control that keeps
+// its inline fill or ink while focused. true is the prototype. The next-lesson
+// rows `pn*` and `oc` are out of it (K26 accepted for them, owner 2026-11-18: their
+// --on text sank into the inline --sf and --sf2): they take the focus fill. The
+// filter chip and the red logout row still follow it; false makes them focus too.
 var PrototypeInlineFocus = true
 
 // ====================================================================

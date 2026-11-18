@@ -263,6 +263,32 @@ func TestPlayPauseOnlyWithAHandler(t *testing.T) {
 	assert.Empty(t, r.tt.Leaks())
 }
 
+// TestOnKeyHookTakesButtonsUntilRemoved: the hook sees every button before the focus
+// does and a button it takes does nothing else; a stale remove leaves a newer hook
+// alone (K46: a player opened over a player).
+func TestOnKeyHookTakesButtonsUntilRemoved(t *testing.T) {
+	t.Parallel()
+	r := open(t, env.RouteHome, false)
+	var seen []focus.Button
+	remove := r.sh.OnKey(func(b focus.Button) bool { seen = append(seen, b); return b == focus.ButtonRight })
+	before := r.key()
+	assert.True(t, r.press(keys.KeyRight), "taken")
+	assert.Equal(t, before, r.key(), "the focus did not move")
+	r.press(keys.KeyDown)
+	assert.Equal(t, focus.ButtonRight, seen[0], "Right came once and was taken")
+	assert.Contains(t, seen[1:], focus.ButtonDown, "Down went on to the focus") // an untaken button is asked by the Shell and by the Root
+
+	var second int
+	remove2 := r.sh.OnKey(func(focus.Button) bool { second++; return false })
+	remove() // the first screen leaving after the second took the hook
+	r.press(keys.KeyDown)
+	assert.Positive(t, second, "the newer hook stays")
+	remove2()
+	n := second
+	r.press(keys.KeyDown)
+	assert.Equal(t, n, second, "removed")
+}
+
 // TestSelectOnReleaseAndHold: a short press activates on release (K27); a hold
 // activates once at 550 ms and the release then does nothing.
 func TestSelectOnReleaseAndHold(t *testing.T) {

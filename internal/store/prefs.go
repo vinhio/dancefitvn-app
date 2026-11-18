@@ -14,6 +14,10 @@ import (
 // ============================ Contracts =============================
 // ====================================================================
 
+// DefaultSpeed is the video speed when none was ever chosen (K41): 1x, with
+// the mirror and the beat bar off.
+const DefaultSpeed = 1.0
+
 // PrefsKey is the Backend key of the preferences: <data>/prefs.json
 // (docs/plan/05-data.md §6).
 const PrefsKey = "prefs"
@@ -39,6 +43,13 @@ type Prefs struct {
 	WiFiOnly bool    `json:"wifi_only"`
 	AutoNext bool    `json:"auto_next"`
 	Quality  Quality `json:"quality"`
+	// Speed, Mirror and Beat are the last video options the user chose
+	// (K41): the speed (0.5 to 1.5), the mirror and the beat bar. They are
+	// never the A–B loop or the audio repeat, which are specific to a
+	// position or a track.
+	Speed  float64 `json:"speed"`
+	Mirror bool    `json:"mirror"`
+	Beat   bool    `json:"beat"`
 	// Scenarios is the mock scenario of each route (route id to name), the
 	// dev menu's choice; empty in the live app.
 	Scenarios map[string]string `json:"scenarios,omitzero"`
@@ -61,7 +72,7 @@ type PrefsStore struct {
 
 // DefaultPrefs returns the preferences of a first launch.
 func DefaultPrefs(wifiOnlyDefault bool) Prefs {
-	return Prefs{WiFiOnly: wifiOnlyDefault, AutoNext: true, Quality: QualityAuto}
+	return Prefs{WiFiOnly: wifiOnlyDefault, AutoNext: true, Quality: QualityAuto, Speed: DefaultSpeed}
 }
 
 // OpenPrefs loads the preferences from b. Nothing stored, or a stored record
@@ -83,6 +94,7 @@ func OpenPrefs(b Backend, wifiOnlyDefault bool) *PrefsStore {
 		}
 	}
 	s.p.Quality = s.p.Quality.orAuto()
+	s.p.Speed = validSpeed(s.p.Speed)
 
 	return s
 }
@@ -109,6 +121,7 @@ func (s *PrefsStore) Update(fn func(*Prefs)) error {
 	p := clonePrefs(s.p)
 	fn(&p)
 	p.Quality = p.Quality.orAuto()
+	p.Speed = validSpeed(p.Speed)
 	s.p = p
 	raw, err := json.Marshal(p)
 	if err != nil {
@@ -230,6 +243,16 @@ func (q Quality) orAuto() Quality {
 	}
 
 	return q
+}
+
+// validSpeed keeps a stored speed in the sheet's range 0.5 to 1.5; anything
+// else (absent, NaN, out of range) is DefaultSpeed.
+func validSpeed(v float64) float64 {
+	if !(v >= 0.5 && v <= 1.5) {
+		return DefaultSpeed
+	}
+
+	return v
 }
 
 func clonePrefs(p Prefs) Prefs {

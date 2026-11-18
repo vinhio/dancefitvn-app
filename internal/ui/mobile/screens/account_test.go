@@ -16,6 +16,7 @@ import (
 	"dancefitvn-app/internal/ui/mobile/screens"
 	"dancefitvn-app/internal/ui/mobile/shell/shelltest"
 
+	"github.com/gdeskdev/desk/foundation/core/geom"
 	"github.com/gdeskdev/desk/foundation/scene"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -184,7 +185,7 @@ func TestAccountManyBadgesStayInTheScreen(t *testing.T) {
 	t.Parallel()
 
 	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
-		for _, n := range []int{1, 3, 4, 5, 8} {
+		for _, n := range []int{1, 3, 4, 5, 8, 12, 20} {
 			f, err := shelltest.New(shelltest.MockFS(t))
 			require.NoError(t, err)
 			require.NoError(t, f.SeedSession())
@@ -207,6 +208,42 @@ func TestAccountManyBadgesStayInTheScreen(t *testing.T) {
 					overlap := fr.X < o.X+o.W-.5 && o.X < fr.X+fr.W-.5 && fr.Y < o.Y+o.H-.5 && o.Y < fr.Y+fr.H-.5
 					assert.False(t, overlap, "n=%d badges %d and %d apart", n, j, i)
 				}
+			}
+		}
+	})
+}
+
+// TestAccountEveryBadgeCanBeScrolledTo is K44 on the phone: however many badges there
+// are (8, 12, 20), the page keeps them all, on further lines of three, and scrolling
+// the page brings each one into the screen, whole.
+func TestAccountEveryBadgeCanBeScrolledTo(t *testing.T) {
+	t.Parallel()
+
+	kittest.ForEachPhone(t, func(t *testing.T, ph kittest.Phone) {
+		for _, n := range []int{8, 12, 20} {
+			f, err := shelltest.New(shelltest.MockFS(t))
+			require.NoError(t, err)
+			require.NoError(t, f.SeedSession())
+			_, err = f.Restore(ctx())
+			require.NoError(t, err)
+			e := env.New(manyBadges{Fake: f, n: n}, texts())
+			e.Act = &recorder{}
+			a := screens.NewAccount(e)
+			tt := kittest.MountReal(t, ph, a)
+			kittest.PinMotion(tt)
+			tt.RunUntilIdle()
+			require.Len(t, a.Badges(), n)
+			sc := a.Scroll()
+			for i, b := range a.Badges() {
+				fr := b.Node().WindowFrame()
+				if fr.Y < 0 || fr.Y+fr.H > ph.Size.H {
+					sc.ScrollBy(geom.Pt(0, fr.Y-ph.Size.H/2))
+					tt.Elapse(kittest.Frame)
+					tt.RunUntilIdle()
+					fr = b.Node().WindowFrame()
+				}
+				assert.GreaterOrEqual(t, fr.Y, float32(0), "n=%d badge %d scrolled into the screen", n, i)
+				assert.LessOrEqual(t, fr.Y+fr.H, ph.Size.H, "n=%d badge %d scrolled into the screen", n, i)
 			}
 		}
 	})

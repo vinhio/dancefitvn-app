@@ -34,7 +34,7 @@ func TestSetRate(t *testing.T) {
 	for _, bad := range []float64{0, -1, math.NaN()} {
 		r.p.SetRate(bad)
 	}
-	assert.InDelta(t, 0.75, r.p.Rate(), 0)
+	assert.InDelta(t, 1, r.p.Rate(), 0)
 }
 
 func TestSetRateBeforeAnyLoadIsKept(t *testing.T) {
@@ -80,23 +80,26 @@ func TestCycleRate(t *testing.T) {
 		seen = append(seen, r.p.Rate())
 		r.p.CycleRate()
 	}
-	assert.Equal(t, []float64{0.75, 1, 1.25, 0.75}, seen)
+	assert.Equal(t, []float64{1, 1.25, 0.75, 1}, seen)
 }
 
 func TestToggles(t *testing.T) {
 	t.Parallel()
 
 	r := newRig(t, fullLength())
-	r.p.SetMirror(false)
-	r.p.SetMirror(false) // no change, no event
+	r.p.SetMirror(false) // already off: no change, no event
 	r.p.SetBeat(false)
-	assert.False(t, r.p.Mirror())
-	assert.False(t, r.p.Beat())
-	assert.Equal(t, []player.ChangeKind{player.ChangeOptions, player.ChangeOptions}, r.kinds())
+	assert.Empty(t, r.kinds())
 	r.p.SetMirror(true)
+	r.p.SetMirror(true) // no change, no event
 	r.p.SetBeat(true)
 	assert.True(t, r.p.Mirror())
 	assert.True(t, r.p.Beat())
+	assert.Equal(t, []player.ChangeKind{player.ChangeOptions, player.ChangeOptions}, r.kinds())
+	r.p.SetMirror(false)
+	r.p.SetBeat(false)
+	assert.False(t, r.p.Mirror())
+	assert.False(t, r.p.Beat())
 }
 
 func TestABSetAndClear(t *testing.T) {

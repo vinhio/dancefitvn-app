@@ -125,7 +125,9 @@ func New(fsys fs.FS) (*Fake, error) {
 		now: DemoNow, bio: sys.BiometryNone,
 		prefs: NewFakePrefs(),
 	}
-	f.pb = NewFakePlayback(f.prefs)
+	pb := NewFakePlayback(f.prefs)
+	pb.PrototypeLook()
+	f.pb = pb // the screen tests compare to the prototype (K41: the app starts at 1x, both off)
 	f.acct = newFakeAccount(f)
 	tr, err := mock.New(fsys, mock.Options{Wait: func(ctx context.Context, _ time.Duration) error { return ctx.Err() }})
 	if err != nil {

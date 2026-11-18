@@ -176,7 +176,8 @@ func TestA11yReadingOrderIsVisualOrder(t *testing.T) {
 		"TV07": {
 			"DanceFIT Set 35 · BÀI 03 / 10", "Stink and Dutty", "Bụng", "Video dọc 9:16", "Tốc độ 0.75x", "Lật gương",
 			"Thanh đếm nhịp", "01:12", "03:40", "Vị trí phát", "Phát", "Tuỳ chọn",
-			"TIẾP THEO", "04 · Em Yêu Người Ta", "05 · Hãy Hát Lên", "06 · Nadi Nadi", "07 · Viva La Vida",
+			"BÀI HỌC", "01 · DanceFIT Warm Up 13", "02 · Made You Look", "03 · Stink and Dutty", "04 · Em Yêu Người Ta",
+			"05 · Hãy Hát Lên", "06 · Nadi Nadi", "07 · Viva La Vida", "08 · We So Fly", "09 · WET", "10 · One Love",
 		},
 		"TV08": {
 			"Tuỳ chọn phát", "Tốc độ", "0.5x", "0.75x", "1x", "1.25x", "Hình ảnh & lặp", "Lật gương", "Lặp đoạn A–B",
@@ -247,7 +248,7 @@ func TestA11yPositionBarsHaveAReading(t *testing.T) {
 		r := openAt(t, playerState(t), nav.Route{Screen: env.RoutePlayer}, false)
 		r.tt.View().Context().Theme().ReduceMotion = true
 		r.settle()
-		bar, ok := findNode(r.tt.Semantics(), "Vị trí phát", platform.RoleText)
+		bar, ok := findNode(r.tt.Semantics(), "Vị trí phát", platform.RoleSlider) // K43: the bar is a control now
 		require.True(t, ok)
 		assert.Equal(t, "01:12 / 03:40", bar.Value)
 		told := func() int { // the clock's text lays out: the tick is told as a layout change, a bare value as a value one
@@ -257,8 +258,8 @@ func TestA11yPositionBarsHaveAReading(t *testing.T) {
 		pb := r.playback()
 		pb.Tick(73.4)
 		r.settle()
-		r.tt.Elapse(time.Second) // a value change is told once the quiet time has passed
-		bar, _ = findNode(r.tt.Semantics(), "Vị trí phát", platform.RoleText)
+		r.tt.Elapse(time.Second)                                                // a value change is told once the quiet time has passed
+		bar, _ = findNode(r.tt.Semantics(), "Vị trí phát", platform.RoleSlider) // K43: the bar is a control now
 		assert.Equal(t, "01:13 / 03:40", bar.Value, "the next second")
 		assert.Greater(t, told(), changes, "the new second tells the screen reader")
 	})
@@ -284,7 +285,7 @@ func TestA11yPanelHushesThePlayerUnderIt(t *testing.T) {
 	r.tt.View().Context().Theme().ReduceMotion = true
 	r.settle()
 	sem := r.tt.Semantics()
-	for _, l := range []string{"Phát", "Tuỳ chọn", "TIẾP THEO", "04 · Em Yêu Người Ta", "Stink and Dutty", "Vị trí phát", "Thanh đếm nhịp"} {
+	for _, l := range []string{"Phát", "Tuỳ chọn", "BÀI HỌC", "04 · Em Yêu Người Ta", "Stink and Dutty", "Vị trí phát", "Thanh đếm nhịp"} {
 		require.Truef(t, hasLabel(sem, l), "%q is read before the panel opens", l)
 	}
 	changes := r.tt.SemanticsChanges(platform.ChangeScreen)
@@ -295,7 +296,7 @@ func TestA11yPanelHushesThePlayerUnderIt(t *testing.T) {
 	assert.Greater(t, r.tt.SemanticsChanges(platform.ChangeScreen), changes, "the panel tells a new screen")
 
 	sem = r.tt.Semantics()
-	for _, l := range []string{"Phát", "Tuỳ chọn", "TIẾP THEO", "04 · Em Yêu Người Ta", "Stink and Dutty", "Vị trí phát", "01:12", "Tốc độ 0.75x"} {
+	for _, l := range []string{"Phát", "Tuỳ chọn", "BÀI HỌC", "04 · Em Yêu Người Ta", "Stink and Dutty", "Vị trí phát", "01:12", "Tốc độ 0.75x"} {
 		assert.Falsef(t, hasLabel(sem, l), "%q is read under the panel", l)
 	}
 	assert.False(t, r.tt.PerformAction("Phát", platform.ActPress), "nothing under the panel takes a press")

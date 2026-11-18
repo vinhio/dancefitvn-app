@@ -73,7 +73,8 @@ func TestSettingsText(t *testing.T) {
 
 // TestSettingsBadgesStayOnTheCard is defect 3.1: with any number of badges, the medals
 // (with their captions) and the hint stay inside the 600 by 840 card, apart from one
-// another and short of the settings list; three of them are the prototype's 140 DIPs.
+// another on a page and short of the settings list; they are the prototype's 140 DIPs
+// at any number, the ones past three taking turns (K44, medal_row_test.go).
 func TestSettingsBadgesStayOnTheCard(t *testing.T) {
 	t.Parallel()
 	names := []string{"HDV_DANCEFIT", "HDV_STEPX", "HDV_BODYX", "FOUNDER_CEO", "DANCEFIT_MASTER_TRAINER", "HDV_ZUMBA", "HDV_AEROBIC", "HDV_YOGA"}
@@ -92,25 +93,31 @@ func TestSettingsBadgesStayOnTheCard(t *testing.T) {
 			medals := card.Medals()
 			require.Len(t, medals, n)
 			prev := cf.X
+			last := cf.Y
+			row := card.Row()
 			for i, m := range medals {
 				f := m.Node().WindowFrame()
+				if i == 0 || row.PageOf(i) != row.PageOf(i-1) {
+					prev = cf.X // a new page starts over from the card's edge
+				}
+				last = max(last, f.Y+f.H)
 				assert.GreaterOrEqual(t, f.X, cf.X, "medal %d inside the card", i)
 				assert.LessOrEqual(t, f.X+f.W, cf.X+cf.W+.5, "medal %d inside the card", i)
 				assert.LessOrEqual(t, f.Y+f.H, cf.Y+cf.H, "medal %d above the card's end", i)
 				assert.GreaterOrEqual(t, f.X, prev-.5, "medal %d clear of the one before", i)
 				prev = f.X + f.W
-				if n <= 3 {
-					assert.InDelta(t, tvkit.MedalSize, m.Size(), .01, "the prototype's size")
-				}
+				assert.InDelta(t, tvkit.MedalSize, m.Size(), .01, "the prototype's size")
 			}
 			hint, ok := r.layout().Find("tv.settings.hint")
 			require.True(t, ok)
 			assert.LessOrEqual(t, float32(hint.Y+hint.H), cf.Y+cf.H, "the hint on the card")
-			last := medals[n-1].Node().WindowFrame()
-			assert.LessOrEqual(t, last.Y+last.H, float32(hint.Y)+.5, "the medals over the hint")
+			assert.LessOrEqual(t, last, float32(hint.Y)+.5, "the medals over the hint")
 			list, ok := r.layout().Find("s0")
 			require.True(t, ok)
-			assert.Less(t, last.X+last.W, float32(list.X), "short of the settings list")
+			for _, m := range medals {
+				f := m.Node().WindowFrame()
+				assert.Less(t, f.X+f.W, float32(list.X), "short of the settings list")
+			}
 		})
 	}
 }
