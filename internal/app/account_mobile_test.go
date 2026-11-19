@@ -609,43 +609,52 @@ func TestWireLogoutWaitsForTheLastSave(t *testing.T) {
 func TestWireLoginWaitsForLogout(t *testing.T) {
 	t.Parallel()
 
-	for _, bio := range []bool{false, true} {
-		name := map[bool]string{false: "password", true: "biometry"}[bio]
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+	t.Run("password", func(t *testing.T) {
+		t.Parallel()
 
-			pr := newPlayRig(t, "", nil)
-			pr.bio.SetKind(sys.BiometryFace)
-			pr.signIn()
-			release := pr.st.holdRequest("auth.logout")
-			done, errc := logoutAsync(pr.w)
-			pr.drive("the server told", func() bool { return pr.st.calledN("auth.logout") == 1 })
+		pr := newPlayRig(t, "", nil)
+		pr.signIn()
+		release := pr.st.holdRequest("auth.logout")
+		done, errc := logoutAsync(pr.w)
+		pr.drive("the server told", func() bool { return pr.st.calledN("auth.logout") == 1 })
 
-			logins := pr.st.calledN("auth.login") + pr.st.calledN("auth.refresh")
-			loginDone := make(chan error, 1)
-			go func() {
-				if bio {
-					loginDone <- pr.w.BioLogin(t.Context(), sys.BioPrompt{Reason: "x"})
-
-					return
-				}
-				loginDone <- pr.w.Login(t.Context(), "coach@example.invalid", "secret1")
-			}()
-			for range 50 {
-				pr.q.drain()
-				runtime.Gosched()
-			}
-			assert.Equal(t, logins, pr.st.calledN("auth.login")+pr.st.calledN("auth.refresh"), "the sign-in waits")
-
-			release()
-			<-done
-			require.NoError(t, <-errc)
-			require.NoError(t, <-loginDone)
+		logins := pr.st.calledN("auth.login") + pr.st.calledN("auth.refresh")
+		loginDone := make(chan error, 1)
+		go func() {
+			loginDone <- pr.w.Login(t.Context(), "coach@example.invalid", "secret1")
+		}()
+		for range 50 {
 			pr.q.drain()
-			_, signed := pr.w.mgr.Session()
-			assert.True(t, signed, "the new session stays")
-		})
-	}
+			runtime.Gosched()
+		}
+		assert.Equal(t, logins, pr.st.calledN("auth.login")+pr.st.calledN("auth.refresh"), "the sign-in waits")
+
+		release()
+		<-done
+		require.NoError(t, <-errc)
+		require.NoError(t, <-loginDone)
+		pr.q.drain()
+		_, signed := pr.w.mgr.Session()
+		assert.True(t, signed, "the new session stays")
+	})
+	// A kept biometric copy: the server is not told (Q-bio-logout), so the
+	// copy's refresh token stays valid for the sign-in that follows.
+	t.Run("biometry", func(t *testing.T) {
+		t.Parallel()
+
+		pr := newPlayRig(t, "", nil)
+		pr.bio.SetKind(sys.BiometryFace)
+		pr.signIn()
+		require.NoError(t, pr.w.Logout(t.Context()))
+		pr.q.drain()
+		assert.Zero(t, pr.st.calledN("auth.logout"), "a kept copy: the server is not told")
+		_, signed := pr.w.mgr.Session()
+		assert.False(t, signed)
+		require.NoError(t, pr.w.BioLogin(t.Context(), sys.BioPrompt{Reason: "x"}))
+		pr.q.drain()
+		_, signed = pr.w.mgr.Session()
+		assert.True(t, signed)
+	})
 	t.Run("context ends", func(t *testing.T) {
 		t.Parallel()
 

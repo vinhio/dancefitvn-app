@@ -175,9 +175,9 @@
 
 | ID | Trạng thái (chưa đề xuất / đã đề xuất / đồng ý / xong / không cần) | Dự phòng đang dùng | Ghi chú |
 |---|---|---|---|
-| G1 | đã đề xuất (2026-11-14) | F1 | GẤP cho tvOS: Caches có thể bị xoá → TV đăng xuất |
+| G1 | **xong** (chủ gDesk duyệt 2026-11-19 "Duyệt G1 (B)"; làm 2026-11-19, chưa commit) | F1 chỉ còn là fallback của `WithFallback` (iOS ký ad hoc/simulator build: -34018 → `ErrUnsupported`) | gDesk: `foundation/ffi/keychain` (darwin + uikit), `uikit/secret.go` (Keychain, AfterFirstUnlockThisDeviceOnly, không iCloud), `android/secret{,_android}.go` (Keystore AES-256-GCM, tệp no-backup); app: xoá Keychain của lần cài trước ở lần mở đầu (dấu `keychain-cleared`), F1 cũ vẫn đọc được. Kiểm: macOS keychain, iOS 27 sim, Android emulator API 35 PASS; tvOS sim (thiếu runtime) và máy thật chưa |
 | G2 | đã đề xuất (2026-11-15) | F2 (đã chạy thật iPhone sim P6.3) | G2a thư viện; G2b camera tuỳ chọn |
-| G3 | đã đề xuất (2026-11-14) | F6 (đã chạy thật P3.2b) | G3a: `kits/cli` thiếu `NSFaceIDUsageDescription` — **release-critical** cho iOS (P8): bản ký bằng `gdesk package` crash khi mở Face ID; `release.sh` vá tạm trước khi ký (Q-P8-9) |
+| G3 | G3a **xong** (chủ gDesk duyệt 2026-11-19 "Duyệt G3a"; làm 2026-11-19, chưa commit); G3b đã đề xuất (2026-11-14) | F6 (đã chạy thật P3.2b) | G3a: `gdesk.json` `ios.privacy.faceID` → `NSFaceIDUsageDescription` do `gdesk build` ghi; `ios-faceid-plist.sh` giữ làm lưới an toàn (cùng giá trị) |
 | G4 | đã đề xuất (2026-11-14) | F4 | F4 chép jplayer-mobile 49de3c2 ở P5.1: iPhone + Apple TV sim PASS; Android chờ emulator |
 | G5a | đã đề xuất (2026-11-15) | F5a (objc beginBackgroundTask trong app) | xin thêm thời gian nền |
 | G5b | đã đề xuất (2026-11-15) | F5 (tải khi app mở + nối Range) | tải nền hệ thống |
@@ -307,6 +307,7 @@ Ghi chú hiệu năng (P8.4, 2026-11-16; số đo đầy đủ ở `local/p8/per
 | Q-P3.2-1 | Snap gốc icon theo DIP nguyên (Chrome snap phần tử thay thế theo CSS px); mở rộng Button/Chip/LessonRow + viền/khung ở P3.7 | 2026-11-15 (orchestrator) |
 | Q-P3.2-2 | Chữ "hoặc" ẩn cùng nút sinh trắc học | 2026-11-15 (mặc định) |
 | Q-P3.2b-1 | Server ép đăng xuất (refresh bị từ chối) → xoá luôn bản sao sinh trắc học | 2026-11-15 (mặc định) |
+| Q-bio-logout | Đăng xuất trên điện thoại khi còn bản sao sinh trắc học (BioSlot + HasBio) thì app KHÔNG gọi `auth.logout`, chỉ xoá phiên chính tại máy (Vault.Clear, cache); server giữ thiết bị đăng nhập, refresh token còn hạn đến khi hết hạn hoặc thiết bị bị gỡ. Không có bản sao: gọi `auth.logout` như cũ. TV (`tv.logout`) và server ép đăng xuất (xoá bản sao, Q-P3.2b-1) giữ nguyên. Lý do: B2 — `auth.logout` thu hồi refresh token mà bản sao dùng chung, nên Face ID/vân tay hỏng sau đăng xuất (thấy trên iPhone thật, production). Người dùng chọn "Chỉ sửa app" | 2026-11-19 (người dùng) |
 | Q-P3.2b-2 | Câu mô tả Face ID (NSFaceIDUsageDescription): script đọc từ `vi.json`, không để cứng | 2026-11-15 (orchestrator) |
 | Q-P3.3-1 | Home dùng tuỳ chọn tràn lề của `nav.Page` thay cho bản sao `homeFrame` | 2026-11-15 (orchestrator) |
 | Q-P3.3-2 | Ảnh đại diện Home: thêm nguồn URL vào Services sau P3.1 (tránh sửa Services song song); tạm vẽ người mặc định, che khi so pixel | 2026-11-15 (mặc định) |

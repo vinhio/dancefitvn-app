@@ -153,8 +153,8 @@ func TestGdeskJSONRelease(t *testing.T) {
 	c := loadConfig(t)
 
 	assert.Equal(t, "com.jivecode.dancefitvn", c.ID)
-	assert.Equal(t, "1.0.0", c.Version, "Q-P8-5")
-	assert.Equal(t, 1, c.Build, "Q-P8-5: CFBundleVersion 1, versionCode 1000001")
+	assert.Equal(t, "1.0.1", c.Version, "Q-P8-5")
+	assert.Equal(t, 2, c.Build, "Q-P8-5: CFBundleVersion 2, versionCode 1000102")
 	assert.Equal(t, 36, c.Android.TargetSdk, "Q-P8-6")
 	assert.Equal(t, []string{"127.0.0.1"}, c.Android.CleartextHosts, "cleartext to the loopback alone (Q-P8-23)")
 	assert.ElementsMatch(t, []string{"USE_BIOMETRIC", "ACCESS_NETWORK_STATE"}, c.Android.Permissions)

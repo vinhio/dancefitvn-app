@@ -16,7 +16,7 @@ import (
 // appVersion is gdesk.json's version, sent as X-App-Version
 // (TestAppVersionIsGdeskJSONs keeps them equal) and shown in the footers
 // of screen 15 and TV12 (K2).
-const appVersion = "1.0.0"
+const appVersion = "1.0.1"
 
 // The files of the app's folders, on the phone and on the TV.
 const (

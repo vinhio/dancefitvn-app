@@ -254,6 +254,13 @@ func (m *Manager) Refresh(ctx context.Context, failed string) (string, error) {
 // and the API cache. Downloaded files stay (05 §6). The error is only the
 // Vault's: when it cannot forget the session, the user would be signed in
 // again at the next launch. OnSignedOut is not called.
+//
+// When the Vault keeps a biometric copy (HasBio) and this is no TV, the
+// server is not told (Q-bio-logout): the server's auth.logout revokes the
+// device and its refresh token, and the copy holds that same token, so
+// the telling would make the next biometric sign-in fail. The server keeps
+// the device signed in; the token stays valid until it expires or the
+// device is removed. Without a copy, auth.logout is called as always.
 func (m *Manager) Logout(ctx context.Context) error {
 	m.mu.Lock()
 	has, r := m.has, m.remote
@@ -262,12 +269,12 @@ func (m *Manager) Logout(ctx context.Context) error {
 	// end drops its OnSignedOut until this Logout is done.
 	m.ending = has
 	m.mu.Unlock()
-	if has && r != nil {
-		if m.opts.TV {
-			_ = r.LogoutTV(ctx)
-		} else {
-			_ = r.Logout(ctx)
-		}
+	switch {
+	case !has || r == nil:
+	case m.opts.TV:
+		_ = r.LogoutTV(ctx)
+	case !m.HasBio():
+		_ = r.Logout(ctx)
 	}
 
 	return m.end(nil, 0, false)

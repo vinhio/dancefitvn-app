@@ -45,7 +45,8 @@ var (
 	// cleared.
 	ErrNoBio = fmt.Errorf("auth: no biometric sign-in kept: %w", core.ErrNotFound)
 	// ErrBioExpired is the copy's refresh token refused by the server
-	// (refresh_invalid: revoked, expired, logout revoked it, Q-P3-5): the
+	// (refresh_invalid: revoked, expired, the device removed, Q-P3-5; Logout
+	// does not call auth.logout while a copy is kept, Q-bio-logout): the
 	// copy is cleared and the login screen says the session expired.
 	ErrBioExpired = fmt.Errorf("auth: the biometric sign-in expired: %w", ErrSignedOut)
 )
@@ -54,7 +55,9 @@ var (
 // for the biometric sign-in (slot, K13): every Save writes both, so the
 // copy follows each login and each rotation of the refresh token; Clear
 // (Logout, a refused session) forgets the main one only, so after
-// "Đăng xuất" the user signs in again with their face or finger. The
+// "Đăng xuất" the user signs in again with their face or finger. As the
+// copy holds the token the server's auth.logout would revoke, Manager.Logout
+// does not call it while a copy is kept (Q-bio-logout). The
 // copy holds the refresh token, the user and the device, never the
 // access token. It is safe for concurrent use as far as its Vaults are.
 type BioVault struct {

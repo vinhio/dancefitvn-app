@@ -23,6 +23,10 @@ const (
 	secretsFile = "secrets.json" // the F1 store, AES-256-GCM sealed
 	secretsKey  = "secrets.key"  // its random key (secret.FileKey.KeyPath)
 	damagedTag  = ".bad-"        // what a store moved aside is suffixed with, then the Unix time
+	// clearedMark tells that the keychain's items of an earlier install
+	// were cleared (clearStaleKeychain): iOS keeps Keychain items after
+	// the app is deleted, while SecretDir goes with it.
+	clearedMark = "keychain-cleared"
 )
 
 // ====================================================================
@@ -30,10 +34,12 @@ const (
 // ====================================================================
 
 // Secrets keeps the app's secrets (the session's tokens, 05 §6): in the
-// system's keychain once gDesk's drivers keep secrets (G1), until then in
-// the F1 file store of SecretDir, which the system does not back up. It
+// system's keychain where gDesk's driver keeps secrets (G1: the iOS and
+// tvOS Keychain, Android's Keystore), otherwise in the F1 file store of
+// SecretDir, which the system does not back up (an iOS app signed
+// without the keychain's entitlement, desktop systems without one). It
 // is secret.WithFallback(secret.NewStore(d, AppID), the file store), so
-// values written to the file stay readable after G1 lands.
+// values written to the file before G1 stay readable after it.
 //
 // The keychain's calls run on the UI thread (bridge/system.Service):
 // where the driver keeps secrets, each call goes through invoke, which
@@ -54,6 +60,10 @@ type Secrets struct {
 // (host.App.Invoke); it may be nil only while d keeps no secrets. A
 // store that its key does not open (damaged, or its key lost) is moved
 // aside and an empty one used: the user signs in again (Damaged tells).
+// The first open of an install (SecretDir without its mark) clears what
+// the keychain kept for AppID before: iOS keeps Keychain items after the
+// app is deleted, so a reinstalled app would find an earlier install's
+// tokens.
 func OpenSecrets(d platform.Driver, invoke func(func()) error) (*Secrets, error) {
 	dir, err := SecretDir()
 	if err != nil {
@@ -135,6 +145,9 @@ func openSecrets(primary secret.Store, systemKeeps bool, invoke func(func()) err
 	s := &Secrets{dir: dir}
 	if systemKeeps {
 		s.invoke = invoke
+		if err := s.clearStaleKeychain(primary); err != nil {
+			slog.Warn("sys: secrets: the keychain's items of an earlier install were not cleared", "err", err)
+		}
 	}
 	file, err := openFileStore(dir)
 	if isUnreadable(err) {
@@ -178,6 +191,47 @@ func moveAside(dir string, now time.Time) (string, error) {
 	}
 
 	return store + suffix, nil
+}
+
+// clearStaleKeychain deletes every account primary (the keychain) holds,
+// once per install: when s.dir has no clearedMark, which it then gets.
+// The keychain's items outlive the app on iOS, its folders do not, so
+// the items found then are an earlier install's. A keychain that cannot
+// list (core.ErrUnsupported: an app signed without the keychain's
+// entitlement) leaves the mark unwritten, to try again at the next
+// launch; the fallback file store is never touched.
+func (s *Secrets) clearStaleKeychain(primary secret.Store) error {
+	mark := filepath.Join(s.dir, clearedMark)
+	if _, err := os.Stat(mark); err == nil {
+		return nil
+	}
+	var (
+		accounts []string
+		err      error
+	)
+	if ierr := s.call(func() { accounts, err = primary.List() }); ierr != nil {
+		return ierr
+	}
+	if errors.Is(err, core.ErrUnsupported) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, a := range accounts {
+		var derr error
+		if ierr := s.call(func() { derr = primary.Delete(a) }); ierr != nil {
+			return ierr
+		}
+		if derr != nil {
+			return derr
+		}
+	}
+	if len(accounts) > 0 {
+		slog.Info("sys: secrets: cleared the keychain's items of an earlier install", "count", len(accounts))
+	}
+
+	return writeAtomic(mark, []byte("1\n"))
 }
 
 // call runs fn through invoke where the keychain needs the UI thread,

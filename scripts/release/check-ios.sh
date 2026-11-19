@@ -19,8 +19,8 @@
 # Xcode, App Transport Security holding NSAllowsLocalNetworking alone
 # (gdesk.json's localNetworking: loopback http for a developer's server;
 # no arbitrary loads). iOS: the icon by name (iPhone and iPad), the four
-# iPad orientations, NSFaceIDUsageDescription (scripts/ios-faceid-plist.sh
-# until gDesk's G3a). tvOS: UIDeviceFamily [3], the App Icon stack and
+# iPad orientations, NSFaceIDUsageDescription (gdesk.json ios.privacy.faceID,
+# gDesk G3a). tvOS: UIDeviceFamily [3], the App Icon stack and
 # the Top Shelf images (Assets.car). Assets.car (assetutil): the icon, the
 # launch color. PrivacyInfo.xcprivacy: at the bundle's top, the same as
 # gdesk.json's ios/tvos.privacyManifest, its collected data types valid
@@ -142,7 +142,7 @@ if [ $sys = ios ]; then
 	done
 	[ $n -eq 4 ] && ok "UISupportedInterfaceOrientations~ipad: the 4 orientations" || fail "UISupportedInterfaceOrientations~ipad has $n of the 4 orientations (ITMS-90474)"
 	face=$(get NSFaceIDUsageDescription) && ok "NSFaceIDUsageDescription = $face" ||
-		fail "Info.plist has no NSFaceIDUsageDescription (Face ID crashes without it: scripts/ios-faceid-plist.sh, gDesk G3a)"
+		fail "Info.plist has no NSFaceIDUsageDescription (Face ID crashes without it: gdesk.json ios.privacy.faceID, gDesk G3a)"
 else
 	want CFBundleSupportedPlatforms.0 AppleTVOS
 	fam=$(json UIDeviceFamily | tr -d ' \n')

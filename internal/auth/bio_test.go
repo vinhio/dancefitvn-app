@@ -340,6 +340,7 @@ func newBioRig(t *testing.T, keep func() bool) *bioRig {
 		rig:  &rig{mock: m, spy: &spy{inner: m}, vault: auth.NewMemoryVault(), cache: cache},
 		slot: auth.NewMemoryVault(),
 	}
+	r.spy.onLogout = revokeOnLogout(m)
 	r.bio = auth.NewBioVault(r.vault, r.slot, keep)
 	r.mgr, err = auth.New(auth.Options{
 		Vault:      r.bio,
@@ -361,6 +362,12 @@ func newBioRig(t *testing.T, keep func() bool) *bioRig {
 	return r
 }
 
+// revokeOnLogout makes auth.refresh refuse from the first auth.logout on,
+// as production does (docs/BLOCKERS.md B2).
+func revokeOnLogout(m *mock.Transport) func() {
+	return func() { _ = m.SetScenario("auth.refresh", "refresh_invalid") }
+}
+
 // signInAndOut logs in with the password, then out: the copy stays.
 func signInAndOut(t *testing.T, r *bioRig) model.Session {
 	t.Helper()
@@ -371,4 +378,59 @@ func signInAndOut(t *testing.T, r *bioRig) model.Session {
 	require.Zero(t, r.spy.count("auth.refresh"))
 
 	return s
+}
+
+// TestLogoutWithBioCopy checks Q-bio-logout against a server that revokes the
+// refresh token on auth.logout: with a copy kept the server is not told and
+// the biometric sign-in works after; without one it is told.
+func TestLogoutWithBioCopy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		keep       func() bool
+		wantLogout int
+		wantBio    bool
+	}{
+		{name: "copy kept", wantLogout: 0, wantBio: true},
+		{name: "no copy", keep: func() bool { return false }, wantLogout: 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := newBioRig(t, tc.keep)
+			_, err := r.mgr.Login(t.Context(), "a@b.c", "x")
+			require.NoError(t, err)
+			require.NoError(t, r.mgr.Logout(t.Context()))
+			assert.Equal(t, tc.wantLogout, r.spy.count("auth.logout"))
+			assert.False(t, r.vault.Has(), "the session is gone")
+			assert.Equal(t, tc.wantBio, r.mgr.HasBio())
+			assert.Empty(t, r.outs())
+
+			s, err := r.mgr.BioLogin(t.Context(), func(context.Context) error { return nil })
+			if !tc.wantBio {
+				require.ErrorIs(t, err, auth.ErrNoBio)
+
+				return
+			}
+			require.NoError(t, err)
+			assert.NotEmpty(t, s.AccessToken)
+			assert.True(t, r.mgr.HasBio())
+		})
+	}
+}
+
+// TestLogoutTVCallsServerWithCopy keeps TV logout as it was.
+func TestLogoutTVCallsServerWithCopy(t *testing.T) {
+	t.Parallel()
+
+	r := newRig(t, true)
+	r.mgr, _ = auth.New(auth.Options{Vault: auth.NewBioVault(r.vault, auth.NewMemoryVault(), nil), TV: true})
+	r.mgr.Bind(r.api)
+	_, err := r.mgr.Login(t.Context(), "a@b.c", "x")
+	require.NoError(t, err)
+	require.True(t, r.mgr.HasBio())
+	require.NoError(t, r.mgr.Logout(t.Context()))
+	assert.Equal(t, 1, r.spy.count("tv.logout"))
 }

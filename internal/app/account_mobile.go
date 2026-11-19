@@ -247,7 +247,7 @@ func (w *mobileWire) PairConfirm(ctx context.Context, code string) (model.PairCo
 // here, within logoutBudget, the save of the position that Leave started is
 // waited for (progress.Tracker.Wait: online it is sent, offline it is
 // queued), then the queue is sent once with the token still valid. Then the
-// session ends (auth.logout told, best effort; the vault and the cache
+// session ends (auth.logout told, best effort, unless a biometric copy is kept, Q-bio-logout; the vault and the cache
 // cleared) and the queue is emptied, so that no position of this user goes
 // out with the next one's token. The downloaded files stay (Q-P5-8). A Login
 // begun meanwhile waits for it. Not on the UI thread: the end of a save runs

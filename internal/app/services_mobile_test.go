@@ -39,6 +39,30 @@ func TestAppVersionIsGdeskJSONs(t *testing.T) {
 	assert.Equal(t, cfg.Version, appVersion)
 }
 
+// TestFaceIDUsageIsGdeskJSONs checks that the sentence iOS shows for Face
+// ID (gdesk.json's ios.privacy.faceID, NSFaceIDUsageDescription) is the
+// app's bio.faceIdUsage of locales/vi.json.
+func TestFaceIDUsageIsGdeskJSONs(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../gdesk.json")
+	require.NoError(t, err)
+	var cfg struct {
+		IOS struct {
+			Privacy struct {
+				FaceID string `json:"faceID"`
+			} `json:"privacy"`
+		} `json:"ios"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &cfg))
+	raw, err = os.ReadFile("../../locales/vi.json")
+	require.NoError(t, err)
+	var vi map[string]string
+	require.NoError(t, json.Unmarshal(raw, &vi))
+	require.NotEmpty(t, vi["bio.faceIdUsage"])
+	assert.Equal(t, vi["bio.faceIdUsage"], cfg.IOS.Privacy.FaceID)
+}
+
 // TestWireSessionLifecycle walks a phone through two launches: no session,
 // a sign-in that keeps the session and the email, then a second launch on
 // the same vault that finds both.

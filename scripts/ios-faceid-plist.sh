@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Writes NSFaceIDUsageDescription into an iOS app's Info.plist and signs
-# the app again, so that Face ID works in it (F6). kits/cli writes no
-# privacy sentence for iOS (gDesk proposal G3a); without the key iOS
-# refuses Face ID, and internal/sys hides the Face ID button (Biometry
-# answers BiometryNone) rather than failing. Remove this step once G3a
-# lands and gdesk.json carries ios.privacy.faceID.
+# the app again, so that Face ID works in it (F6). Since gDesk's G3a,
+# gdesk build writes the key itself from gdesk.json's ios.privacy.faceID
+# (the same sentence, locales/vi.json's bio.faceIdUsage, which
+# internal/app's TestFaceIDUsageIsGdeskJSONs holds equal): this script
+# then sets the value it already has, a safety net for a gdesk older
+# than G3a. Without the key iOS refuses Face ID, and internal/sys hides
+# the Face ID button (Biometry answers BiometryNone) rather than failing.
 #
 #   scripts/ios-faceid-plist.sh [--nosign] <App.app> [sentence]
 #

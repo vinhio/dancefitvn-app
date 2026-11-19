@@ -13,9 +13,9 @@
 #   scripts/release.sh -h | --help
 #
 # ios, tvos  gdesk build -os <sys> -device -release -tags live; on iOS
-#            scripts/ios-faceid-plist.sh --nosign writes
-#            NSFaceIDUsageDescription (gDesk G3a pending: gdesk package
-#            would ship without it and Face ID would crash). With
+#            gdesk build writes NSFaceIDUsageDescription from gdesk.json
+#            (gDesk G3a) and scripts/ios-faceid-plist.sh --nosign sets it
+#            again (a safety net for an older gdesk). With
 #            gdesk.json's signing.iosIdentity and signing.iosProfile
 #            (tvOS: signing.tvosProfile) it then signs the app as gdesk
 #            package does (kits/cli pack.go: the profile embedded, the
@@ -287,7 +287,7 @@ doctor() {
 	fi
 	say INFO art "icon.png and the tvOS brand assets come from docs/brand (generate.sh, cmd/brandcheck)"
 	if grep -q 'NSFaceIDUsageDescription' "$root/../gdesk-dancefitvn-app/kits/cli/plist.go" 2>/dev/null; then
-		say INFO faceid "kits/cli writes NSFaceIDUsageDescription (G3a): ios-faceid-plist.sh may go"
+		say INFO faceid "kits/cli writes NSFaceIDUsageDescription from gdesk.json (G3a); ios-faceid-plist.sh only sets it again"
 	else
 		say INFO faceid "kits/cli writes no NSFaceIDUsageDescription (G3a pending): this script patches it before signing"
 	fi

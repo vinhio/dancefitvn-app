@@ -28,7 +28,7 @@ const (
 )
 
 // noSecretsDriver is a driver without a keychain, as gDesk's uikit and
-// android drivers are until G1.
+// android drivers were before G1.
 type noSecretsDriver struct{ platform.UnimplementedDriver }
 
 // nopHost is an AppHost that does nothing, for starting a fake driver.
@@ -108,7 +108,81 @@ func TestSecretsKeychainGoesThroughInvoke(t *testing.T) {
 	_, err = os.Stat(filepath.Join(dir, secretsFile))
 	require.ErrorIs(t, err, os.ErrNotExist, "the keychain holds it: nothing in the file")
 	require.NoError(t, s.Delete(testAccount))
-	assert.Equal(t, int32(3), calls.Load())
+	assert.Equal(t, int32(4), calls.Load(), "the keychain's list as it opened, then set, get, delete")
+}
+
+// unlistedStore is a keychain that keeps secrets but cannot list them,
+// as one without the keychain's entitlement answers.
+type unlistedStore struct{ *secret.MemoryStore }
+
+func (unlistedStore) List() ([]string, error) { return nil, core.ErrUnsupported }
+
+// TestSecretsClearStaleKeychain clears the keychain's items once per
+// install (iOS keeps them after the app is deleted): at the first open
+// of a secret folder without its mark, never again after the mark,
+// never the file store's values, and not (to try again later) when the
+// keychain cannot list or invoke fails, opening anyway.
+func TestSecretsClearStaleKeychain(t *testing.T) {
+	t.Parallel()
+
+	const staleAccount = "11111111-1111-4111-8111-111111111111"
+	direct := func(fn func()) error { fn(); return nil }
+	tests := []struct {
+		name     string
+		primary  func() secret.Store
+		invoke   func(func()) error
+		fileHeld bool // the install has F1 values already (an update)
+		cleared  bool // the stale items are gone
+		marked   bool
+	}{
+		{name: "fresh install", primary: func() secret.Store { return secret.NewMemoryStore() }, invoke: direct, cleared: true, marked: true},
+		{name: "update from F1", primary: func() secret.Store { return secret.NewMemoryStore() }, invoke: direct, fileHeld: true, cleared: true, marked: true},
+		{name: "no list", primary: func() secret.Store { return unlistedStore{secret.NewMemoryStore()} }, invoke: direct},
+		{name: "invoke fails", primary: func() secret.Store { return secret.NewMemoryStore() }, invoke: func(func()) error { return core.ErrClosed }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := filepath.Join(t.TempDir(), "secret")
+			if tc.fileHeld {
+				before, err := openSecrets(secret.NewStore(noSecretsDriver{}, AppID), false, nil, dir)
+				require.NoError(t, err)
+				require.NoError(t, before.Set(testAccount, []byte(testValue)))
+			}
+			primary := tc.primary()
+			for _, a := range []string{staleAccount, staleAccount + ".bio"} {
+				require.NoError(t, primary.Set(a, []byte("stale")))
+			}
+
+			s, err := openSecrets(primary, true, tc.invoke, dir)
+			require.NoError(t, err, "opens whatever the clearing did")
+			_, err = primary.Get(staleAccount)
+			if tc.cleared {
+				require.ErrorIs(t, err, core.ErrNotFound)
+			} else {
+				require.NoError(t, err)
+			}
+			_, err = os.Stat(filepath.Join(dir, clearedMark))
+			assert.Equal(t, tc.marked, err == nil, "the mark")
+			if tc.fileHeld {
+				got, err := s.Get(testAccount)
+				require.NoError(t, err, "the file store's value stays")
+				assert.Equal(t, testValue, string(got))
+			}
+			if !tc.marked {
+				return
+			}
+
+			// The next launch clears nothing: the items are this install's.
+			require.NoError(t, primary.Set(testAccount, []byte(testValue)))
+			_, err = openSecrets(primary, true, tc.invoke, dir)
+			require.NoError(t, err)
+			got, err := primary.Get(testAccount)
+			require.NoError(t, err)
+			assert.Equal(t, testValue, string(got))
+		})
+	}
 }
 
 func TestSecretsReadsFileValuesAfterKeychainArrives(t *testing.T) {

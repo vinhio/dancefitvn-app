@@ -61,6 +61,9 @@ func (e assertErr) Error() string { return string(e) }
 type spy struct {
 	inner api.Transport
 	hook  func(req *api.Request) (*api.Response, error, bool)
+	// onLogout runs when auth.logout reaches the transport; the rigs use it
+	// to revoke the refresh token as production does (B2).
+	onLogout func()
 
 	mu    sync.Mutex
 	calls map[string]int
@@ -73,6 +76,9 @@ func (s *spy) Do(ctx context.Context, req *api.Request) (*api.Response, error) {
 	}
 	s.calls[req.RouteID]++
 	s.mu.Unlock()
+	if req.RouteID == "auth.logout" && s.onLogout != nil {
+		s.onLogout()
+	}
 	if s.hook != nil {
 		if resp, err, ok := s.hook(req); ok {
 			return resp, err
@@ -137,6 +143,7 @@ func newRig(t *testing.T, tv bool) *rig {
 	cache := store.OpenCache(filepath.Join(t.TempDir(), "api"), 0)
 	t.Cleanup(cache.Close)
 	r := &rig{mock: m, spy: &spy{inner: m}, vault: auth.NewMemoryVault(), cache: cache}
+	r.spy.onLogout = revokeOnLogout(m)
 	r.mgr, err = auth.New(auth.Options{
 		Vault: r.vault,
 		TV:    tv,

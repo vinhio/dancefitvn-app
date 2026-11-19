@@ -10,7 +10,7 @@
 # An .aab needs bundletool (BUNDLETOOL or on the PATH: validate, dump
 # manifest); an .apk is read with the SDK's apkanalyzer, apksigner and
 # zipalign. The manifest: package and versionName of gdesk.json,
-# versionCode (EXPECT_VERSION_CODE, default 1000001: 1.0.0 build 1),
+# versionCode (EXPECT_VERSION_CODE, default 1000102: 1.0.1 build 2),
 # minSdk 26, targetSdk 36 (EXPECT_TARGET_SDK), exactly the permissions
 # the app asks for (gdesk.json's USE_BIOMETRIC and ACCESS_NETWORK_STATE,
 # gDesk's INTERNET, its media service's and its receiver's), not
@@ -195,7 +195,7 @@ else:
           f"network security config: base cleartext {None if base is None else base.get('cleartextTrafficPermitted')}, cleartext domains {doms}")
 PY
 if [ $manifest_ok = 1 ]; then
-	tally < <(python3 -I "$tmp/manifest.py" "$tmp/manifest.xml" "$tmp/nsc.xml" "$pkg" "$(cfg version)" "${EXPECT_VERSION_CODE:-1000001}" "${EXPECT_TARGET_SDK:-36}")
+	tally < <(python3 -I "$tmp/manifest.py" "$tmp/manifest.xml" "$tmp/nsc.xml" "$pkg" "$(cfg version)" "${EXPECT_VERSION_CODE:-1000102}" "${EXPECT_TARGET_SDK:-36}")
 fi
 
 # ---- native code -------------------------------------------------------

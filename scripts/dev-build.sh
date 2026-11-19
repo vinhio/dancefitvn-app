@@ -11,9 +11,9 @@
 #   scripts/dev-build.sh ios|android|tvos [gdesk build flags...]
 #
 # gdesk build takes -tags itself (kits/cli README: a -tags in GOFLAGS would
-# be replaced). An iOS build then gets NSFaceIDUsageDescription
-# (scripts/ios-faceid-plist.sh, until gDesk's G3a), so that Face ID works in
-# it. Extra tags: DFV_TAGS=a,b.
+# be replaced). gdesk build writes NSFaceIDUsageDescription from
+# gdesk.json (gDesk's G3a); scripts/ios-faceid-plist.sh then sets the same
+# value again, a safety net for an older gdesk. Extra tags: DFV_TAGS=a,b.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -11,8 +11,9 @@ Helper scripts for builds and shots of the mobile app. Adapted from
   also logged as base64 lines). iOS reads them from the environment
   (`SIMCTL_CHILD_DFV_STATE=M02 xcrun simctl launch …`), Android from the
   launch intent's string extras (`am start … --es DFV_STATE M02`). An iOS
-  build then runs `ios-faceid-plist.sh`. Plain `gdesk build` ships without
-  any of it. `DFV_TAGS=a,b` adds tags. The downloads' variables are
+  build then runs `ios-faceid-plist.sh` (gdesk build already writes
+  `NSFaceIDUsageDescription` from gdesk.json, G3a). Plain `gdesk build`
+  ships without the variables. `DFV_TAGS=a,b` adds tags. The downloads' variables are
   below (`net.sh`).
 - `shot.sh <ID[,ID…]> ios|android|tester [-compare]`: draws states and
   writes `<ID>.png` and `<ID>.layout.json` (docs/plan/07-testing.md §3.3):
@@ -68,7 +69,9 @@ Helper scripts for builds and shots of the mobile app. Adapted from
 - `ios-faceid-plist.sh [--nosign] <App.app> [sentence]`: writes
   `NSFaceIDUsageDescription` (the key `bio.faceIdUsage` of
   `locales/vi.json`, or `$DFV_FACEID_USAGE`) into an iOS build and signs it
-  again (F6, until gDesk's G3a); `--nosign` leaves the signature to
+  again (F6). Since gDesk's G3a gdesk build writes the same key from
+  gdesk.json's `ios.privacy.faceID`, so the script only sets it again, a
+  safety net for an older gdesk; `--nosign` leaves the signature to
   `release.sh`.
 - `check-livebuild.sh [ios] [tvos] [android]` (adapted from
   `jplayer-mobile/scripts/check-storebuild.sh` at 49de3c2): the live build
@@ -250,7 +253,8 @@ release path uses it.
   each in `SHA256SUMS`, the output of every check (`<artefact>.check.txt`)
   and what each build comes from (`<base>-<sys>.provenance.txt`):
   - iOS, tvOS: `gdesk build -device -release`; iOS then
-    `ios-faceid-plist.sh --nosign` (G3a pending). With gdesk.json's
+    `ios-faceid-plist.sh --nosign`, which sets the key gdesk build already
+    wrote from gdesk.json (G3a). With gdesk.json's
     `signing.iosIdentity` and `signing.iosProfile`/`tvosProfile` the app is
     signed as `gdesk package` signs (profile embedded, its entitlements) into
     `DanceFITVN-<version>-<build>[-tvos].ipa`; without them
@@ -289,7 +293,7 @@ release path uses it.
   prohibited functions), the ObjC selectors against the SDK headers, the
   signature, `DSYM=` UUID, sizes.
 - `release/check-android.sh <apk|aab> [--install [serial…]]` (adapted
-  from jplayer-mobile at 49de3c2): the manifest (package, version 1000001,
+  from jplayer-mobile at 49de3c2): the manifest (package, version 1000102,
   min 26, target 36, exactly the permissions, not debuggable, cleartext to
   127.0.0.1 alone, Back, portrait, media service), arm64-v8a only, 16 KB
   LOAD alignment and zipalign, signer, sizes (APK download estimate from
